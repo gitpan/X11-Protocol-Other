@@ -1,0 +1,54 @@
+This file contains message digests of all files listed in MANIFEST,
+signed via the Module::Signature module, version 0.66.
+
+To verify the content in this distribution, first make sure you have
+Module::Signature installed, then type:
+
+    % cpansign -v
+
+It will check each file's integrity, as well as the signature's
+validity.  If "==> Signature verified OK! <==" is not displayed,
+the distribution may already have been compromised, and you should
+not run its Makefile.PL or Build.PL.
+
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+SHA1 842745cb706f8f2126506f544492f7a80dbe29b3 COPYING
+SHA1 be437e686f76a6d62afa70a2d13911c867595699 Changes
+SHA1 15d04f4a0045a0f60c58ed7eab2072e045fe5f1f MANIFEST
+SHA1 6c771cc4b0718f7bc9c9af01889700d7bce0a8e6 MANIFEST.SKIP
+SHA1 d8470864cdad35485ca6d32fc67efb5356bd034b META.yml
+SHA1 66a129041bf7d1d15867e4661a83ba16374bed7a Makefile.PL
+SHA1 db73a408e88fa79642bba8fe9df0a76123686e64 debian/changelog
+SHA1 ac3478d69a3c81fa62e60f5c3696165a4e5e6ac4 debian/compat
+SHA1 a18b09064fe9afd616b5624b2f1930ac5aa608ab debian/control
+SHA1 de95125fb8dbdd2715189a04274826b8cf880fab debian/copyright
+SHA1 ddc5d1a44fc5be56ad63fa32e3eac9029949b2cf debian/rules
+SHA1 61652cd1568dcf2614df833eba241755eee34e89 debian/source/format
+SHA1 12854c7ef8aa2af46fe605a83530806ed5293504 debian/watch
+SHA1 715b736e3f3f315f9eab3ab9ed634ea1d521976e devel/atoms.pl
+SHA1 d912a65ebf9508891da14c5754acf154ab732978 devel/grab.pl
+SHA1 c7b209416b9961cc7c343d557824706854b4cad6 devel/kill-client.pl
+SHA1 b08bacc63abff5b9b4add31c9834358dd9e06f38 inc/MyMakeMakerExtras.pm
+SHA1 7a988b2aa7ed09f1cb9029a1ef3f0e2139dca0cf inc/my_pod2html
+SHA1 bfd862059f482b634f5b285bf8e82ceadbd67fa5 lib/X11/Protocol/GrabServer.pm
+SHA1 056479e1506f4ea5b1550a51ebb85d870007d5cf lib/X11/Protocol/Other.pm
+SHA1 68fe39830214bdc296d524d6f84cfb3bf7f5cfbb t/GrabServer-load.t
+SHA1 91bee7b3bc99e62b56c901bf8f65232f260e6770 t/GrabServer.t
+SHA1 053c43e9190a4a6b62131de30de06ae0017fa100 t/MyTestHelpers.pm
+SHA1 20ba29be970bcc45ee3bc25835fd86a6d64341af t/Other-import.t
+SHA1 13edaed90e568308ef48de3ba97a341be9b618bd t/Other-load.t
+SHA1 edbb586769d49d0e6ff8db5553098d4e5d9964c2 t/Other.t
+SHA1 0279c9310ec528d10a2a14e602bf98f1c776cce1 xt/0-META-read.t
+SHA1 8a5e0f34131de34e584fbb1939c191a152566155 xt/0-Test-DistManifest.t
+SHA1 cc04a5fe5d8b8b38bfd56453d5d2686c8ea58783 xt/0-Test-Pod.t
+SHA1 8cc52e23427a82cfef5802bf512b13c65de2687a xt/0-Test-Synopsis.t
+SHA1 4c14845872d6eb4280e12f862d6ba2c343358c60 xt/0-Test-YAML-Meta.t
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iD8DBQFNbV0jLFMCIV9q3ToRAtsgAKCW2vPLPGmYs1eAB/8vgFmyDbtlOQCgut9f
+D9DB0HK24lHTHrjLq5cZznA=
+=GucB
+-----END PGP SIGNATURE-----
