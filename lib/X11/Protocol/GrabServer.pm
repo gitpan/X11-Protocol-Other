@@ -16,7 +16,6 @@
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
 
-## no critic (RequireUseWarnings)
 package X11::Protocol::GrabServer;
 BEGIN { require 5 }
 use strict;
@@ -34,7 +33,7 @@ HERE
 #use Smart::Comments;
 
 use vars '$VERSION';
-$VERSION = 1;
+$VERSION = 2;
 
 sub new {
   my ($class, $X) = @_;
@@ -105,7 +104,7 @@ sub is_grabbed {
 1;
 __END__
 
-=for stopwords Ryde GrabServer UngrabServer ungrab ungrabs ungrabbed TCP
+=for stopwords Ryde GrabServer UngrabServer ungrab ungrabs ungrabbed TCP ie
 
 =head1 NAME
 

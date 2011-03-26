@@ -25,19 +25,13 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = 1;
+my $test_count = 4;
 plan tests => $test_count;
 
-use X11::Protocol::Other
-  'root_to_screen',
-  'root_to_screen_info',
-  'default_colormap_to_screen',
-  'default_colormap_to_screen_info',
-  'visual_is_dynamic',
-  'visual_class_is_dynamic',
-  'window_size',
-  'window_visual',
-  ;
+use X11::Protocol::WM
+  'set_wm_hints',
+  'set_wm_transient_for',
+  'set_net_wm_window_type';
 
 require X11::Protocol;
 MyTestHelpers::diag ("X11::Protocol version ", X11::Protocol->VERSION);
@@ -64,18 +58,44 @@ if (! eval { $X = X11::Protocol->new ($display); }) {
 
 $X->QueryPointer($X->{'root'});  # sync
 
-root_to_screen($X,$X->{'root'});
-root_to_screen_info($X,$X->{'root'});
+my $window = $X->new_rsrc;
+$X->CreateWindow ($window,
+                  $X->{'root'},     # parent
+                  'InputOutput',
+                  0,                # depth, from parent
+                  'CopyFromParent', # visual
+                  0,0,              # x,y
+                  1,1,              # width,height
+                  0);               # border
+my $window2 = $X->new_rsrc;
+$X->CreateWindow ($window2,
+                  $window,          # parent
+                  'InputOutput',
+                  0,                # depth, from parent
+                  'CopyFromParent', # visual
+                  0,0,              # x,y
+                  1,1,              # width,height
+                  0);               # border
 
-default_colormap_to_screen($X,$X->{'default_colormap'});
-default_colormap_to_screen_info($X,$X->{'default_colormap'});
 
-visual_class_is_dynamic($X,'PseudoColor');
-my $visual_id = (keys %{$X->{'visuals'}})[0];
-visual_is_dynamic($X,$visual_id);
+set_wm_hints($X,$window,input=>1);
+set_wm_transient_for($X,$window2,$window);
+{
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('WM_TRANSIENT_FOR'),
+                       'AnyPropertyType',
+                       0,  # offset
+                       1,  # length, 1 x CARD32
+                       0); # delete
+  ok ($format, 32);
+  ok ($type, $X->atom('WINDOW'));
+  my ($unpack) = unpack 'L', $value;
+  ok ($unpack, $window);
 
-window_size($X,$X->{'root'});
-window_visual($X,$X->{'root'});
+  # ok ($window, get_wm_transient_for($X,$window2,$window));
+}
+set_net_wm_window_type($X,$window,'SPLASH');
 
 $X->QueryPointer($X->{'root'});  # sync
 ok (1, 1);

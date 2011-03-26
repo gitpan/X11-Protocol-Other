@@ -15,14 +15,13 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-## no critic (RequireUseWarnings)
 package X11::Protocol::Other;
 use 5.004;
 use strict;
 use Carp;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 1;
+$VERSION = 2;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -139,7 +138,7 @@ sub visual_is_dynamic {
 1;
 __END__
 
-=for stopwords Ryde XID colormap colormaps ie PseudoColor
+=for stopwords Ryde XID colormap colormaps ie PseudoColor VisualClass
 
 =head1 NAME
 

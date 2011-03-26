@@ -1,4 +1,4 @@
-Copyright 2010, 2011 Kevin Ryde
+Copyright 2011 Kevin Ryde
 
 This file is part of X11-Protocol-Other.
 
@@ -16,6 +16,11 @@ You can get a copy of the GNU General Public License online at
 <http://www.gnu.org/licenses/>.
 
 
+
+Version 2, March 2011
+    - new X11::AtomConstants      
+    - new X11::Protocol::WM with set_wm_hints(), set_wm_transient_for(),
+      set_net_wm_window_type(),
 
 Version 1, February 2011
     - the first version

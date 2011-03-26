@@ -51,9 +51,9 @@ sub WriteMakefile {
   }
 
   foreach ('MyMakeMakerExtras_Pod_Coverage',
-                   'MyMakeMakerExtras_LINT_FILES',
-                   'MY_NO_HTML',
-                   'MY_EXTRA_FILE_PART_OF') {
+           'MyMakeMakerExtras_LINT_FILES',
+           'MY_NO_HTML',
+           'MY_EXTRA_FILE_PART_OF') {
     $my_options{$_} = delete $opts{$_};
   }
 
@@ -327,7 +327,7 @@ check-debug-constants:
 	if egrep -nH 'DEBUG => [1-9]|^[ \t]*(use|no) Smart::Comments' $(EXE_FILES) $(TO_INST_PM) t/*.t xt/*.t; then exit 1; else exit 0; fi
 
 check-spelling:
-	if find . -type f | egrep -v '(Makefile|dist-deb)' | xargs egrep --color=always -nHi '[g]rabing|[c]usor|[r]efering|[w]riteable|[n]ineth|\b[o]mmitt?ed|[o]mited|[$$][rd]elf|[r]equrie|[n]oticable|[c]ontinous|[e]xistant|[e]xplict|[a]gument|[d]estionation|\b[t]he the\b|\b[tw]hen then\b|\b[n]ote sure\b'; \
+	if find . -type f | egrep -v '(Makefile|dist-deb)' | xargs egrep --color=always -nHi '[g]rabing|[c]usor|[r]efering|[w]riteable|[n]ineth|\b[o]mmitt?ed|[o]mited|[$$][rd]elf|[r]equrie|[n]oticable|[c]ontinous|[e]xistant|[e]xplict|[a]gument|[d]estionation|\b[t]he the\b|\b[i]n in\b|\b[tw]hen then\b|\b[n]ote sure\b'; \
 	then false; else true; fi
 HERE
 
@@ -366,8 +366,8 @@ HERE
               : 'all');
   chomp($arch);
   my $debname = (defined $makemaker->{'EXE_FILES'}
-                 ? '$(DISTNAME)'
-                 : "\Llib$makemaker->{'DISTNAME'}-perl");
+                 ? lc($makemaker->{'DISTNAME'})
+                 : lc("lib$makemaker->{'DISTNAME'}-perl"));
   $post .=
     "DEBNAME = $debname\n"
       . "DPKG_ARCH = $arch\n"
@@ -404,19 +404,20 @@ $(DEBFILE) deb:
 	rm -rf $(DISTVNAME)
 
 lintian-deb: $(DEBFILE)
-	lintian -i -X new-package-should-close-itp-bug $(DEBFILE)
+	lintian -I -i -X new-package-should-close-itp-bug $(DEBFILE)
 lintian-source:
 	rm -rf temp-lintian; \
 	mkdir temp-lintian; \
 	cd temp-lintian; \
 	cp ../$(DISTVNAME).tar.gz $(DEBNAME)_$(VERSION).orig.tar.gz; \
 	tar xfz $(DEBNAME)_$(VERSION).orig.tar.gz; \
-        echo 'empty-debian-diff' \
-             >$(DISTVNAME)/debian/source.lintian-overrides; \
+# don't seem to need this ...
+#        echo 'empty-debian-diff' \
+#             >$(DISTVNAME)/debian/source.lintian-overrides; \
 	mv -T $(DISTVNAME) $(DEBNAME)-$(VERSION); \
 	dpkg-source -b $(DEBNAME)-$(VERSION) \
 	               $(DEBNAME)_$(VERSION).orig.tar.gz; \
-	lintian -i -X missing-debian-source-format *.dsc; \
+	lintian -I -i -X missing-debian-source-format *.dsc; \
 	cd ..; \
 	rm -rf temp-lintian
 

@@ -49,4 +49,10 @@ MyMakeMakerExtras::WriteMakefile
                      },
        },
      },
-   });
+   },
+
+   MyMakeMakerExtras_Pod_Coverage => [ 'X11::Protocol::Other',
+                                       'X11::Protocol::GrabServer',
+                                       'X11::Protocol::WM',
+                                     ],
+  );
