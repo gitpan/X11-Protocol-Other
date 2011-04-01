@@ -17,6 +17,10 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 3, April 2011
+    - new X11::Protocol::XSetRoot with set_background()
+    - X11::Protocol::Other new hexstr_to_rgb()
+
 Version 2, March 2011
     - new X11::AtomConstants      
     - new X11::Protocol::WM with set_wm_hints(), set_wm_transient_for(),

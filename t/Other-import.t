@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = 1;
+my $test_count = 4;
 plan tests => $test_count;
 
 use X11::Protocol::Other
@@ -37,6 +37,7 @@ use X11::Protocol::Other
   'visual_class_is_dynamic',
   'window_size',
   'window_visual',
+  'hexstr_to_rgb',
   ;
 
 require X11::Protocol;
@@ -76,6 +77,11 @@ visual_is_dynamic($X,$visual_id);
 
 window_size($X,$X->{'root'});
 window_visual($X,$X->{'root'});
+
+my @rgb = hexstr_to_rgb('#FAB');
+ok ($rgb[0],0xFFFF);
+ok ($rgb[1],0xAAAA);
+ok ($rgb[2],0xBBBB);
 
 $X->QueryPointer($X->{'root'});  # sync
 ok (1, 1);

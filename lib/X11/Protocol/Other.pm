@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 2;
+$VERSION = 3;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -32,7 +32,9 @@ use Exporter;
                 visual_is_dynamic
                 visual_class_is_dynamic
                 window_size
-                window_visual);
+                window_visual
+                hexstr_to_rgb
+              );
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -125,6 +127,30 @@ sub visual_is_dynamic {
   return visual_class_is_dynamic ($X, $visual_info->{'class'});
 }
 
+#------------------------------------------------------------------------------
+
+# cf XcmsLRGB_RGB_ParseString() in XcmsLRGB.c
+
+sub hexstr_to_rgb {
+  my ($str) = @_;
+  ### hexstr_to_rgb(): $str
+  # Crib: [:xdigit:] is new in 5.6, so only 0-9A-F
+  $str =~ /^#(([0-9A-F]{3}){1,4})$/i or return;
+  my $len = length($1)/3;
+  return (map {hex(substr($_ x 4, 0, 4))}
+          substr ($str, 1, $len),
+          substr ($str, 1+$len, $len),
+          substr ($str, -$len));
+}
+
+# my %hex_factor = (1 => 0x1111,
+#                   2 => 0x101,
+#                   3 => 0x10 + 1/0x100,
+#                   4 => 1);
+#   my $factor = $hex_factor{$len} || return;
+#   ### $len
+#   ### $factor
+
 
 #------------------------------------------------------------------------------
 
@@ -138,7 +164,7 @@ sub visual_is_dynamic {
 1;
 __END__
 
-=for stopwords Ryde XID colormap colormaps ie PseudoColor VisualClass
+=for stopwords Ryde XID colormap colormaps ie PseudoColor VisualClass RGB rgb 0xFFFF FFF FFFF Xcms
 
 =head1 NAME
 
@@ -178,17 +204,17 @@ and to import as-yet unknown things would be asking for name clashes.
 
 =over 4
 
-=item C<<  $number = root_to_screen ($X, $root) >>
+=item C<$number = root_to_screen ($X, $root)>
 
-=item C<<  $hashref = root_to_screen_info ($X, $root) >>
+=item C<$hashref = root_to_screen_info ($X, $root)>
 
 Return the screen number or screen info hash for a given root window.
 C<$root> can be any XID integer on C<$X>.  If it's not one of the root
 windows then the return is C<undef>.
 
-=item C<<  $number = default_colormap_to_screen ($X, $colormap) >>
+=item C<$number = default_colormap_to_screen ($X, $colormap)>
 
-=item C<<  $hashref = default_colormap_to_screen_info ($X, $colormap) >>
+=item C<$hashref = default_colormap_to_screen_info ($X, $colormap)>
 
 Return the screen number or screen info hash for a given default colormap.
 C<$colormap> can be any XID integer on C<$X>.  If it's not one of the screen
@@ -200,9 +226,9 @@ default colormaps then the return is C<undef>.
 
 =over
 
-=item C<<  $bool = visual_is_dynamic ($X, $visual_id) >>
+=item C<$bool = visual_is_dynamic ($X, $visual_id)>
 
-=item C<<  $bool = visual_class_is_dynamic ($X, $visual_class) >>
+=item C<$bool = visual_class_is_dynamic ($X, $visual_class)>
 
 Return true if the given visual is dynamic, meaning colormap entries on it
 can be changed to change the colour of a given pixel value.
@@ -217,9 +243,9 @@ C<$X-E<gt>{'visuals'}>.  Or C<$visual_class> is a VisualClass string like
 
 =over
 
-=item C<<  ($width, $height) = window_size ($X, $window) >>
+=item C<($width, $height) = window_size ($X, $window)>
 
-=item C<<  $visual_id = window_visual ($X, $window) >>
+=item C<$visual_id = window_visual ($X, $window)>
 
 Return the size or visual ID of a given window.
 
@@ -232,10 +258,45 @@ root window and therefore not need a server round trip.
 
 =back
 
+=head2 Colour Parsing
+
+=over
+
+=item C<($red16, $green16, $blue16) = hexstr_to_rgb($str)>
+
+Parse a given RGB colour string like "#FF00FF" into 16-bit red, green, blue
+components.  The return values are always in the range 0 to 65535.  The
+strings recognised are 1, 2, 3 or 4 digit hex.
+
+    #RGB
+    #RRGGBB
+    #RRRGGGBBB
+    #RRRRGGGGBBBB
+
+If C<$str> is unrecognised then the return is an empty list, so for instance
+
+    my @rgb = hexstr_to_rgb($str)
+      or die "Unrecognised colour: $str";
+
+The digits of the 1, 2 and 3 forms are replicated as necessary to give a
+16-bit range.  For example 3-digit style "#321FFF000" gives return values
+0x3213, 0xFFFF, 0.  Or 1-digit "#F0F" is 0xFFFF, 0, 0xFFFF.  Notice "F"
+expands to 0xFFFF so an "F", "FF" or "FFF" all mean full saturation the same
+as a 4-digit "FFFF".
+
+Would it be worth recognising the Xcms style "rgb:RR/GG/BB"?  Perhaps that's
+best left to full Xcms, or general colour conversion modules.  The X11R6
+X(7) man page describes the "rgb:" form, but just "#" is much more common.
+
+=back
+
 =head1 SEE ALSO
 
 L<X11::Protocol>,
 L<X11::Protocol::GrabServer>
+
+L<Color::Library> (many named colours), L<Convert::Color>,
+L<Graphics::Color> (Moose based) for more colour parsing
 
 =head1 HOME PAGE
 

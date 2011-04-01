@@ -22,7 +22,7 @@ use Carp;
 use X11::AtomConstants;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 2;
+$VERSION = 3;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -215,10 +215,6 @@ sub _get_net_wm_window_type_atom {
 #   } else {
 #     return undef;
 #   }
-# }
-# sub _atoms {
-#   my $X = shift;
-#   return map {$X->atom($_)} @_;
 # }
 
 

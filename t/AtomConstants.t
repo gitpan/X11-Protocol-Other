@@ -55,7 +55,7 @@ $X->QueryPointer($X->{'root'});  # sync
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 2;
+my $want_version = 3;
 ok ($X11::AtomConstants::VERSION,
     $want_version,
     'VERSION variable');
@@ -73,13 +73,16 @@ ok (! eval { X11::AtomConstants->VERSION($check_version); 1 },
 
 #------------------------------------------------------------------------------
 
-ok (eval { PIXMAP() }, undef); # not imported
-ok (eval { XA_PIXMAP() }, undef); # not imported
-ok (eval { X11::AtomConstants::XA_PIXMAP() }, undef); # not called XA_
+ok (eval { PIXMAP() }, undef,
+    'PIXMAP() not imported');
+ok (eval { XA_PIXMAP() }, undef,
+    'no XA_PIXMAP() imported (should not exist)');
+ok (eval { X11::AtomConstants::XA_PIXMAP() }, undef,
+    'XA_PIXMAP() does not exist');
 
-ok (X11::AtomConstants::PIXMAP(), 20);
-ok (X11::AtomConstants::RECTANGLE(), 22);
-ok (X11::AtomConstants::LAST_PREDEFINED(), 68);
+ok (X11::AtomConstants::PIXMAP(), 20, 'PIXMAP() value');
+ok (X11::AtomConstants::RECTANGLE(), 22, 'RECTANGLE() value');
+ok (X11::AtomConstants::LAST_PREDEFINED(), 68, 'LAST_PREDEFINED() value');
 
 #------------------------------------------------------------------------------
 

@@ -122,6 +122,9 @@ sub _meta_merge_shared_devel {
   _meta_merge_req_add (_meta_merge_maximum_devel($opts),
                        # the "make unused" target below
                        'warnings::unused' => 0);
+  _meta_merge_req_add (_meta_merge_maximum_devel($opts),
+                       # used a lot
+                       'Smart::Comments' => 0);
   if (-e 'inc/my_pod2html') {
     if (_min_perl_version_lt ($opts, 5.009003)) {
       _meta_merge_req_add (_meta_merge_maximum_devel($opts),
@@ -366,6 +369,7 @@ HERE
               : 'all');
   chomp($arch);
   my $debname = (defined $makemaker->{'EXE_FILES'}
+                 && $makemaker->{'EXE_FILES'}->[0] !~ /^gtk2/
                  ? lc($makemaker->{'DISTNAME'})
                  : lc("lib$makemaker->{'DISTNAME'}-perl"));
   $post .=
@@ -404,20 +408,18 @@ $(DEBFILE) deb:
 	rm -rf $(DISTVNAME)
 
 lintian-deb: $(DEBFILE)
-	lintian -I -i -X new-package-should-close-itp-bug $(DEBFILE)
+	lintian -I -i --suppress-tags new-package-should-close-itp-bug \
+	  $(DEBFILE)
 lintian-source:
 	rm -rf temp-lintian; \
 	mkdir temp-lintian; \
 	cd temp-lintian; \
 	cp ../$(DISTVNAME).tar.gz $(DEBNAME)_$(VERSION).orig.tar.gz; \
 	tar xfz $(DEBNAME)_$(VERSION).orig.tar.gz; \
-# don't seem to need this ...
-#        echo 'empty-debian-diff' \
-#             >$(DISTVNAME)/debian/source.lintian-overrides; \
 	mv -T $(DISTVNAME) $(DEBNAME)-$(VERSION); \
 	dpkg-source -b $(DEBNAME)-$(VERSION) \
 	               $(DEBNAME)_$(VERSION).orig.tar.gz; \
-	lintian -I -i -X missing-debian-source-format *.dsc; \
+	lintian -I -i --suppress-tags empty-debian-diff *.dsc; \
 	cd ..; \
 	rm -rf temp-lintian
 

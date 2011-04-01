@@ -15,12 +15,12 @@ not run its Makefile.PL or Build.PL.
 Hash: SHA1
 
 SHA1 842745cb706f8f2126506f544492f7a80dbe29b3 COPYING
-SHA1 d43f8f34197d17113d62875349b308fd7e520e75 Changes
-SHA1 8687d3d3944558c710ffefbee921009fb09a6f5d MANIFEST
+SHA1 7722865b84c340a455d4408ca5f8114ccc5428bd Changes
+SHA1 fbd6c7b82d92f8a622ad8c60233d0a2cf06ba039 MANIFEST
 SHA1 f42e495e55aa5c6fa78de6ca47938b84cd7015b2 MANIFEST.SKIP
-SHA1 d16d477c105ebe688c7d9a7796b07774cd8bd73a META.yml
+SHA1 72c1f3ea8a51b7bd9e8a20d2173a22f6dc681de3 META.yml
 SHA1 fd29a868cb0dbf79a0e015cd7d58a859134908a6 Makefile.PL
-SHA1 67576ff0effa4db73efd72e9d017c3332de44b90 debian/changelog
+SHA1 17f431c337bfd2987d96463fa866148b0b0ebb3f debian/changelog
 SHA1 ac3478d69a3c81fa62e60f5c3696165a4e5e6ac4 debian/compat
 SHA1 a18b09064fe9afd616b5624b2f1930ac5aa608ab debian/control
 SHA1 de95125fb8dbdd2715189a04274826b8cf880fab debian/copyright
@@ -31,24 +31,27 @@ SHA1 715b736e3f3f315f9eab3ab9ed634ea1d521976e devel/atoms.pl
 SHA1 3bfc171e098263803bc8079abb4762fdccd9139b devel/ctext.pl
 SHA1 d912a65ebf9508891da14c5754acf154ab732978 devel/grab.pl
 SHA1 c7b209416b9961cc7c343d557824706854b4cad6 devel/kill-client.pl
+SHA1 d318339e2bef07af7f488ad21ba8e44277a9425b devel/setroot.pl
 SHA1 d9a19ea41e3a5d5532f91aab85072dc9bc9b47db devel/wm.pl
-SHA1 c57b530254658208ccb485e62e5602bbfc4c8684 inc/MyMakeMakerExtras.pm
+SHA1 bf5c6272b1412afd013b9b0edca7550061909886 inc/MyMakeMakerExtras.pm
 SHA1 7a988b2aa7ed09f1cb9029a1ef3f0e2139dca0cf inc/my_pod2html
-SHA1 17f5f2659335ce0341b78874e480c973e681c69c lib/X11/AtomConstants.pm
-SHA1 e00f1984f2475c2607539ee0f62264ae048ed181 lib/X11/Protocol/GrabServer.pm
-SHA1 04327992d947b3705edbd1583fd509da79162109 lib/X11/Protocol/Other.pm
-SHA1 33f4c9f45fd3e84bf9aceaddffc16de07f02a973 lib/X11/Protocol/WM.pm
+SHA1 a12d954147b4855c2c6c9dd898947630f4a83ba2 lib/X11/AtomConstants.pm
+SHA1 06cfe73794dc637d9017be0508cf1b27a23f5305 lib/X11/Protocol/GrabServer.pm
+SHA1 5829ab4de04bbc190ccad72b9c9be3046e0360b6 lib/X11/Protocol/Other.pm
+SHA1 c86d55b2542e08155b9f2e8c7a0de2caa2648f0a lib/X11/Protocol/WM.pm
+SHA1 2149f69f80af4c9a8ffa653b881b2c105e616b0b lib/X11/Protocol/XSetRoot.pm
 SHA1 844dc8f0f4f25f1437a7a8963878e0920811669f t/AtomConstants-all.t
 SHA1 760a7d3fe6d02f6a214486d187d1b1bfa9d6857f t/AtomConstants-import.t
-SHA1 199c868dc944f253b3cb6948ec56610f982bbd02 t/AtomConstants.t
+SHA1 362693e9ee0835cd03aa19d8e76885daf44c65cb t/AtomConstants.t
 SHA1 68fe39830214bdc296d524d6f84cfb3bf7f5cfbb t/GrabServer-load.t
-SHA1 3fbd3574d1b378f141fe43bedb250d00ae436a68 t/GrabServer.t
+SHA1 1fe2ab96de1ea3f7f96c428dd5e123134ef7a817 t/GrabServer.t
 SHA1 51456d64ca8f20d6808f6f3c8aa1f4f2553cb78d t/MyTestHelpers.pm
-SHA1 8eb3d838970f250b6dc857ea0dbc70c9d418fcde t/Other-import.t
+SHA1 61acb1d9deb2e4a114b43b27db27029e812b17f7 t/Other-import.t
 SHA1 13edaed90e568308ef48de3ba97a341be9b618bd t/Other-load.t
-SHA1 34cb257af402bb74cd75b44ea43215ce32f625d2 t/Other.t
+SHA1 4504fd634710e9c6614eacea070d690b68fdd697 t/Other.t
 SHA1 de6f9bc6fabc3b91d7e6275fbdc3e6eb0e62e38d t/WM-import.t
-SHA1 7c95196bdc6f916aaf75d4fac6aeebd2e064affc t/WM.t
+SHA1 a4c8f8861e6b43a57aa70b4e45c53986ac343bcf t/WM.t
+SHA1 e2392d7bbfaae6b237e9f12f984b7386f0ff6419 t/XSetRoot.t
 SHA1 0279c9310ec528d10a2a14e602bf98f1c776cce1 xt/0-META-read.t
 SHA1 219395eb91b03829e6f14db4ebd57d88ea972e61 xt/0-Test-ConsistentVersion.t
 SHA1 8a5e0f34131de34e584fbb1939c191a152566155 xt/0-Test-DistManifest.t
@@ -58,7 +61,7 @@ SHA1 4c14845872d6eb4280e12f862d6ba2c343358c60 xt/0-Test-YAML-Meta.t
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.10 (GNU/Linux)
 
-iD8DBQFNjmb8LFMCIV9q3ToRAkRfAJwLekBrTZg3Hf0gRA4A7r2VXq6g1wCdE4Pw
-ACwwN+rzBmK2xiqY0W9DPes=
-=sF9s
+iD8DBQFNllK3LFMCIV9q3ToRAjWBAKCScgkp1bweBOFL4HcfMMryKxriuwCeIbRu
+2jCGFv09TxD7bnbuq+T5pyY=
+=UHnz
 -----END PGP SIGNATURE-----

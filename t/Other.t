@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = 10;
+my $test_count = 106;
 plan tests => $test_count;
 
 require X11::Protocol::Other;
@@ -59,7 +59,7 @@ $X->QueryPointer($X->{'root'});  # sync
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 2;
+my $want_version = 3;
 ok ($X11::Protocol::Other::VERSION,
     $want_version,
     'VERSION variable');
@@ -139,8 +139,58 @@ ok (! eval { X11::Protocol::Other->VERSION($check_version); 1 },
     }
   }
   ok ($good, 1,
-     'visual_is_dynamic() ');
+      'visual_is_dynamic() ');
 }
+
+#------------------------------------------------------------------------------
+# hexstr_to_rgb()
+
+foreach my $elem ([ 'bogosity' ],
+                  [ '#' ],
+                  [ '#1' ],
+                  [ '#12' ],
+
+                  [ '#def', 0xDDDD, 0xEEEE, 0xFFFF ],
+
+                  [ '#1234' ],
+                  [ '#12345' ],
+
+                  [ '#123456', 0x1212, 0x3434, 0x5656 ],
+                  [ '#abcdef', 0xABAB, 0xCDCD, 0xEFEF ],
+                  [ '#ABCDEF', 0xABAB, 0xCDCD, 0xEFEF ],
+
+                  [ '#1234567' ],
+                  [ '#12345678' ],
+
+                  [ '#123456789', 0x1231, 0x4564, 0x7897 ],
+                  [ '#abcbcdcde', 0xABCA, 0xBCDB, 0xCDEC ],
+
+                  [ '#1234567890' ],
+                  [ '#12345678901' ],
+
+                  [ '#123456789ABC', 0x1234, 0x5678, 0x9ABC ],
+                  [ '#abcdfedcdcba', 0xABCD, 0xFEDC, 0xDCBA ],
+
+                  [ '#1234567890123' ],
+                  [ '#12345678901234' ],
+                  [ '#123456789012345' ],
+                  [ '#1234567890123456' ],
+                  [ '#12345678901234567' ],
+                  [ '#123456789012345678' ],
+
+                 ) {
+  my ($hexstr, @want_rgb) = @$elem;
+  my @got_rgb = X11::Protocol::Other::hexstr_to_rgb($hexstr);
+  ok (scalar(@got_rgb), scalar(@want_rgb),
+      "hexstr_to_rgb($hexstr) return 3 values");
+  ok ($got_rgb[0], $want_rgb[0],
+      "hexstr_to_rgb($hexstr) red[0]");
+  ok ($got_rgb[1], $want_rgb[1],
+      "hexstr_to_rgb($hexstr) green[1]");
+  ok ($got_rgb[2], $want_rgb[2],
+      "hexstr_to_rgb($hexstr) blue[2]");
+}
+
 
 #------------------------------------------------------------------------------
 $X->QueryPointer($X->{'root'});  # sync
