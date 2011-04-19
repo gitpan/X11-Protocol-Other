@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = 13;
+my $test_count = 25;
 plan tests => $test_count;
 
 require X11::Protocol::WM;
@@ -77,7 +77,7 @@ $X->CreateWindow ($window2,
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 3;
+my $want_version = 4;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');
@@ -96,8 +96,14 @@ ok (! eval { X11::Protocol::WM->VERSION($check_version); 1 },
 #------------------------------------------------------------------------------
 # set_wm_transient_for()
 
-X11::Protocol::WM::set_wm_transient_for ($X, $window2, $window);
-{
+foreach my $elem ([$window, $window], # a window
+                  [0, 0],             # 0==None
+                  ['None', 0],        # 0==None
+                  [undef, undef],     # delete
+                 ) {
+  my ($transient_for, $want) = @$elem;
+  X11::Protocol::WM::set_wm_transient_for ($X, $window2, $transient_for);
+
   my ($value, $type, $format, $bytes_after)
     = $X->GetProperty ($window2,
                        $X->atom('WM_TRANSIENT_FOR'),
@@ -105,10 +111,12 @@ X11::Protocol::WM::set_wm_transient_for ($X, $window2, $window);
                        0,  # offset
                        1,  # length, 1 x CARD32
                        0); # delete
-  ok ($format, 32);
-  ok ($type, $X->atom('WINDOW'));
-  ok ($X->atom_name($type), 'WINDOW');
-  ok (scalar(unpack 'L', $value), $window);
+  ok ($format, (defined $want ? 32 : 0));
+  ok ($type, (defined $want ? $X->atom('WINDOW') : 0));
+  my $type_name = ($type ? $X->atom_name($type) : 'None');
+  ok ($type_name, (defined $want ? 'WINDOW' : 'None'));
+  my ($got) = unpack 'L', $value;
+  ok ($got, $want, $window);
 }
 
 #------------------------------------------------------------------------------
@@ -134,21 +142,21 @@ X11::Protocol::WM::set_wm_hints ($X, $window,
 
 # {
 #   my $format = 'LLLLLllLL';
-# 
+#
 #   foreach ([ pack($format,0,(0)x8) ],
 #            [ pack($format,0,(0)x7) ],  # short from X11R2 ?
-# 
+#
 #            [ pack($format,1,0,(0)x7), input => 0 ],
 #            [ pack($format,1,1,(0)x7), input => 1 ],
-# 
+#
 #            [ pack($format,2,0,1,(0)x6), initial_state => 'NormalState' ],
 #            [ pack($format,2,0,3,(0)x6), initial_state => 'IconicState' ],
-# 
+#
 #            [ pack($format, 16, 0,0,0,0, 123,456, 0,0),
 #              icon_x => 123, icon_y => 456 ],
 #            [ pack($format, 16, 0,0,0,0, -123,-456, 0,0),
 #              icon_x => -123, icon_y => -456 ],
-# 
+#
 #            [ pack($format, 64, 0,0,0,0, 0,0, 0,0), window_group => 0 ],
 #            [ pack($format, 64, 0,0,0,0, 0,0, 0,123), window_group => 123 ],
 #            [ pack($format, 256, (0)x8), urgency => 1 ],

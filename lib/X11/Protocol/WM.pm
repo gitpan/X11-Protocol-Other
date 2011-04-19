@@ -22,7 +22,7 @@ use Carp;
 use X11::AtomConstants;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 3;
+$VERSION = 4;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -41,12 +41,14 @@ use Exporter;
 #------------------------------------------------------------------------------
 # WM_TRANSIENT
 
+# $transient_for eq 'None' supported for generality, but not yet documented
+# since not sure such a property value would be ICCCM compliant
 sub set_wm_transient_for {
   my ($X, $window, $transient_for) = @_;
   _set_single_property ($X, $window,
                         X11::AtomConstants::WM_TRANSIENT_FOR,  # prop name
                         X11::AtomConstants::WINDOW,            # type
-                        $transient_for);
+                        _num_none ($transient_for));
 }
 
 # =item C<$transient_for = X11::Protocol::WM::get_wm_transient_for ($X, $window)>
@@ -56,7 +58,6 @@ sub set_wm_transient_for {
 #   _get_single_property ($X, $window,
 #                         X11::AtomConstants::WM_TRANSIENT_FOR, X11::AtomConstants::WINDOW);
 # }
-
 
 
 #------------------------------------------------------------------------------
@@ -90,7 +91,7 @@ sub set_wm_hints {
                      X11::AtomConstants::WM_HINTS, # type
                      32,           # format
                      'Replace',
-                     _pack_wm_hints(@_));
+                     _pack_wm_hints($X, @_));
 }
 
 {
@@ -109,8 +110,18 @@ sub set_wm_hints {
                      # message       => 128, # in the code, obsolete
                      # urgency       => 256, # in the code
                     );
+
+  # =item C< $bytes = _pack_wm_bytes ($X, key=E<gt>value...)>
+  #
+  # Pack a set of values into a byte string of C<WM_HINTS> type.  The
+  # key/value arguments are per C<set_wm_hints> above and the result is the
+  # raw bytes stored in a C<WM_HINTS> property.
+  #
+  # The C<$X> argument is not actually used currently, but is present in
+  # case some of the values might use the C<$X-E<gt>interp> type lookup.
+  #
   sub _pack_wm_hints {
-    my (%hint) = @_;
+    my ($X, %hint) = @_;
     my $flags = 0;
     if (delete $hint{'message'}) {
       $flags = 128;
@@ -129,12 +140,12 @@ sub set_wm_hints {
                  $flags,
                  $hint{'input'} || 0,         # CARD32 bool
                  _wmstate_num($hint{'initial_state'}) || 0, # CARD32 enum
-                 $hint{'icon_pixmap'} || 0,   # PIXMAP
-                 $hint{'icon_window'} || 0,   # WINDOW
+                 _num_none($hint{'icon_pixmap'}) || 0,   # PIXMAP
+                 _num_none($hint{'icon_window'}) || 0,   # WINDOW
                  $hint{'icon_x'} || 0,        # INT32
                  $hint{'icon_y'} || 0,        # INT32
-                 $hint{'icon_mask'} || 0,     # PIXMAP
-                 $hint{'window_group'} || 0,  # WINDOW
+                 _num_none($hint{'icon_mask'}) || 0,     # PIXMAP
+                 _num_none($hint{'window_group'}) || 0,  # WINDOW
                 );
   }
 }
@@ -150,6 +161,7 @@ sub set_net_wm_window_type {
                         _net_wm_window_type_to_atom ($X, $window_type));
 }
 
+# not documented yet ...
 sub _net_wm_window_type_to_atom {
   my ($X, $window_type) = @_;
   if (! defined $window_type || $window_type =~ /^\d+$/) {
@@ -170,6 +182,7 @@ sub _net_wm_window_type_to_atom {
 
 
 #------------------------------------------------------------------------------
+# helpers
 
 sub _set_single_property {
   my ($X, $window, $prop, $type, $value) = @_;
@@ -182,6 +195,17 @@ sub _set_single_property {
                         pack ('L', $value));
   } else {
     $X->DeleteProperty ($window, $prop);
+  }
+}
+
+# or maybe $X->num('IDorNone',$xid)
+#          $X->num('XID',$xid)
+sub _num_none {
+  my ($xid) = @_;
+  if (defined $xid && $xid eq "None") {
+    return 0;
+  } else {
+    return $xid;
   }
 }
 
@@ -201,21 +225,28 @@ sub _get_net_wm_window_type_atom {
                         X11::AtomConstants::ATOM);
 }
 
-# sub _get_single_property {
-#   my ($X, $window, $prop, $type) = @_;
-#   my ($value, $got_type, $format, $bytes_after)
-#     = $X->GetProperty ($window,
-#                        $prop,
-#                        $type,
-#                        0,  # offset
-#                        1,  # length, 1 x CARD32
-#                        0); # delete
-#   if ($format == 32) {
-#     return scalar(unpack 'L', $value);
-#   } else {
-#     return undef;
-#   }
-# }
+# not documented ...
+sub _get_single_property {
+  my ($X, $window, $prop, $type) = @_;
+  my ($value, $got_type, $format, $bytes_after)
+    = $X->GetProperty ($window,
+                       $prop,
+                       $type,
+                       0,  # offset
+                       1,  # length, 1 x CARD32
+                       0); # delete
+  if ($format == 32) {
+    $ret = scalar(unpack 'L', $value);
+    if ($type == X11::AtomConstants::WINDOW || $type == X11::AtomConstants::PIXMAP) {
+      if ($ret == 0 && $X->{'do_interp'}) {
+        $ret = 'None';
+      }
+    }
+    return $ret;
+  } else {
+    return undef;
+  }
+}
 
 
 
@@ -278,11 +309,11 @@ are allowed by the ICCCM as a desired initial state.
     IconicState       3
 
 C<icon_pixmap> should be a bitmap (depth 1).  The window manager will choose
-suitable contrasting colours.  If that's not enough then an C<icon_window>
-can be used with either with a suitable background or drawn on-demand
+suitable contrasting colours.  C<$icon_window> can be used for a
+multi-colour icon, either with a suitable background or drawn on-demand
 (Expose events etc).  The window manager might set a C<WM_ICON_SIZE>
-property on the root window for good icon sizes to use but there's nothing
-in this module to retrieve that yet.
+property on the root window for good icon sizes but there's nothing in this
+module to retrieve that yet.
 
 C<urgency> true means the window is important and the window manager should
 draw the user's attention to it in some way.  The client can change this at
@@ -323,7 +354,7 @@ C<$window> together with its C<$transient_for>, etc.
 =item C<X11::Protocol::WM::set_net_wm_window_type ($X, $window, $window_type)>
 
 Set the C<_NET_WM_WINDOW_TYPE> property on C<$window> (an XID).
-C<$window_type> is a type string as follows from the EWMH,
+C<$window_type> can be a  type string as follows from the EWMH,
 
     NORMAL
     DIALOG
@@ -333,6 +364,9 @@ C<$window_type> is a type string as follows from the EWMH,
     MENU
     UTILITY
     SPLASH
+
+C<$window_type> can also be an integer atom such as
+C<$X-E<gt>atom('_NET_WM_WINDOW_TYPE_DIALOG')>.
 
 =back
 

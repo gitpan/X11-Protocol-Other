@@ -23,7 +23,7 @@ use X11::AtomConstants;
 use X11::Protocol::Other 3;  # v.3 for hexstr_to_rgb()
 
 use vars '$VERSION';
-$VERSION = 3;
+$VERSION = 4;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -61,6 +61,7 @@ sub set_background {
   my $pixmap;
   if (defined ($pixmap = $option{'pixmap'})) {
     ### $pixmap
+    $pixmap = _num_none($pixmap);
     @change = (background_pixmap => $pixmap);
     $allocated = $option{'pixmap_allocated_colors'};
 
@@ -173,6 +174,16 @@ sub _alloc_named_or_hex_color {
     return ($pixel, @exact, @actual);
   } else {
     return $X->AllocNamedColor($colormap, $str);
+  }
+}
+
+# or maybe $X->num('IDorNone',$xid)
+sub _num_none {
+  my ($xid) = @_;
+  if ($xid eq 'None') {
+    return 0;
+  } else {
+    return $xid;
   }
 }
 
@@ -294,9 +305,9 @@ automatically recognised as allocated or not -- anything except the screen
 pre-defined black or white pixel value is allocated.
 
 C<pixmap> is an XID integer.  C<set_background> takes ownership of this
-pixmap and will C<FreePixmap> once installed.  0 means no pixmap, which
-gives the server's default root background (usually a black and white
-cross-hatch pattern)..
+pixmap and will C<FreePixmap> once installed.  "None" or 0 means no pixmap,
+which gives the server's default root background (usually a black and white
+weave pattern).
 
 C<pixmap_allocated_colors> should be true if any of the pixels in C<pixmap>
 were allocated with C<AllocColor> etc, as opposed to just the screen

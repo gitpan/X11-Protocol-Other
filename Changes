@@ -17,14 +17,26 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 4, April 2011
+    - new X11::Protocol::Ext::Composite extension 0.3
+    - new X11::Protocol::Ext::X_Resource extension 1.0
+    - XSetRoot allow pixmap=>'None' as well as 0
+    - WM set_net_wm_window_type() document atom integer arg
+
 Version 3, April 2011
     - new X11::Protocol::XSetRoot with set_background()
     - X11::Protocol::Other new hexstr_to_rgb()
 
 Version 2, March 2011
-    - new X11::AtomConstants      
+    - new X11::AtomConstants
     - new X11::Protocol::WM with set_wm_hints(), set_wm_transient_for(),
       set_net_wm_window_type(),
 
 Version 1, February 2011
     - the first version
+    - initial X11::Protocol::GrabServer
+    - initial X11::Protocol::Other, with
+        root_to_screen(), root_to_screen_info(),
+        default_colormap_to_screen(), default_colormap_to_screen_info(),
+        visual_is_dynamic(), visual_class_is_dynamic(),
+        window_size(), window_visual()

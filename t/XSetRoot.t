@@ -75,7 +75,7 @@ require X11::Protocol::XSetRoot;
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 3;
+my $want_version = 4;
 ok ($X11::Protocol::XSetRoot::VERSION,
     $want_version,
     'VERSION variable');
@@ -94,15 +94,57 @@ ok (! eval { X11::Protocol::XSetRoot->VERSION($check_version); 1 },
 #------------------------------------------------------------------------------
 # set_background()
 
+X11::Protocol::XSetRoot->set_background
+  (display => $display,
+   color => 'black');
+
+X11::Protocol::XSetRoot->set_background
+  (display => $display,
+   color => 'white');
+
+X11::Protocol::XSetRoot->set_background
+  (display => $display,
+   color => 'green');
+
+X11::Protocol::XSetRoot->set_background
+  (X => $X,
+   pixel => $X->{'black_pixel'});
+
+X11::Protocol::XSetRoot->set_background
+  (X => $X,
+   pixmap => 0);
+
+X11::Protocol::XSetRoot->set_background
+  (X => $X,
+   pixmap => 'None');
+
 {
-  my $fields_before = join (',', sort keys %$X);
-  my $grab = X11::Protocol::XSetRoot->set_background
-    (X => $X,
-     pixel => $X->{'black_pixel'});
+  my $pixmap = $X->new_rsrc;
+  $X->CreatePixmap ($pixmap,
+                    $X->{'root'},
+                    $X->{'root_depth'},
+                    1,1);  # width,height
+  X11::Protocol::XSetRoot->set_background
+      (X => $X,
+       pixmap => $pixmap);
+}
+
+{
+  my $pixmap = $X->new_rsrc;
+  $X->CreatePixmap ($pixmap,
+                    $X->{'root'},
+                    $X->{'root_depth'},
+                    1,1);  # width,height
+  $X->QueryPointer($X->{'root'});  # sync
+  X11::Protocol::XSetRoot->set_background
+      (X => $X,
+       pixmap => $pixmap,
+       pixmap_allocated_colors => 1);
+  undef $X;
 }
 
 
+
 #------------------------------------------------------------------------------
-$X->QueryPointer($X->{'root'});  # sync
 
 exit 0;
