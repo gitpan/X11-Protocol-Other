@@ -20,7 +20,7 @@ use strict;
 use Exporter;
 use vars '$VERSION', '@ISA', '@EXPORT_OK', '%EXPORT_TAGS';
 
-$VERSION = 4;
+$VERSION = 5;
 @ISA = ('Exporter');
 %EXPORT_TAGS = (all => \@EXPORT_OK);
 

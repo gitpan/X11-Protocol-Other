@@ -20,7 +20,7 @@ package X11::Protocol::Ext::X_Resource;
 use strict;
 
 use vars '$VERSION';
-$VERSION = 4;
+$VERSION = 5;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -194,12 +194,15 @@ Total memory used by all the pixmaps of a given client.
 resource database of widget settings and user preferences (per
 L<X(7)/RESOURCES>).
 
+See F<examples/xresource-print.pl> in the C<X11-Protocol-Other> sources for
+a simple dump of the resources reported.
+
 =head1 REQUESTS
 
 The following requests are made available with an C<init_extension()>, as
 per L<X11::Protocol/EXTENSIONS>.
 
-    my $available = $X->init_extension('X-Resource');
+    my $is_available = $X->init_extension('X-Resource');
 
 =over
 
@@ -275,7 +278,8 @@ Or put the list into a hash to lookup a particular resource type,
     print "using $windows many windows, and $grabs passive grabs";
 
 C<List::Pairwise> has a C<mapp()> and other things to work with this sort of
-two-at-a-time list too.
+two-at-a-time list too (see F<examples/xresource-pairwise.pl> in the
+C<X11-Protocol-Other> sources).
 
 Generally a count entry is only present when the client has 1 or more of the
 thing.  So if no pixmaps then no C<PIXMAP> entry at all.

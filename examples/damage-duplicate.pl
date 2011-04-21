@@ -82,6 +82,7 @@
 # pixel conversions.
 #
 
+use 5.004;
 use strict;
 use Getopt::Long;
 use X11::Protocol;
@@ -90,12 +91,13 @@ use X11::AtomConstants;
 use lib 'devel', '.';
 
 # uncomment this to run the ### lines
-use Smart::Comments;
+#use Smart::Comments;
 
 my $X = X11::Protocol->new (':0');
 
 if (! $X->init_extension('DAMAGE')) {
-  print "DAMAGE extension not availabe on the server\n";
+  print "DAMAGE extension not available on the server\n";
+  exit 1;
 }
 
 #------------------------------------------------------------------------------
@@ -239,7 +241,7 @@ $X->ChangeProperty($window,
                    X11::AtomConstants::STRING,   # type
                    8,                            # byte format
                    'Replace',
-                   'Duplicate'); # window title
+                   'Duplicate Window'); # window title
 $X->ChangeProperty($window,
                    $X->atom('_NET_WM_USER_TIME'),
                    X11::AtomConstants::CARDINAL, # type
@@ -287,7 +289,7 @@ sub event_handler {
   } elsif ($name eq 'DamageNotify') {
     # $source has been drawn into
     my $rect = $h{'geometry'};
-    my (undef, undef, $width, $height) = @$rect;
+    my ($root_x, $root_y, $width, $height) = @$rect;
     ### $rect
     $X->DamageSubtract ($damage, 'None', 'None');
     $X->CopyArea ($source, $window, $gc,

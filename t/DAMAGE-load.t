@@ -19,29 +19,29 @@
 
 
 ## no critic (RequireUseStrict, RequireUseWarnings)
-use X11::Protocol::Ext::X_Resource;
+use X11::Protocol::Ext::DAMAGE;
 
 use Test;
 BEGIN { plan tests => 5 }
-ok (1, 1, 'X11::Protocol::Ext::X_Resource load as first thing');
+ok (1, 1, 'X11::Protocol::Ext::DAMAGE load as first thing');
 
 
 #------------------------------------------------------------------------------
 # VERSION
 
 my $want_version = 5;
-ok ($X11::Protocol::Ext::X_Resource::VERSION,
+ok ($X11::Protocol::Ext::DAMAGE::VERSION,
     $want_version,
     'VERSION variable');
-ok (X11::Protocol::Ext::X_Resource->VERSION,
+ok (X11::Protocol::Ext::DAMAGE->VERSION,
     $want_version,
     'VERSION class method');
 
-ok (eval { X11::Protocol::Ext::X_Resource->VERSION($want_version); 1 },
+ok (eval { X11::Protocol::Ext::DAMAGE->VERSION($want_version); 1 },
     1,
     "VERSION class check $want_version");
 my $check_version = $want_version + 1000;
-ok (! eval { X11::Protocol::Ext::X_Resource->VERSION($check_version); 1 },
+ok (! eval { X11::Protocol::Ext::DAMAGE->VERSION($check_version); 1 },
     1,
     "VERSION class check $check_version");
 

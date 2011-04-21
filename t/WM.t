@@ -77,7 +77,7 @@ $X->CreateWindow ($window2,
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 4;
+my $want_version = 5;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');
@@ -96,27 +96,30 @@ ok (! eval { X11::Protocol::WM->VERSION($check_version); 1 },
 #------------------------------------------------------------------------------
 # set_wm_transient_for()
 
-foreach my $elem ([$window, $window], # a window
-                  [0, 0],             # 0==None
-                  ['None', 0],        # 0==None
-                  [undef, undef],     # delete
-                 ) {
-  my ($transient_for, $want) = @$elem;
-  X11::Protocol::WM::set_wm_transient_for ($X, $window2, $transient_for);
+{
+  my $elem;
+  foreach $elem ([$window, $window], # a window
+                 [0, 0],             # 0==None
+                 ['None', 0],        # 0==None
+                 [undef, undef],     # delete
+                ) {
+    my ($transient_for, $want) = @$elem;
+    X11::Protocol::WM::set_wm_transient_for ($X, $window2, $transient_for);
 
-  my ($value, $type, $format, $bytes_after)
-    = $X->GetProperty ($window2,
-                       $X->atom('WM_TRANSIENT_FOR'),
-                       'AnyPropertyType',
-                       0,  # offset
-                       1,  # length, 1 x CARD32
-                       0); # delete
-  ok ($format, (defined $want ? 32 : 0));
-  ok ($type, (defined $want ? $X->atom('WINDOW') : 0));
-  my $type_name = ($type ? $X->atom_name($type) : 'None');
-  ok ($type_name, (defined $want ? 'WINDOW' : 'None'));
-  my ($got) = unpack 'L', $value;
-  ok ($got, $want, $window);
+    my ($value, $type, $format, $bytes_after)
+      = $X->GetProperty ($window2,
+                         $X->atom('WM_TRANSIENT_FOR'),
+                         'AnyPropertyType',
+                         0,  # offset
+                         1,  # length, 1 x CARD32
+                         0); # delete
+    ok ($format, (defined $want ? 32 : 0));
+    ok ($type, (defined $want ? $X->atom('WINDOW') : 0));
+    my $type_name = ($type ? $X->atom_name($type) : 'None');
+    ok ($type_name, (defined $want ? 'WINDOW' : 'None'));
+    my ($got) = unpack 'L', $value;
+    ok ($got, $want, $window);
+  }
 }
 
 #------------------------------------------------------------------------------

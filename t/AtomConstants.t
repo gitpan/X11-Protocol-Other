@@ -55,7 +55,7 @@ $X->QueryPointer($X->{'root'});  # sync
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 4;
+my $want_version = 5;
 ok ($X11::AtomConstants::VERSION,
     $want_version,
     'VERSION variable');
@@ -86,16 +86,19 @@ ok (X11::AtomConstants::LAST_PREDEFINED(), 68, 'LAST_PREDEFINED() value');
 
 #------------------------------------------------------------------------------
 
-foreach my $name (@X11::AtomConstants::EXPORT_OK) {
-  {
-    my @ret = X11::AtomConstants->$name;
-    ok (scalar(@ret), 1, "constant $name return 1 value");
-  }
-  next if $name eq 'LAST_PREDEFINED';
-  {
-    my $atom_id = X11::AtomConstants->$name;
-    my $got_name = $X->GetAtomName($atom_id);
-    ok ($got_name, $name, "constant $name = $atom_id");
+{
+  my $name;
+  foreach $name (@X11::AtomConstants::EXPORT_OK) {
+    {
+      my @ret = X11::AtomConstants->$name;
+      ok (scalar(@ret), 1, "constant $name return 1 value");
+    }
+    next if $name eq 'LAST_PREDEFINED';
+    {
+      my $atom_id = X11::AtomConstants->$name;
+      my $got_name = $X->GetAtomName($atom_id);
+      ok ($got_name, $name, "constant $name = $atom_id");
+    }
   }
 }
 

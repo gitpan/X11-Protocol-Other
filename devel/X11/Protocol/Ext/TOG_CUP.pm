@@ -93,10 +93,12 @@ sub new {
 
 sub _ext_requests_install {
   my ($X, $request_num, $reqs) = @_;
-  $X->{'ext_request'}{$request_num} = $reqs;
+
+  $X->{'ext_request'}->{$request_num} = $reqs;
+  my $href = $X->{'ext_request_num'};
   my $i;
   foreach $i (0 .. $#$reqs) {
-    $X->{'ext_request_num'}{$reqs->[$i]->[0]} = [$request_num, $i];
+    $href->{$reqs->[$i]->[0]} = [$request_num, $i];
   }
 }
 

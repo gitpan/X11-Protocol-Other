@@ -30,7 +30,7 @@ use vars '$VERSION';
 $VERSION = 3;
 
 # uncomment this to run the ### lines
-use Smart::Comments;
+#use Smart::Comments;
 
 # /usr/include/X11/extensions/Xinerama.h
 # /usr/include/X11/extensions/panoramiXext.h
@@ -45,19 +45,19 @@ my $reqs =
   [
    ["PanoramiXQueryVersion",  # 0
     sub {
-      my ($self, $major, $minor) = @_;
+      my ($X, $major, $minor) = @_;
       ### PanoramiXQueryVersion
       return pack 'CCxx', $major, $minor;
     },
     sub {
-      my ($self, $data) = @_;
+      my ($X, $data) = @_;
       return unpack 'x8SS', $data;
     }],
 
    ["PanoramiXGetState",  # 1
     \&_request_xids,
     sub {
-      my ($self, $data) = @_;
+      my ($X, $data) = @_;
       ### PanoramiXGetState reply
       ### state and window: unpack 'xCx6L', $data
       return unpack 'xC', $data;
@@ -69,7 +69,7 @@ my $reqs =
    ["PanoramiXGetScreenCount",  # 2
     \&_request_xids,
     sub {
-      my ($self, $data) = @_;
+      my ($X, $data) = @_;
       ### PanoramiXGetScreenCount reply: unpack "C*", $data
       ### count and window: unpack 'xCx6L', $data
       return unpack 'xC', $data;
@@ -77,11 +77,11 @@ my $reqs =
 
    ["PanoramiXGetScreenSize",  # 3
     sub {
-      my ($self, $window, $screen) = @_;
+      my ($X, $window, $screen) = @_;
       return pack 'LL', $window, $screen;
     },
     sub {
-      my ($self, $data) = @_;
+      my ($X, $data) = @_;
       ### PanoramiXGetScreenSize reply
       ### size,win,screen: unpack 'x8L4', $data
       return unpack 'x8LL', $data;
@@ -90,14 +90,14 @@ my $reqs =
    ["XineramaIsActive",  # 4
     \&_request_empty,
     sub {
-      my ($self, $data) = @_;
+      my ($X, $data) = @_;
       return unpack 'x8L', $data;
     }],
 
    ["XineramaQueryScreens",  # 5
     \&_request_empty,
     sub {
-      my ($self, $data) = @_;
+      my ($X, $data) = @_;
       my $num = unpack 'x8L', $data;
       ### XineramaQueryScreens reply: unpack 'x8L*', $data
       map {[ unpack 'ssSS', substr($data, 32+8*$_, 8) ]} 0 .. $num-1;
@@ -123,10 +123,12 @@ sub new {
 
 sub _ext_requests_install {
   my ($X, $request_num, $reqs) = @_;
-  $X->{'ext_request'}{$request_num} = $reqs;
+
+  $X->{'ext_request'}->{$request_num} = $reqs;
+  my $href = $X->{'ext_request_num'};
   my $i;
   foreach $i (0 .. $#$reqs) {
-    $X->{'ext_request_num'}{$reqs->[$i]->[0]} = [$request_num, $i];
+    $href->{$reqs->[$i]->[0]} = [$request_num, $i];
   }
 }
 

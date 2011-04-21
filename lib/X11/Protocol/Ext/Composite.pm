@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION';
-$VERSION = 4;
+$VERSION = 5;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -191,10 +191,12 @@ sub new {
 
 sub _ext_requests_install {
   my ($X, $request_num, $reqs) = @_;
-  $X->{'ext_request'}{$request_num} = $reqs;
+
+  $X->{'ext_request'}->{$request_num} = $reqs;
+  my $href = $X->{'ext_request_num'};
   my $i;
   foreach $i (0 .. $#$reqs) {
-    $X->{'ext_request_num'}{$reqs->[$i]->[0]} = [$request_num, $i];
+    $href->{$reqs->[$i]->[0]} = [$request_num, $i];
   }
 }
 
@@ -260,7 +262,7 @@ drawing extensions such as RENDER (see L<X11::Protocol::Ext::RENDER>).
 The following requests are made available with an C<init_extension()>, as
 per L<X11::Protocol/EXTENSIONS>.
 
-    my $available = $X->init_extension('Composite');
+    my $is_available = $X->init_extension('Composite');
 
 =head2 Composite 0.1
 

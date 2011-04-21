@@ -20,7 +20,6 @@
 use strict;
 use X11::Protocol;
 use Test;
-use lib 'devel', '.';
 
 BEGIN { require 5 }
 use strict;
@@ -87,6 +86,7 @@ $X->QueryPointer($X->root); # sync
   MyTestHelpers::diag ("server Composite version ", join('.',@ret));
   ok (scalar(@ret), 2);
   ok ($ret[0] <= $client_major, 1);
+
   # The X.org server circa 1.10 will return a higher minor version, not sure
   # if the spec is supposed to allow that, but don't worry about the test.
   #  ok ($ret[0] < $client_major

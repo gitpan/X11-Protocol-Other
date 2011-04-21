@@ -26,13 +26,20 @@ use lib 'devel', '.';
 use Smart::Comments;
 
 {
-  my $X = X11::Protocol->new (':0');
-  $X->init_extension('XFIXES') or die;
-  { my @version = $X->XFixesQueryVersion (1,0);
+  # require("X11/Protocol/Ext/DBE.pm");
+
+  my $X = X11::Protocol->new ($ENV{'DISPLAY'} || ':0');
+  $X->init_extension('DOUBLE-BUFFER') or die;
+
+  { my @version = $X->DbeGetVersion (99,99);
     ### @version
   }
   $X->QueryPointer($X->{'root'}); # sync
 
+  { my @infos = $X->DbeGetVisualInfo($X->root);
+    ### @infos
+  }
+  $X->QueryPointer($X->{'root'}); # sync
 
   exit 0;
 }
@@ -44,17 +51,7 @@ use Smart::Comments;
     ### event_handler: \%h
   };
 
-  { my @query = $X->QueryExtension('XFIXES');
-    ### @query
-  }
-  $X->QueryPointer($X->{'root'}); # sync
-
-  $X->init_extension('XFIXES') or die $@;
-  $X->QueryPointer($X->{'root'}); # sync
-
-  { my @version = $X->XFixesQueryVersion (99,0);
-    ### @version
-  }
+  $X->init_extension('DBE') or die $@;
   $X->QueryPointer($X->{'root'}); # sync
 
   my $cursor_font = $X->new_rsrc;
@@ -70,21 +67,21 @@ use Smart::Comments;
                          0,0,0);
   $X->QueryPointer($X->{'root'}); # sync
 
-  # { my @reqdata = $X->get_request('XFixesGetCursorName');
+  # { my @reqdata = $X->get_request('DbeGetCursorName');
   #   ### @reqdata
   # }
-  { my @ret = $X->XFixesGetCursorName ($cursor);
-    ### XFixesGetCursorName: @ret
+  { my @ret = $X->DbeGetCursorName ($cursor);
+    ### DbeGetCursorName: @ret
   }
   $X->QueryPointer($X->{'root'}); # sync
 
   my $region = $X->new_rsrc;
-  $X->XFixesCreateRegion ($region);
+  $X->DbeCreateRegion ($region);
   $X->QueryPointer($X->{'root'}); # sync
 
   my $region_dst = $X->new_rsrc;
-  $X->XFixesCreateRegion ($region_dst);
-  $X->XFixesExpandRegion ($region, $region_dst, 1,1,1,1);
+  $X->DbeCreateRegion ($region_dst);
+  $X->DbeExpandRegion ($region, $region_dst, 1,1,1,1);
   $X->QueryPointer($X->{'root'}); # sync
 
   my $window = $X->new_rsrc;
@@ -103,13 +100,13 @@ use Smart::Comments;
   $X->QueryPointer($X->{'root'}); # sync
 
   $region = $X->new_rsrc;
-  $X->XFixesCreateRegionFromWindow ($region, $window, 'Bounding');
-  { my @ret = $X->XFixesFetchRegion ($region);
+  $X->DbeCreateRegionFromWindow ($region, $window, 'Bounding');
+  { my @ret = $X->DbeFetchRegion ($region);
     ### @ret
   }
 
 
-  $X->XFixesSelectCursorInput ($X->root, 1);
+  $X->DbeSelectCursorInput ($X->root, 1);
   $X->QueryPointer($X->{'root'}); # sync
   $X->handle_input;
 

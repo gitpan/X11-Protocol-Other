@@ -133,7 +133,6 @@ sub freshen {
 }
 
 sub expose {
-  #        $x->ChangeGC($gc, 'attribute' => $value, ...)
   # $X->SetGCClipRegion ($gc, $parts, 0,0);
   $X->CopyArea ($origin, $window, $gc,
                 $origin_x,$origin_y,

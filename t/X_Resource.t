@@ -20,7 +20,6 @@
 use strict;
 use X11::Protocol;
 use Test;
-use lib 'devel', '.';
 
 BEGIN { require 5 }
 use strict;
@@ -81,7 +80,9 @@ MyTestHelpers::diag (sprintf 'resource_id_base %#X', $X->resource_id_base);
 # XResourceQueryVersion
 
 {
-  my @ret = $X->XResourceQueryVersion (1,0);
+  my $client_major = 1;
+  my $client_minor = 0;
+  my @ret = $X->XResourceQueryVersion ($client_major, $client_minor);
   MyTestHelpers::diag ("server X-Resource version ", join('.',@ret));
   ok (scalar(@ret), 2);
   ok ($ret[0] <= 1, 1);

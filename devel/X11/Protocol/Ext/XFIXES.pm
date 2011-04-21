@@ -1,8 +1,8 @@
 # Copyright 2011 Kevin Ryde
 
-# src/dst order
-# event masks
-# SelectionNotify subtype
+
+# cursor_name omitted or undef ?
+# event masks ?
 
 
 # This file is part of X11-Protocol-Other.
@@ -22,7 +22,7 @@
 
 BEGIN { require 5 }
 package X11::Protocol::Ext::XFIXES;
-use X11::Protocol 'make_num_hash';
+use X11::Protocol;
 use strict;
 
 use vars '$VERSION';
@@ -39,7 +39,82 @@ $VERSION = 3;
 
 ### XFIXES.pm loads
 
-my $reqs_version1 =
+#------------------------------------------------------------------------------
+# symbolic constants
+
+
+my %const_arrays
+  = (
+     XFixesWindowRegionKind => ['Bounding', 'Clip'],
+
+     XFixesSaveSetMode      => ['Insert', 'Delete'],
+     XFixesSaveSetTarget    => ['Nearest', 'Root'],
+     XFixesSaveSetMap       => ['Map', 'Unmap'],
+
+     XFixesSelectionNotifySubtype => [ 'SetSelectionOwner',
+                                       'SelectionWindowDestroy',
+                                       'SelectionClientClose' ],
+     # Not sure about this one ...
+     # XFixesSelectionEventMask => [ 'SetSelectionOwner',
+     #                               'SelectionWindowDestroy',
+     #                               'SelectionClientClose' ],
+
+     XFixesCursorNotifySubtype => [ 'DisplayCursor' ],
+     # Not sure about this one ...
+     # XFixesCursorEventMask     => [ 'DisplayCursor' ],
+    );
+
+my %const_hashes
+  = (map { $_ => { X11::Protocol::make_num_hash($const_arrays{$_}) } }
+     keys %const_arrays);
+
+#------------------------------------------------------------------------------
+# events
+
+my $XFixesSelectionNotify_event = [ 'xCxxL5',
+                                    ['subtype','XFixesSelectionNotifySubtype'],
+                                    'window',
+                                    ['owner',['None']], # window
+                                    'selection',        # atom
+                                    'time',
+                                    'selection_time',
+                                  ];
+
+my $XFixesCursorNotify_event
+  = [ sub {
+        my $X = shift;
+        my $data = shift;
+        ### XFixesCursorNotify unpack: @_
+        my ($subtype, $window, $cursor_serial, $time, $cursor_name)
+          = unpack 'xCxxL4', $data;
+        return (@_,  # base fields
+                subtype => $X->interp('XFixesCursorNotifySubtype',$subtype),
+                window  => _interp_none($X,$window), # probably not None though
+                cursor_serial => $cursor_serial,
+                time    => _interp_time($time),
+                # "name" field only in XFIXES 2.0 up, probably pad garbage
+                # in 1.0, so omit there.  Give it as "cursor_name" since
+                # plain "name" is the event name.
+                ($X->{'ext'}->{'XFIXES'}->[3]->{'major'} >= 2
+                 ? (cursor_name => $cursor_name)
+                 : ()));
+      },
+      sub {
+        my ($X, %h) = @_;
+        # "cursor_name" is optional
+        return (pack('xCxxL4x12',
+                     $X->num('XFixesCursorNotifySubtype',$h{'subtype'}),
+                     _num_none($h{'window'}),
+                     $h{'cursor_serial'},
+                     _num_time($h{'time'}),
+                     _num_none($h{'cursor_name'} || 0)),
+                1); # "do_seq" put in sequence number
+      } ];
+
+#------------------------------------------------------------------------------
+# requests
+
+my $reqs =
   [
    [ 'XFixesQueryVersion',  # 0
      sub {
@@ -50,7 +125,12 @@ my $reqs_version1 =
      sub {
        my ($X, $data) = @_;
        ### XFixesQueryVersion reply: "$X"
-       return unpack 'x8SS', $data;
+       my @ret = unpack 'x8SS', $data;
+       my $self;
+       if ($self = $X->{'ext'}->{'XFIXES'}->[3]) {
+         ($self->{'major'},$self->{'minor'}) = @ret;
+       }
+       return @ret;
      }],
 
    [ 'XFixesChangeSaveSet',  # 1
@@ -76,14 +156,15 @@ my $reqs_version1 =
      \&_request_empty,
      sub {
        my ($X, $data) = @_;
-       # (x,y, w,h, xhot,yhot, serial, pad32,pad32, $pixels)
-       return ((unpack 'x8ssSSSSL', $data),
-               [ unpack 'x32L*', $data ]);
+       # (rootx,rooty, w,h, xhot,yhot, serial)
+       my @ret = unpack 'x8ssSSSSL', $data;
+       return (@ret,
+               substr ($data, 32, 4*$ret[2]*$ret[3]));
      }],
-  ];
 
-my @reqs_version2 =
-  (
+   #---------------------------------------------------------------------------
+   # version 2.0
+
    [ 'XFixesCreateRegion',   # 5
      \&_request_region_and_rectangles ],
 
@@ -151,7 +232,7 @@ my @reqs_version2 =
      }],
 
    [ "XFixesSetGCClipRegion",   # 20
-     \&_request_xid_region_xy],
+     \&_request_xid_region_xy], # ($gc, $region, $x, $y)
 
    [ "XFixesSetWindowShapeRegion",   # 21
      sub {
@@ -168,7 +249,7 @@ my @reqs_version2 =
      }],
 
    [ "XFixesSetPictureClipRegion",   # 22
-     \&_request_xid_region_xy ],
+     \&_request_xid_region_xy ],  # ($pict, $region, $x, $y)
 
    [ "XFixesSetCursorName",   # 23
      sub {
@@ -210,27 +291,29 @@ my @reqs_version2 =
        my ($X, $src, $name) = @_;
        return pack 'LSxxa', $src, length($name), $name;
      }],
-  );
 
-my @reqs_version3 =
-  (
+
+   #---------------------------------------------------------------------------
+   # version 3.0
+
    [ 'XFixesExpandRegion',  # 28
      sub {
        shift; # $X
        return pack 'LLSSSS', @_; # $src, $dst, $left,$right, $top,$bottom
      }],
-  );
 
-my @reqs_version4 =
-  (
+
+   #---------------------------------------------------------------------------
+   # version 4.0
+
    ["XFixesHideCursor",  # 29
     \&_request_xids ],
    ["XFixesShowCursor",  # 30
     \&_request_xids ],
-  );
 
-my @reqs_version5 =
-  (
+   #---------------------------------------------------------------------------
+   # version 5.0
+
    ["XFixesCreatePointerBarrier",  # 31
     sub {
       my ($X, $barrier, $drawable, $x1,$y1, $x2,$y2, $directions, @devices) = @_;
@@ -245,111 +328,34 @@ my @reqs_version5 =
 
    ["XFixesDestroyPointerBarrier",  # 32
     \&_request_xids ],
-  );
-
-my $WindowRegionKind_array = ['Bounding', 'Clip'];
-my $WindowRegionKind_hash =
-  { X11::Protocol::make_num_hash($WindowRegionKind_array) };
-
-my $SaveSetMode_array = ['Insert', 'Delete'];
-my $SaveSetMode_hash =
-  { X11::Protocol::make_num_hash($SaveSetMode_array) };
-
-my $SaveSetTarget_array = ['Nearest', 'Root'];
-my $SaveSetTarget_hash =
-  { X11::Protocol::make_num_hash($SaveSetTarget_array) };
-
-my $SaveSetMap_array = ['Map', 'Unmap'];
-my $SaveSetMap_hash =
-  { X11::Protocol::make_num_hash($SaveSetMap_array) };
-
-my $SelectionNotifySubtype_array = ['SetSelectionOwnerNotify',
-                                    'SelectionWindowDestroyNotify',
-                                    'SelectionClientCloseNotify' ];
-my $SelectionNotifySubtype_hash =
-  { X11::Protocol::make_num_hash($SelectionNotifySubtype_array) };
+  ];
 
 sub new {
   my ($class, $X, $request_num, $event_num, $error_num) = @_;
   ### XFIXES new()
 
   # Constants
-  $X->{'ext_const'}->{'XFixesWindowRegionKind'} = $WindowRegionKind_array;
-  $X->{'ext_const_num'}->{'XFixesWindowRegionKind'} = $WindowRegionKind_hash;
-
-  $X->{'ext_const'}->{'XFixesSaveSetMode'} = $SaveSetMode_array;
-  $X->{'ext_const_num'}->{'XFixesSaveSetMode'} = $SaveSetMode_hash;
-
-  $X->{'ext_const'}->{'XFixesSaveSetTarget'} = $SaveSetTarget_array;
-  $X->{'ext_const_num'}->{'XFixesSaveSetTarget'} = $SaveSetTarget_hash;
-
-  $X->{'ext_const'}->{'XFixesSaveSetMap'} = $SaveSetMap_array;
-  $X->{'ext_const_num'}->{'XFixesSaveSetMap'} = $SaveSetMap_hash;
-
-  $X->{'ext_const'}->{'XFixesSelectionNotifySubtype'} = $SelectionNotifySubtype_array;
-  $X->{'ext_const_num'}->{'XFixesSelectionNotifySubtype'} = $SelectionNotifySubtype_hash;
-
-  $X->{'ext_const'}{'XFixesSelectionEventMask'}
-    = ['SetSelectionOwnerNotifyMask',
-       'SelectionWindowDestroyNotifyMask',
-       'SelectionClientCloseNotifyMask' ];
-  $X->{'ext_const_num'}{'XFixesSelectionEventMask'} =
-    { make_num_hash($X->{'ext_const'}{'XFixesSelectionEventMask'}) };
-
-  $X->{'ext_const'}{'XFixesCursorEventMask'}
-    = ['DisplayCursorNotifyMask' ];
-  $X->{'ext_const_num'}{'XFixesCursorEventMask'} =
-    { make_num_hash($X->{'ext_const'}{'XFixesCursorEventMask'}) };
+  $X->{'ext_const'} ||= {};
+  %{$X->{'ext_const'}} = (%{$X->{'ext_const'}},
+                          %const_arrays);
+  $X->{'ext_const_num'} ||= {};
+  %{$X->{'ext_const_num'}} = (%{$X->{'ext_const_num'}},
+                              %const_hashes);
 
   # Events
   $X->{'ext_const'}{'Events'}[$event_num] = 'XFixesSelectionNotify';
-  $X->{'ext_events'}[$event_num] =
-    ['xCxxL5',
-     'subtype',
-     'window',
-     ['owner',['None']], # window
-     'selection',        # atom
-     'time',
-     'selection_time',
-    ];
-
+  $X->{'ext_events'}[$event_num] = $XFixesSelectionNotify_event;
   $event_num++;
   $X->{'ext_const'}{'Events'}[$event_num] = 'XFixesCursorNotify';
-  $X->{'ext_events'}[$event_num] = ['xCxxL3',  # version 1.0 without 'name'
-                                    'subtype',
-                                    'window',
-                                    ['cursor',['None']]
-                                    'time',
-                                   ];
+  $X->{'ext_events'}[$event_num] = $XFixesCursorNotify_event;
 
   # Requests
-  _ext_requests_install ($X, $request_num, $reqs_version1);
+  _ext_requests_install ($X, $request_num, $reqs);
 
-  # protocol spec says must query version with what we support
-  my ($major, $minor) = $X->req('XFixesQueryVersion', 5, 0);
-  ### $major
-  ### $minor
-  if ($major >= 2) {
-    $X->{'ext_events'}[$event_num] = ['xCxxL4',
-                                      'subtype',
-                                      'window',
-                                      ['cursor',['None']]
-                                      'time',
-                                      ['name',['None']],  # new in 2.0
-                                     ];
-
-    my @reqs = @$reqs_version1;
-    push @reqs, @reqs_version2;
-    if ($major >= 3) { push @reqs, @reqs_version3 }
-    if ($major >= 4) { push @reqs, @reqs_version4 }
-    if ($major >= 5) { push @reqs, @reqs_version5 }
-    _ext_requests_install ($X, $request_num, \@reqs);
-  }
-
-  return bless {
-                # Any interest in holding the version number?
-                # major => $major,
-                # minor => $minor,
+  # the protocol spec says must query version with what we support
+  my ($server_major, $server_minor) = $X->req('XFixesQueryVersion', 5, 0);
+  return bless { major => $server_major,
+                 minor => $server_minor,
                }, $class;
 }
 
@@ -399,19 +405,38 @@ sub _interp_none {
   }
 }
 
+sub _interp_time {
+  my ($time) = @_;
+  if ($time == 0) {
+    return 'CurrentTime';
+  } else {
+    return $time;
+  }
+}
+sub _num_time {
+  my ($time) = @_;
+  if ($time eq 'CurrentTime') {
+    return 0;
+  } else {
+    return $time;
+  }
+}
+
 sub _ext_requests_install {
   my ($X, $request_num, $reqs) = @_;
-  $X->{'ext_request'}{$request_num} = $reqs;
+
+  $X->{'ext_request'}->{$request_num} = $reqs;
+  my $href = $X->{'ext_request_num'};
   my $i;
   foreach $i (0 .. $#$reqs) {
-    $X->{'ext_request_num'}{$reqs->[$i]->[0]} = [$request_num, $i];
+    $href->{$reqs->[$i]->[0]} = [$request_num, $i];
   }
 }
 
 1;
 __END__
 
-=for stopwords XFIXES XID reparent Unmap arrayref AARRGGBB GG pre-multiplied pixmap RANDR ShapeKind subwindow Ryde
+=for stopwords XFIXES XID reparent Unmap arrayref AARRGGBB GG pre-multiplied pixmap RENDER ShapeKind subwindow Ryde
 
 =head1 NAME
 
@@ -448,9 +473,9 @@ C<$server_major> and C<$server_minor> is what the server will do, which
 might be less than requested (but not more than).
 
 The current code in this module supports up to 5.0 and automatically
-negotiates for anything up to that, so direct use of C<XFixesQueryVersion>
-would be unusual.  Asking for higher than the code supports might be a bad
-idea.
+negotiates within C<init_extension()>, so direct use of
+C<XFixesQueryVersion> is not necessary.  Asking for higher than the code
+supports might be a bad idea.
 
 =item C<($atom, $str) = $X-E<gt>XFixesChangeSaveSet ($window, $mode, $target, $map)>
 
@@ -469,38 +494,58 @@ C<$map> is either "Map" or "Unmap" to apply to C<$window> on close-down.
 
 =item $X-E<gt>XFixesSelectSelectionInput ($window, $selection, $event_mask)>
 
-Select ... (see L</"EVENTS"> below).
+Select C<SelectionNotify> events ... (see L</"EVENTS"> below).
 
-=item $X-E<gt>XFixesSelectCursorInput ()>
+C<$event_mask> has three bits,
 
-Select C<CursorNotify> events (see L</"EVENTS"> below).
+                            bitpos  bitval
+    SetSelectionOwner         0      0x01
+    SelectionWindowDestroy    1      0x02
+    SelectionClientClose      2      0x04
 
-=item ($x,$y, $width,$height, $xhot,$yhot, $serial, $pixels) = $X-E<gt>XFixesGetCursorImage ()>
+To choose which of the respective event "subtypes" should be reported.
+There's no pack function for these yet, so just give an integer, for
+instance 0x07 for all three.
 
-Return the pixels etc of the current mouse pointer cursor.
+=item $X-E<gt>XFixesSelectCursorInput ($event_mask)>
 
-C<$pixels> is an arrayref of C<$width * $height> many pixels which is the
-image data.  Each pixel is a 32-bit number with 8-bit hex parts "AARRGGBB",
-where AA is an alpha transparency, and RR, GG, BB the red, green, blue
-colours.  The colours are pre-multiplied by the alpha.
+Select C<XFixesCursorNotify> events ... (see L</"EVENTS"> below).
 
- # element is an arrayref [$red,$green,$blue,$alpha].  Each component is in the
- # range 0 to 255 and the colours are
+C<$event_mask> has only a single bit, 0x01, to select C<DisplayCursor>
+events or not.  There's no pack function for this yet, just give integer 1
+or 0.
 
-=item C<($atom, $str) = $X-E<gt>XFixesGetCursorImage ()>
+=item ($root_x,$root_y, $width,$height, $xhot,$yhot, $serial, $pixels) = $X-E<gt>XFixesGetCursorImage ()>
 
-Get the image and name of the current mouse pointer cursor.
+Return the size and pixels of the current mouse pointer cursor.
+
+C<$root_x>,C<$root_y> is the current mouse pointer location in root window
+coordinates (similar to C<QueryPointer>).
+
+C<$width>,C<$height> is the size of the cursor.  C<$xhot>,C<$yhot> is the
+"hotspot" position within the cursor, which follows the pointer location.
+
+C<$pixels> is a byte string of the cursor image pixels in RGBA format.  Each
+pixel is 4 bytes R,G,B,A, then C<$width> many of those for each row, and
+C<$height> many such rows.  Each component is 0 to 255 and the colours are
+pre-multiplied by the alpha transparency factor.
+
+    RGBARGBA...RGBA    $width pixels per row
+    ...
+    RGBARGBA...RGBA    and $height rows
 
 =back
 
 =head2 XFIXES version 2.0
+
+A region object on the server represents a set of rectangles.
 
 =over
 
 =item C<$X-E<gt>XFixesCreateRegion ($region, $rect...)>
 
 Create C<$region> (a new XID) as a region and set it to the union of the
-given rectangles, or empty if no rectangles.  Each C<$rect> is an arrayref
+given rectangles, or empty if none.  Each C<$rect> is an arrayref
 C<[$x,$y,$width,$height]>.
 
     my $region = $X->new_rsrc;
@@ -513,7 +558,12 @@ Create a region initialized from the 1 bits of C<$bitmap> (a pixmap XID).
 =item C<$X-E<gt>XFixesCreateRegionFromWindow ($region, $window, $kind)>
 
 Create a region initialized from the shape of C<$window> (an XID).  C<$kind>
-is either "Bounding" or "Clip".
+is either "Bounding" or "Clip" as per the SHAPE extension (see
+L<X11::Protocol::Ext::SHAPE>).
+
+It's not necessary to C<$X-E<gt>init_extension('SHAPE')> before using this
+request, any shape handling is done on the server, resulting in whatever
+rectangular or non-rectangular region.
 
 =item C<$X-E<gt>XFixesCreateRegionFromGC ($region, $window)>
 
@@ -521,7 +571,11 @@ Create a region initialized from the clip mask of C<$gc> (an XID).
 
 =item C<$X-E<gt>XFixesCreateRegionFromPicture ($region, $picture)>
 
-Create a region initialized from a RANDR C<$picture> (an XID).
+Create a region initialized from a RENDER C<$picture> (an XID).
+
+Picture objects are from the RENDER extension (see
+L<X11::Protocol::Ext::RENDER>).  This request always exists, but is not
+useful without RENDER.
 
 =item C<$X-E<gt>XFixesDestroyRegion ($region)>
 
@@ -529,8 +583,9 @@ Destroy C<$region>.
 
 =item C<$X-E<gt>XFixesSetRegion ($region, $rect...)>
 
-Set C<$region> to the union of the given rectangles.  Each C<$rect> is an
-arrayref C<[$x,$y,$width,$height]>, as per C<XFixesCreateRegion> above.
+Set C<$region> to the union of the given rectangles, or empty if none.  Each
+C<$rect> is an arrayref C<[$x,$y,$width,$height]>, as per
+C<XFixesCreateRegion> above.
 
 =item C<$X-E<gt>XFixesCopyRegion ($dst, $src)>
 
@@ -566,34 +621,36 @@ is empty then C<$dst> is set to empty.
 =item C<@rects = $X-E<gt>XFixesFetchRegion ($region)>
 
 Return a list of rectangles which cover C<$region>.  Each returned element
-is an arrayref C<[$x,$y,$width,$height]>.
+is an arrayref C<[$x,$y,$width,$height]> and are in "YX-banded" order.
 
 =item C<$X-E<gt>XFixesSetGCClipRegion ($gc, $region)>
 
-Set the clip mask of C<$gc> (an XID) to C<$region>.
+Set the clip mask of C<$gc> (an XID) to C<$region> (an XID).
 
 =item C<$X-E<gt>XFixesSetWindowShapeRegion ($window, $kind, $x_offset, $y_offset, $region)>
 
 Set the shape mask of C<$window> (an XID) to C<$region>, at offset
-C<$x_offset>,C<$y_offset> in the window.  C<$kind> is a ShapeKind, either
-"Bounding" or "Clip".
+C<$x_offset>,C<$y_offset> into the window.  C<$kind> is a ShapeKind, either
+"Bounding" or "Clip" (see L<X11::Protocol::Ext::SHAPE>.)
 
-This requires the SHAPE extension (see L<X11::Protocol::Ext::SHAPE>).  The
-request always exists, but presumably gives an error reply if SHAPE is not
-available on the server.
+It's not necessary to C<$X-E<gt>init_extension('SHAPE')> before using this
+request.  If SHAPE is not available at all on the server then presumably
+this request gives an error reply.
 
 =item C<$X-E<gt>XFixesSetPictureClipRegion ($picture, $region)>
 
-Set the clip mask of RANDR C<$picture> (an XID) to C<$region>.
+Set the clip mask of RENDER C<$picture> (an XID) to C<$region>.
 
-Picture objects are from the RANDR extension (see
-L<X11::Protocol::Ext::RANDR>).  The request always exists, but is not useful
-without RANDR.
+Picture objects are from the RENDER extension (see
+L<X11::Protocol::Ext::RENDER>).  The request always exists, but is not useful
+without RENDER.
 
 =item C<$X-E<gt>XFixesSetCursorName ($cursor, $str)>
 
-Set a name for cursor object C<$cursor> (an XID).  The name is interned as
-an atom within the server.
+Set a name for cursor object C<$cursor> (an XID).  The name string C<$str>
+is interned as an atom within the server and therefore should consist only
+of latin-1 characters.  (Perhaps in the future there will be some
+enforcement or conversions here.)
 
 =item C<($atom, $str) = $X-E<gt>XFixesGetCursorName ($cursor)>
 
@@ -601,19 +658,19 @@ Get the name of mouse pointer cursor C<$cursor> (an XID), as set by
 C<XFixesSetCursorName>.
 
 The returned C<$atom> (integer) is the name atom and C<$str> is the name
-string (the atom's name).  If there's no name then C<$atom> is string "None"
-(or 0 if no C<$X-E<gt>{'do_interp'}>) and C<$str> is empty "".
+string (which is the atom's name).  If there's no name then C<$atom> is
+string "None" (or 0 if no C<$X-E<gt>{'do_interp'}>) and C<$str> is empty "".
 
 =item C<($x,$y, $width,$height, $xhot,$yhot, $serial, $pixels, $atom, $str) = $X-E<gt>XFixesGetCursorImageAndName ()>
 
 Get the image and name of the current mouse pointer cursor.  The return is
-the values of C<XFixesGetCursorImage> and of C<XFixesGetCursorName> as
+the values of C<XFixesGetCursorImage> plus C<XFixesGetCursorName>, as
 described above.
 
 =item C<$X-E<gt>XFixesChangeCursor ($src, $dst)>
 
 Change the contents of cursor C<$dst> (an XID) to the contents of cursor
-C<$src>.
+C<$src> (an XID).
 
 =item C<$X-E<gt>XFixesChangeCursorByName ($src, $dst_name)>
 
@@ -630,11 +687,11 @@ contents of cursor C<$src>.
 
 Set region C<$dst> (an XID) to the rectangles of region C<$src>, with each
 rectangle expanded by C<$left>, C<$right>, C<$top>, C<$bottom> many pixels
-each in the respective directions.
+in the respective directions.
 
-Notice that it doesn't matter in what way C<$src> is expressed as
-rectangles, the effect is simply as if each pixel in C<$src> was
-individually expanded, and the union of the result then taken.
+Notice that it doesn't matter how C<$src> is expressed as rectangles, the
+effect is simply as if each pixel in C<$src> was individually expanded and
+the union of the result then taken.
 
 =back
 
@@ -646,13 +703,13 @@ individually expanded, and the union of the result then taken.
 
 =item C<$X-E<gt>XFixesShowCursor ($window)>
 
-Hide or show the mouse pointer cursor when it's in C<$window> (an XID) or
-any subwindow.
+Hide or show the mouse pointer cursor for C<$window> (an XID).  When the
+pointer moves into C<$window> or any subwindow it's hidden.
 
-Hide/show for each window is a per-client setting.  If two or more clients
-request hiding then the cursor remains hidden until all of them do a "show".
-If a client disconnects or is killed then any hides it had in force are
-undone.
+This hide/show for each window is a per-client setting.  If more than one
+client requests hiding then the cursor remains hidden until all of them
+"show" again.  If a client disconnects or is killed then any hides it had
+are undone.
 
 =back
 
@@ -662,16 +719,24 @@ undone.
 
 =item C<$X-E<gt>XFixesCreatePointerBarrier ($barrier, $drawable, $x1,$y1, $x2,$y2, $directions, @devices)>
 
-Create a barrier which prevents user mouse pointer movement across a line
-between C<$x1,$y1> and C<$x2,$y2>.  The line must be either horizontal or
-vertical, so either C<$x1==$x2> or C<$y1==$y2>.  A horizontal barrier is
-across the top edge of the given line pixels, a vertical barrier is the left
-edge of the line.
+Create C<$barrier> (a new XID) as a barrier object which prevents user mouse
+pointer movement across a line between C<$x1,$y1> and C<$x2,$y2>.
+
+The line must be horizontal or vertical, so either C<$x1==$x2> or
+C<$y1==$y2>.  A horizontal barrier is across the top edge of the line
+pixels, a vertical barrier is along the left edge of the line.
 
     my $barrier = $X->new_rsrc;
     $X->XFixesCreatePointerBarrier ($barrier, $X->root,
                                     100,100, 100,500,
                                     ['PositiveY','NegativeY']);
+
+The user can move the mouse pointer to skirt around a given barrier line,
+but by putting lines together a region can be constructed keeping the
+pointer inside or outside, or even making a maze to trick the user!
+
+Touchscreen pad input is not affected by barriers, and
+C<$X-E<gt>WarpPointer> can still move the pointer anywhere.
 
 =item C<$X-E<gt>XFixesDestroyPointerBarrier ($barrier)>
 
@@ -681,23 +746,68 @@ Destroy the given barrier (an XID).
 
 =head1 EVENTS
 
-C<CursorNotify> is emitted when selected by C<XFixesSelectCursorInput> above
-and has the following fields,
+The following events have the usual fields
 
-    subtype      always "DisplayCursor"
-    window       XID
-    cursor       XID
-    time         server timestamp (integer)
-    name         atom or "None" (XFIXES 2.0 up only)
+    name             "XFixes..."
+    synthetic        true if from a SendEvent
+    code             integer opcode
+    sequence_number  integer
 
-Subtype C<DisplayCursor> means the cursor as displayed on the screen has
-changed.    
+=over
+
+=item C<XFixesSelectionNotify>
+
+C<XFixesSelectionNotify> is sent to the client when selected with
+C<XFixesSelectSelectionInput> above.  It reports changes to the selection.
+The event-specific fields are
+
+    subtype         enum string
+    window          XID
+    owner           XID of owner window, or "None"
+    selection       atom
+    time            integer, server timestamp
+    selection_time  integer, server timestamp
+
+C<subtype> is one of
+
+    SetSelectionOwner
+    SelectionWindowDestroy
+    SelectionClientClose
+
+C<time> is when the event was generated, C<selection_time> is when the
+selection was owned.
+
+=item C<XFixesCursorNotify>
+
+C<XFixesCursorNotify> is sent to the client when selected by
+C<XFixesSelectCursorInput> above.  It reports when the mouse pointer cursor
+displayed has changed.  It has the following event-specific fields,
+
+    subtype         enum string, currently always "DisplayCursor"
+    window          XID
+    cursor_serial   integer
+    time            integer, server timestamp
+    cursor_name     atom or "None", XFIXES 2.0 up
+
+C<subtype> is "DisplayCursor" when the displayed cursor has changed.  This
+is the only subtype currently.
+
+C<cursor_serial> is a serial number as obtained from
+C<XFixesGetCursorImage>.  A client can use this to notice the cursor has
+become an already-fetched image.
+
+C<cursor_name> is the atom of the name given to cursor by
+C<XFixesSetCursorName>, or string "None" if no name.  This is new in XFIXES
+2.0 and is returned by the event unpack only if the server is 2.0 or higher.
+In an event repack it's optional and is put in if given.
+
+=back
 
 =head1 SEE ALSO
 
 L<X11::Protocol>,
-L<X11::Protocol::Ext::Composite>,
-L<X11::Protocol::Ext::DAMAGE>
+L<X11::Protocol::Ext::SHAPE>,
+L<X11::Protocol::Ext::RENDER>
 
 =head1 HOME PAGE
 

@@ -1,0 +1,163 @@
+#!/usr/bin/perl -w
+
+# Copyright 2011 Kevin Ryde
+
+# This file is part of X11-Protocol-Other.
+#
+# X11-Protocol-Other is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as published
+# by the Free Software Foundation; either version 3, or (at your option) any
+# later version.
+#
+# X11-Protocol-Other is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
+
+
+use lib 'devel';
+
+
+
+
+
+use strict;
+use X11::Protocol;
+use Test;
+
+BEGIN { require 5 }
+use strict;
+use Test;
+
+use lib 't';
+use MyTestHelpers;
+BEGIN { MyTestHelpers::nowarnings() }
+END { MyTestHelpers::diag ("END"); }
+
+# uncomment this to run the ### lines
+#use Smart::Comments;
+
+my $test_count = 82;
+plan tests => $test_count;
+
+require X11::Protocol;
+MyTestHelpers::diag ("X11::Protocol version ", X11::Protocol->VERSION);
+
+my $display = $ENV{'DISPLAY'};
+if (! defined $display) {
+  foreach (1 .. $test_count) {
+    skip ('No DISPLAY set', 1, 1);
+  }
+  exit 0;
+}
+
+# pass display arg so as not to get a "guess" warning
+my $X;
+if (! eval { $X = X11::Protocol->new ($display); }) {
+  MyTestHelpers::diag ('Cannot connect to X server -- ',$@);
+  foreach (1 .. $test_count) {
+    skip ('Cannot connect to X server', 1, 1);
+  }
+  exit 0;
+}
+$X->QueryPointer($X->{'root'});  # sync
+
+{
+  my ($major_opcode, $first_event, $first_error)
+    = $X->QueryExtension('XFIXES');
+  if (! defined $major_opcode) {
+    foreach (1 .. $test_count) {
+      skip ('QueryExtension() no XFIXES on the server', 1, 1);
+    }
+    exit 0;
+  }
+  MyTestHelpers::diag ("XFIXES extension opcode=$major_opcode event=$first_event error=$first_error");
+}
+
+if (! $X->init_extension ('XFIXES')) {
+  die "QueryExtension says XFIXES avaiable, but init_extension() failed";
+}
+$X->QueryPointer($X->root); # sync
+
+
+# #------------------------------------------------------------------------------
+# # DamageReportLevel enum
+# 
+# {
+#   ok ($X->num('DamageReportLevel','RawRectangles'),   0);
+#   ok ($X->num('DamageReportLevel','DeltaRectangles'), 1);
+#   ok ($X->num('DamageReportLevel','BoundingBox'),     2);
+#   ok ($X->num('DamageReportLevel','NonEmpty'),        3);
+# 
+#   ok ($X->num('DamageReportLevel',0), 0);
+#   ok ($X->num('DamageReportLevel',1), 1);
+#   ok ($X->num('DamageReportLevel',2), 2);
+#   ok ($X->num('DamageReportLevel',3), 3);
+# 
+#   ok ($X->interp('DamageReportLevel',0), 'RawRectangles');
+#   ok ($X->interp('DamageReportLevel',1), 'DeltaRectangles');
+#   ok ($X->interp('DamageReportLevel',2), 'BoundingBox');
+#   ok ($X->interp('DamageReportLevel',3), 'NonEmpty');
+# }
+
+
+#------------------------------------------------------------------------------
+# XFixesQueryVersion
+
+{
+  my $client_major = 1;
+  my $client_minor = 1;
+  my @ret = $X->XFixesQueryVersion ($client_major, $client_minor);
+  MyTestHelpers::diag ("server XFIXES version ", join('.',@ret));
+  ok (scalar(@ret), 2);
+  ok ($ret[0] <= $client_major, 1);
+}
+  $X->QueryPointer($X->root); # sync
+
+#------------------------------------------------------------------------------
+# XFixesCursorNotify event
+
+{
+  my $aref = $X->{'ext'}->{'XFIXES'};
+  my ($request_num, $event_num, $error_num, $obj) = @$aref;
+
+  my $more;
+  foreach $more (0, 1) {
+    my $time;
+    foreach $time ('CurrentTime', 103) {
+      my %input = (# can't use "name" on an extension event, at least in 0.56
+                   # name      => "XFixesCursorNotify",
+                   synthetic => 1,
+                   code      => $event_num+1,
+                   sequence_number => 100,
+
+                   subtype       => 'DisplayCursor',
+                   window        => 102,
+                   cursor_serial => 103,
+                   time          => $time,
+                   name          => 104);
+
+      my $data = $X->pack_event(%input);
+      ok (length($data), 32);
+
+      my %output = $X->unpack_event($data);
+      ### %output
+
+      ok ($output{'code'},          $input{'code'});
+      ok ($output{'name'},          'XFixesCursorNotify');
+      ok ($output{'synthetic'},     $input{'synthetic'});
+      ok ($output{'window'},        $input{'window'});
+      ok ($output{'cursor_serial'}, $input{'cursor_serial'});
+      ok ($output{'time'},          $input{'time'});
+      ok ($output{'cursor_name'},   $input{'cursor_name'});
+    }
+  }
+}
+
+
+#------------------------------------------------------------------------------
+
+exit 0;

@@ -37,8 +37,8 @@ use Smart::Comments;
   $X->init_extension('XINERAMA') or die $@;
   $X->QueryPointer($X->{'root'}); # sync
 
-  { my @ret = $X->PanoramiXQueryVersion (99,99);
-    ### @ret
+  { my @version = $X->PanoramiXQueryVersion (99,99);
+    ### @version
   }
   $X->QueryPointer($X->{'root'}); # sync
 

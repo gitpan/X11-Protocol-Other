@@ -20,3 +20,6 @@
 
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/perlmodule.mk
+include /usr/share/cdbs/1/rules/simple-patchsys.mk
+
+DEB_INSTALL_EXAMPLES_libx11-protocol-other-perl = examples/*

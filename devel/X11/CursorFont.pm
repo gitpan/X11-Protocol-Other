@@ -1,5 +1,8 @@
 # Copyright 2011 Kevin Ryde
 
+#  arrow_mask in hash too ?
+
+
 # This file is part of X11-Protocol-Other.
 #
 # X11-Protocol-Other is free software; you can redistribute it and/or
@@ -18,17 +21,17 @@
 BEGIN { require 5 }
 package X11::CursorFont;
 use strict;
-use vars '$VERSION', '@ISA', '%GLYPHS', '%GLYPH_NAMES', '@EXPORT_OK';
+use vars '$VERSION', '@ISA', '%CURSOR_GLYPH', '%CURSOR_NAME', '@EXPORT_OK';
 
 use Exporter;
 @ISA = ('Exporter');
-@EXPORT_OK = ('%GLYPHS', '%GLYPH_NAMES');
+@EXPORT_OK = ('%CURSOR_GLYPH', '%CURSOR_NAME');
 
 $VERSION = 3;
 
 # cf XmuCursorNameToIndex()
 
-%GLYPHS
+%CURSOR_GLYPH
   = (
      # (shell-command "perl -n -e '/define XC_([^ ]*).*?([0-9]+)/ and $1 ne q{num_glyphs} and print \"     $1 => $2,\n\"' </usr/include/X11/cursorfont.h" 'insert)
 
@@ -111,7 +114,7 @@ $VERSION = 3;
      xterm => 152,
     );
 
-my @GLYPH_NAMES
+my @CURSOR_NAME
   = (
      # (shell-command "perl -n -e '/define XC_([^ ]*).*?([0-9]+)/ and $1 ne q{num_glyphs} and do { print qq{     q{$1},\n}; print qq{     q{$1_mask},\n} }' </usr/include/X11/cursorfont.h" 'insert)
 
@@ -274,3 +277,29 @@ my @GLYPH_NAMES
 
 1;
 __END__
+
+=for stopwords drawables pixmaps XFIXES DamageNotify XID subwindows enum unhandled GL arrayref umm pixmap Ryde
+
+=head1 NAME
+
+X11::CursorFont - cursor font glyph names
+
+=for test_synopsis my ($X)
+
+=head1 SYNOPSIS
+
+ use X11::CursorFont '%CURSOR_GLYPH';
+
+ my $cursor_font = $X->new_rsrc;
+ $X->OpenFont ($cursor_font, "cursor");
+
+ my $cursor = $X->new_rsrc;
+ $X->CreateGlyphCursor ($cursor,
+                        $cursor_font,  # font
+                        $cursor_font,  # mask font
+                        $CURSOR_GLYPH{'crosshair'},     # glyph
+                        $CURSOR_GLYPH{'crosshair'} + 1, # and its mask
+                        0,0,0,                    # foreground, black
+                        0xFFFF, 0xFFFF, 0xFFFF);  # background, white
+
+=cut

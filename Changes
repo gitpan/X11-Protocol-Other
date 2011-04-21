@@ -17,6 +17,9 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 5, April 2011
+    - new X11::Protocol::Ext::DAMAGE extension 1.1
+
 Version 4, April 2011
     - new X11::Protocol::Ext::Composite extension 0.3
     - new X11::Protocol::Ext::X_Resource extension 1.0

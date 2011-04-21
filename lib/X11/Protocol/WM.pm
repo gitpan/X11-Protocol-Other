@@ -22,7 +22,7 @@ use Carp;
 use X11::AtomConstants;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 4;
+$VERSION = 5;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -129,7 +129,8 @@ sub set_wm_hints {
     if (delete $hint{'urgency'}) {
       $flags |= 256;
     }
-    foreach my $key (keys %hint) {
+    my $key;
+    foreach $key (keys %hint) {
       my $bit = $key_to_flag{$key}
         || croak "Unknown WM_HINT field: ",$key;
       if (defined $hint{$key}) {
@@ -251,7 +252,7 @@ sub _get_single_property {
 
 
 
-=for stopwords Ryde XID NETWM enum NormalState IconicState ICCCM ClientMessage iconify EWMH
+=for stopwords Ryde XID NETWM enum NormalState IconicState ICCCM ClientMessage iconify EWMH multi-colour
 
 =head1 NAME
 
