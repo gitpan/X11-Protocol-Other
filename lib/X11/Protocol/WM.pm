@@ -22,7 +22,7 @@ use Carp;
 use X11::AtomConstants;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 5;
+$VERSION = 6;
 
 use Exporter;
 @ISA = ('Exporter');

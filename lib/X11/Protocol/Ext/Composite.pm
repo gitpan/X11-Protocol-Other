@@ -20,8 +20,9 @@ package X11::Protocol::Ext::Composite;
 use strict;
 use X11::Protocol;
 
-use vars '$VERSION';
-$VERSION = 5;
+use vars '$VERSION', '@CARP_NOT';
+$VERSION = 6;
+@CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -40,6 +41,10 @@ $VERSION = 5;
 #
 
 ### Composite.pm loads
+
+# these not documented yet ...
+use constant CLIENT_MAJOR_VERSION => 0;
+use constant CLIENT_MINOR_VERSION => 3;
 
 my $reqs =
   [
@@ -178,7 +183,9 @@ sub new {
   #     } ];
 
   # Any need to negotiate the version before using?
-  #  my ($major, $minor) = $X->req('CompositeQueryVersion', 0, 3);
+  #  my ($major, $minor) = $X->req('CompositeQueryVersion',
+  #                                              CLIENT_MAJOR_VERSION,
+  #                                              CLIENT_MINOR_VERSION);
   # if ($major != 1) {
   #   carp "Unrecognised Composite major version, got $major want 1";
   #   return 0;
@@ -228,7 +235,7 @@ __END__
 
 X11::Protocol::Ext::Composite - off-screen window contents
 
-=for test_synopsis my ($X)
+=for test_synopsis my ($X, $mywindow)
 
 =head1 SYNOPSIS
 
@@ -236,6 +243,8 @@ X11::Protocol::Ext::Composite - off-screen window contents
  $X = X11::Protocol->new;
  $X->init_extension('Composite')
    or print "Composite extension not available";
+
+ $X->CompositeRedirectWindow ($mywindow, 'Automatic');
 
 =head1 DESCRIPTION
 
@@ -292,7 +301,8 @@ negotiate in C<init_extension> if/when necessary.
 Enable or disable a redirect of C<$window> to off-screen storage.
 
 C<Window> acts on just the given C<$window>.  C<Subwindows> acts on
-C<$window> and also any subwindows it has now or in the future.
+C<$window> and also any subwindows it has now or in the future.  The root
+window cannot be redirected.
 
 C<$update> is string "Automatic" or "Manual".  Only one client at a time may
 use Manual mode on a given C<$window> (normally a "composite manager"

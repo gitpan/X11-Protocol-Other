@@ -28,14 +28,68 @@ use Smart::Comments;
 {
   my $X = X11::Protocol->new (':0');
   $X->init_extension('XFIXES') or die;
-  { my @version = $X->XFixesQueryVersion (1,0);
-    ### @version
+  my ($rootx,$rooty, $width,$height, $xhot,$yhot, $serial, $pixels)
+    = $X->XFixesGetCursorImage ();
+  # {
+  #   my @bytes = unpack 'C*', $pixels;
+  #   foreach my $y (0 .. $height-1) {
+  #     my @row = splice @bytes, 0,$width*4;
+  #     print map {sprintf '%02X ',$_} @row;
+  #     print "\n";
+  #   }
+  # }
+  {
+    my @words = unpack 'L*', $pixels;
+    foreach my $y (0 .. $height-1) {
+      my @row = splice @words, 0,$width;
+      delete @row[5 .. $#row];
+      print map {sprintf '%08X ',$_} @row;
+      print "\n";
+    }
   }
-  $X->QueryPointer($X->{'root'}); # sync
-
-
   exit 0;
 }
+
+{
+  my $X = X11::Protocol->new (':0');
+  $X->init_extension('XFIXES') or die;
+
+  $X->XFixesHideCursor ($X->root);
+  $X->QueryPointer($X->{'root'}); # sync
+
+  sleep 1;
+
+  $X->XFixesShowCursor ($X->root);
+  $X->QueryPointer($X->{'root'}); # sync
+  $X->XFixesShowCursor ($X->root);
+  $X->QueryPointer($X->{'root'}); # sync
+
+  sleep 1;
+ 
+  exit 0;
+}
+
+{
+  my $X = X11::Protocol->new (':0');
+  $X->init_extension('XFIXES') or die;
+
+  my $region = $X->new_rsrc;
+  $X->XFixesCreateRegion ($region, [1,2,1,1], [4,6,1,1]);
+  { my @rects = $X->XFixesFetchRegion ($region);
+    ### @rects
+  }
+
+  my $r2 = $X->new_rsrc;
+  $X->XFixesCreateRegion ($r2);
+  $X->XFixesRegionExtents ($region, $r2);
+  { my @rects = $X->XFixesFetchRegion ($r2);
+    ### @rects
+  }
+ 
+  exit 0;
+}
+
+
 
 {
   my $X = X11::Protocol->new (':0');
@@ -49,7 +103,7 @@ use Smart::Comments;
   }
   $X->QueryPointer($X->{'root'}); # sync
 
-  $X->init_extension('XFIXES') or die $@;
+  $X->init_extension('XFIXES') or die;
   $X->QueryPointer($X->{'root'}); # sync
 
   { my @version = $X->XFixesQueryVersion (99,0);
@@ -73,8 +127,8 @@ use Smart::Comments;
   # { my @reqdata = $X->get_request('XFixesGetCursorName');
   #   ### @reqdata
   # }
-  { my @ret = $X->XFixesGetCursorName ($cursor);
-    ### XFixesGetCursorName: @ret
+  { my @cursorname = $X->XFixesGetCursorName ($cursor);
+    ### XFixesGetCursorName: @cursorname
   }
   $X->QueryPointer($X->{'root'}); # sync
 
@@ -103,15 +157,29 @@ use Smart::Comments;
   $X->QueryPointer($X->{'root'}); # sync
 
   $region = $X->new_rsrc;
-  $X->XFixesCreateRegionFromWindow ($region, $window, 'Bounding');
-  { my @ret = $X->XFixesFetchRegion ($region);
-    ### @ret
+  # $X->XFixesCreateRegionFromWindow ($region, $window, 'Bounding');
+  $X->XFixesCreateRegion ($region);
+  $X->QueryPointer($X->root); # sync
+  { my @rects = $X->XFixesFetchRegion ($region);
+    ### @rects
   }
 
 
   $X->XFixesSelectCursorInput ($X->root, 1);
   $X->QueryPointer($X->{'root'}); # sync
   $X->handle_input;
+
+  exit 0;
+}
+
+{
+  my $X = X11::Protocol->new (':0');
+  $X->init_extension('XFIXES') or die;
+  { my @version = $X->XFixesQueryVersion (1,0);
+    ### @version
+  }
+  $X->QueryPointer($X->{'root'}); # sync
+
 
   exit 0;
 }

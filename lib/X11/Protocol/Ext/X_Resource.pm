@@ -18,9 +18,10 @@
 BEGIN { require 5 }
 package X11::Protocol::Ext::X_Resource;
 use strict;
+use Carp;
 
 use vars '$VERSION';
-$VERSION = 5;
+$VERSION = 6;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -34,11 +35,18 @@ $VERSION = 5;
 
 ### X_Resource.pm loads
 
+# these not documented yet ...
+use constant CLIENT_MAJOR_VERSION => 1;
+use constant CLIENT_MINOR_VERSION => 0;
+
 sub _request_empty {
+  if (@_ > 1) {
+    croak "No parameters in this request";
+  }
   return '';
 }
 
-sub _request_xid {
+sub _request_card32 {
   my ($X, $xid) = @_;
   return pack 'L', $xid;
 }
@@ -69,7 +77,7 @@ my $reqs =
     } ],
 
    ["XResourceQueryClientResources",  # 2
-    \&_request_xid,
+    \&_request_card32,
     sub {
       my ($X, $data) = @_;
       ### XResourceQueryClientResources reply
@@ -80,7 +88,7 @@ my $reqs =
     }],
 
    ["XResourceQueryClientPixmapBytes",  # 3
-    \&_request_xid,
+    \&_request_card32,
     do {
       # see if 2^64-1 survives an sprintf %d, if so then 64-bit UV integers
       my $v = ((0xFFFFFFFF * (2.0**32)) + 0xFFFFFFFF);
@@ -136,7 +144,9 @@ sub new {
 
   # Any need to query/negotiate the protocol version first?
   # Xlib XRes.c doesn't seem to.
-  # my ($server_major, $server_minor) = $X->req('XResourceQueryVersion', 1, 0);
+  # my ($server_major, $server_minor) = $X->req('XResourceQueryVersion',
+  #                                              CLIENT_MAJOR_VERSION,
+  #                                              CLIENT_MINOR_VERSION);
   return bless {
                 # major => $server_major,
                 # minor => $server_minor,
@@ -160,7 +170,7 @@ __END__
 
 X11::Protocol::Ext::X_Resource - server resource usage
 
-=for test_synopsis my ($X)
+=for test_synopsis my ($X, $client_xid)
 
 =head1 SYNOPSIS
 
@@ -168,6 +178,12 @@ X11::Protocol::Ext::X_Resource - server resource usage
  $X = X11::Protocol->new;
  $X->init_extension('X-Resource')
    or print "X-Resource extension not available";
+
+ my @clients = $X->XResourceQueryClients();
+
+ my %resources = $X->XResourceQueryClientResources ($client_xid);
+
+ my $bytes = $X->XResourceQueryClientPixmapBytes ($client_xid);
 
 =head1 DESCRIPTION
 

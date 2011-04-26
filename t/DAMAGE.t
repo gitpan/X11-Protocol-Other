@@ -33,7 +33,7 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-my $test_count = 86;
+my $test_count = 90;
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -58,9 +58,9 @@ if (! eval { $X = X11::Protocol->new ($display); }) {
 }
 $X->QueryPointer($X->{'root'});  # sync
 
+my ($major_opcode, $first_event, $first_error)
+  = $X->QueryExtension('DAMAGE');
 {
-  my ($major_opcode, $first_event, $first_error)
-    = $X->QueryExtension('DAMAGE');
   if (! defined $major_opcode) {
     foreach (1 .. $test_count) {
       skip ('QueryExtension() no DAMAGE on the server', 1, 1);
@@ -74,6 +74,20 @@ if (! $X->init_extension ('DAMAGE')) {
   die "QueryExtension says DAMAGE avaiable, but init_extension() failed";
 }
 $X->QueryPointer($X->root); # sync
+
+
+#------------------------------------------------------------------------------
+# "Damage" error
+
+{
+  ok ($X->num('Error','Damage'),     $first_error);
+  ok ($X->num('Error',$first_error), $first_error);
+  ok ($X->interp('Error',$first_error), 'Damage');
+  {
+    local $X->{'do_interp'} = 0;
+    ok ($X->interp('Error',$first_error), $first_error);
+  }
+}
 
 
 #------------------------------------------------------------------------------

@@ -19,8 +19,9 @@ BEGIN { require 5 }
 package X11::Protocol::Ext::TOG_CUP;
 use strict;
 
-use vars '$VERSION';
-$VERSION = 3;
+use vars '$VERSION', '@CARP_NOT';
+$VERSION = 5;
+@CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
 use Smart::Comments;
@@ -36,6 +37,10 @@ use Smart::Comments;
 
 
 ### TOG_CUP.pm loads
+
+# these not documented yet ...
+use constant CLIENT_MAJOR_VERSION => 1;
+use constant CLIENT_MINOR_VERSION => 0;
 
 my $reqs =
   [

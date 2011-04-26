@@ -59,7 +59,7 @@ require X11::Protocol::GrabServer;
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 5;
+my $want_version = 6;
 ok ($X11::Protocol::GrabServer::VERSION,
     $want_version,
     'VERSION variable');

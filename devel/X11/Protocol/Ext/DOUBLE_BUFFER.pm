@@ -1,7 +1,7 @@
 # Copyright 2011 Kevin Ryde
 
 
-# visuals supporting dbe as hash
+# visuals supporting dbe as hash ?
 
 
 
@@ -23,10 +23,12 @@
 BEGIN { require 5 }
 package X11::Protocol::Ext::DOUBLE_BUFFER;
 use strict;
+use Carp;
 use X11::Protocol;
 
-use vars '$VERSION';
-$VERSION = 3;
+use vars '$VERSION', '@CARP_NOT';
+$VERSION = 5;
+@CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -40,6 +42,10 @@ $VERSION = 3;
 #
 
 ### DOUBLE_BUFFER.pm loads
+
+# these not documented yet ...
+use constant CLIENT_MAJOR_VERSION => 1;
+use constant CLIENT_MINOR_VERSION => 0;
 
 my $reqs =
   [
@@ -57,7 +63,7 @@ my $reqs =
    [ 'DbeAllocateBackBufferName',  # 1
      sub {
        my ($X, $window, $buffer, $swap_action) = @_;
-       ### DbeGetVersion request
+       ### DbeAllocateBackBufferName request
        return pack 'LLCxxx',
          $window, $buffer, $X->num('DbeSwapAction',$swap_action);
      } ],
@@ -142,6 +148,9 @@ sub _ext_requests_install {
 }
 
 sub _request_empty {
+  if (@_ > 1) {
+    croak "No parameters in this request";
+  }
   return '';
 }
 
@@ -163,7 +172,7 @@ sub _interp_none {
 1;
 __END__
 
-=for stopwords XID arrayrefs Ryde
+=for stopwords XID arrayrefs Ryde pixmap deallocated XIDs enum arrayref arrayrefs drawable's
 
 =head1 NAME
 

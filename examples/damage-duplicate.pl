@@ -134,6 +134,7 @@ if ($source) {
                          34+1,    # and its mask
                          0,0,0,                    # foreground, black
                          0xFFFF, 0xFFFF, 0xFFFF);  # background, white
+  $X->CloseFont ($cursor_font);
 
   my $status = $X->GrabPointer
     ($X->root,       # window
@@ -148,6 +149,7 @@ if ($source) {
     print "Cannot grab mouse pointer to select a window: $status\n";
     exit 1;
   }
+  $X->FreeCursor ($cursor);
 
   print "Click on a window to duplicate ...\n";
 
@@ -195,11 +197,9 @@ if ($source) {
       last;
     }
     my ($root, $parent, @children) = $X->QueryTree ($child);
-    push @search, @children;
+    # @children are in bottom up order, prefer the topmost
+    push @search, reverse @children;
   }
-
-  $X->FreeCursor ($cursor);
-  $X->CloseFont ($cursor_font);
 }
 
 if ($source eq 'None' || $source == $X->root) {

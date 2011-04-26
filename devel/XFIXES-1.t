@@ -40,7 +40,7 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-my $test_count = 82;
+my $test_count = 43;
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -83,39 +83,45 @@ if (! $X->init_extension ('XFIXES')) {
 $X->QueryPointer($X->root); # sync
 
 
-# #------------------------------------------------------------------------------
-# # DamageReportLevel enum
-# 
-# {
-#   ok ($X->num('DamageReportLevel','RawRectangles'),   0);
-#   ok ($X->num('DamageReportLevel','DeltaRectangles'), 1);
-#   ok ($X->num('DamageReportLevel','BoundingBox'),     2);
-#   ok ($X->num('DamageReportLevel','NonEmpty'),        3);
-# 
-#   ok ($X->num('DamageReportLevel',0), 0);
-#   ok ($X->num('DamageReportLevel',1), 1);
-#   ok ($X->num('DamageReportLevel',2), 2);
-#   ok ($X->num('DamageReportLevel',3), 3);
-# 
-#   ok ($X->interp('DamageReportLevel',0), 'RawRectangles');
-#   ok ($X->interp('DamageReportLevel',1), 'DeltaRectangles');
-#   ok ($X->interp('DamageReportLevel',2), 'BoundingBox');
-#   ok ($X->interp('DamageReportLevel',3), 'NonEmpty');
-# }
+my $other_X = X11::Protocol->new ($display);
+
+my $other_window = $other_X->new_rsrc;
+$other_X->CreateWindow ($other_window,
+                        $X->root,         # parent
+                        'InputOutput',
+                        0,                # depth, from parent
+                        'CopyFromParent', # visual
+                        0,0,              # x,y
+                        100,100,          # width,height
+                        0,                # border
+                        background_pixel => $X->white_pixel,
+                       );
+$other_X->QueryPointer($other_X->root); # sync
+
 
 
 #------------------------------------------------------------------------------
-# XFixesQueryVersion
+# XFixesWindowRegionKind enum
 
 {
-  my $client_major = 1;
-  my $client_minor = 1;
-  my @ret = $X->XFixesQueryVersion ($client_major, $client_minor);
-  MyTestHelpers::diag ("server XFIXES version ", join('.',@ret));
-  ok (scalar(@ret), 2);
-  ok ($ret[0] <= $client_major, 1);
+  ok ($X->num('XFixesWindowRegionKind','Bounding'), 0);
+  ok ($X->num('XFixesWindowRegionKind','Clip'),     1);
+
+  ok ($X->num('XFixesWindowRegionKind',0), 0);
+  ok ($X->num('XFixesWindowRegionKind',1), 1);
+
+  ok ($X->interp('XFixesWindowRegionKind',0), 'Bounding');
+  ok ($X->interp('XFixesWindowRegionKind',1), 'Clip');
 }
-  $X->QueryPointer($X->root); # sync
+
+#------------------------------------------------------------------------------
+# _num_xinputdevice()
+
+{
+  ok (X11::Protocol::Ext::XFIXES::_num_xinputdevice('AllDevices'), 0);
+  ok (X11::Protocol::Ext::XFIXES::_num_xinputdevice('AllMasterDevices'), 1);
+}
+
 
 #------------------------------------------------------------------------------
 # XFixesCursorNotify event
@@ -138,7 +144,7 @@ $X->QueryPointer($X->root); # sync
                    window        => 102,
                    cursor_serial => 103,
                    time          => $time,
-                   name          => 104);
+                   cursor_name   => 104);
 
       my $data = $X->pack_event(%input);
       ok (length($data), 32);
@@ -159,5 +165,75 @@ $X->QueryPointer($X->root); # sync
 
 
 #------------------------------------------------------------------------------
+# XFixesQueryVersion
+
+{
+  my $client_major = 1;
+  my $client_minor = 0;
+  my @ret = $X->XFixesQueryVersion ($client_major, $client_minor);
+  MyTestHelpers::diag ("XFixesQueryVersion ask for $client_major.$client_minor got server version ", join('.',@ret));
+  ok (scalar(@ret), 2);
+  ok ($ret[0] <= $client_major, 1);
+}
+$X->QueryPointer($X->root); # sync
+
+
+#------------------------------------------------------------------------------
+# XFixesChangeSaveSet
+
+{
+  $X->XFixesChangeSaveSet ($other_window, 'Insert', 'Root', 'Unmap');
+  $X->QueryPointer($X->root); # sync
+  $X->XFixesChangeSaveSet ($other_window, 'Delete', 'Nearest', 'Map');
+  $X->QueryPointer($X->root); # sync
+}
+
+
+#------------------------------------------------------------------------------
+# XFixesSelectSelectionInput
+
+{
+  my $window = $X->new_rsrc;
+  $X->CreateWindow ($window,
+                    $X->root,         # parent
+                    'InputOutput',
+                    0,                # depth, from parent
+                    'CopyFromParent', # visual
+                    0,0,              # x,y
+                    100,100,          # width,height
+                    0,                # border
+                    background_pixel => $X->white_pixel,
+                   );
+  $X->QueryPointer($X->root); # sync
+
+  $X->XFixesSelectSelectionInput ($window, $X->atom('PRIMARY'), 0x07);
+  $X->QueryPointer($X->root); # sync
+  $X->XFixesSelectSelectionInput ($window, $X->atom('PRIMARY'), 0);
+  $X->QueryPointer($X->root); # sync
+
+  $X->DestroyWindow ($window);
+  $X->QueryPointer($X->root); # sync
+}
+
+#------------------------------------------------------------------------------
+# XFixesSelectCursorInput
+
+{
+  $X->XFixesSelectCursorInput ($X->root, 1);
+  $X->QueryPointer($X->root); # sync
+  $X->XFixesSelectCursorInput ($X->root, 0);
+  $X->QueryPointer($X->root); # sync
+}
+
+#------------------------------------------------------------------------------
+# XFixesGetCursorImage
+
+{
+  my ($root_x,$root_y, $width,$height, $xhot,$yhot, $serial, $pixels) = $X->XFixesGetCursorImage ();
+  $X->QueryPointer($X->root); # sync
+
+  ok (length($pixels), 4*$width*$height);
+}
+
 
 exit 0;

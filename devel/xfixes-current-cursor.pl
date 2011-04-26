@@ -133,7 +133,7 @@ $X->{'event_handler'} = sub {
   }
 };
 
-$X->XFixesSelectCursorInput ($X->root, 1);
+$X->XFixesSelectCursorInput ($window, 1);
 $X->MapWindow($window);
 
 for (;;) {
@@ -150,11 +150,14 @@ for (;;) {
     my $pos = 0;
     foreach my $y (0 .. $height-1) {
       foreach my $x (0 .. $width-1) {
-        my $red    = vec ($cursor_pixels, $pos, 8);
-        my $green  = vec ($cursor_pixels, $pos+1, 8);
-        my $blue   = vec ($cursor_pixels, $pos+2, 8);
-        my $alpha  = vec ($cursor_pixels, $pos+3, 8);
+
+        my $argb = unpack 'L', substr($cursor_pixels,$pos,4);
+        my $alpha = ($argb >> 24) & 0xFF;
+        my $red   = ($argb >> 16) & 0xFF;
+        my $green = ($argb >> 8)  & 0xFF;
+        my $blue  =  $argb        & 0xFF;
         $pos += 4;
+
         if ($alpha != 0) {
           my $pixmap_pixel = rgb8_to_pixel($red, $green, $blue);
           $X->ChangeGC ($gc, foreground => $pixmap_pixel);

@@ -20,13 +20,15 @@ package X11::Protocol::Ext::DAMAGE;
 use strict;
 use X11::Protocol;
 
-use vars '$VERSION';
-$VERSION = 5;
+use vars '$VERSION', '@CARP_NOT';
+$VERSION = 6;
+@CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
 # /usr/share/doc/x11proto-damage-dev/damageproto.txt.gz
+#     http://cgit.freedesktop.org/xorg/proto/damageproto/tree/damageproto.txt
 #
 # /usr/include/X11/extensions/Xdamage.h
 # /usr/include/X11/extensions/damageproto.h
@@ -38,6 +40,10 @@ $VERSION = 5;
 
 
 ### DAMAGE.pm loads
+
+# these not documented yet ...
+use constant CLIENT_MAJOR_VERSION => 1;
+use constant CLIENT_MINOR_VERSION => 1;
 
 my $reqs
   = [
@@ -137,6 +143,11 @@ sub new {
   $X->{'ext_const'}->{'DamageReportLevel'} = $DamageReportLevel_array;
   $X->{'ext_const_num'}->{'DamageReportLevel'} = $DamageReportLevel_hash;
 
+  # Errors
+  $X->{'ext_const'}->{'Error'}->[$error_num] = 'Damage';
+  $X->{'ext_const_num'}->{'Error'}->{'Damage'} = $error_num;
+  $X->{'ext_error_type'}->[$error_num] = 1; # bad resource
+
   # Events
   $X->{'ext_const'}->{'Events'}->[$event_num] = 'DamageNotify';
   $X->{'ext_events'}->[$event_num] = $DamageNotify_event;
@@ -145,8 +156,10 @@ sub new {
   _ext_requests_install ($X, $request_num, $reqs);
 
   # Must DamageQueryVersion to negotiate desired version, or at least X.org
-  # server 1.9.x gives "Opcode" error if not.
-  my ($major, $minor) = $X->req('DamageQueryVersion', 1, 1);
+  # server 1.9.x gives "Opcode" errors to all other requests if not.
+  my ($major, $minor) = $X->req ('DamageQueryVersion',
+                                 CLIENT_MAJOR_VERSION,
+                                 CLIENT_MINOR_VERSION);
   return bless { major => $major,
                  minor => $minor,
                }, $class;
@@ -213,7 +226,7 @@ __END__
 
 X11::Protocol::Ext::DAMAGE - drawing notifications
 
-=for test_synopsis my ($X)
+=for test_synopsis my ($X, $drawable, $parts_region)
 
 =head1 SYNOPSIS
 
@@ -221,6 +234,18 @@ X11::Protocol::Ext::DAMAGE - drawing notifications
  $X = X11::Protocol->new;
  $X->init_extension('DAMAGE')
    or print "DAMAGE extension not available";
+
+ my $damage = $X->new_rsrc;
+ $X->DamageCreate ($damage, $drawable, 'NonEmpty');
+
+ sub my_event_handler {
+   my %h = @_;
+   if ($h{'name'} eq 'DamageNotify') {
+     my $drawable = $h{'drawable'};
+     $X->DamageSubtract ($damage, 'None', $parts_region);
+     # do something for $parts_region changed in $drawable
+   }
+ }
 
 =head1 DESCRIPTION
 
@@ -332,9 +357,11 @@ C<init_extension('XFIXES')>.
 Report to any interested damage objects that changes have occurred in
 C<$region> (a region XID) of C<$drawable>.
 
-This is used by "direct rendering" clients which draw to the hardware or GL
-etc, rather than through protocol drawing operations, so that the server
-doesn't know when window or memory contents have changed.
+This is used by clients which modify a drawable in ways not seen by the
+normal protocol drawing operations.  For example an MIT-SHM shared memory
+pixmap modified by writing to the memory (see
+L<X11::Protocol::Ext::MIT_SHM>), or the various "direct rendering" to
+graphics hardware or GL etc.
 
 =back
 
@@ -412,6 +439,10 @@ The reporting level above is type "DamageReportLevel".  So for example
     $string = $X->interp('DamageReportLevel', 3);
 
 See L<X11::Protocol/SYMBOLIC CONSTANTS>.
+
+=head1 ERRORS
+
+Error type "Damage" is a bad C<$damage> resource XID in a request.
 
 =head1 BUGS
 

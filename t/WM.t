@@ -77,7 +77,7 @@ $X->CreateWindow ($window2,
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 5;
+my $want_version = 6;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');

@@ -28,17 +28,16 @@ BEGIN { MyTestHelpers::nowarnings() }
 my $test_count = 4;
 plan tests => $test_count;
 
-use X11::Protocol::Other
-  'root_to_screen',
-  'root_to_screen_info',
-  'default_colormap_to_screen',
-  'default_colormap_to_screen_info',
-  'visual_is_dynamic',
-  'visual_class_is_dynamic',
-  'window_size',
-  'window_visual',
-  'hexstr_to_rgb',
-  ;
+use X11::Protocol::Other qw(root_to_screen
+                            root_to_screen_info
+                            default_colormap_to_screen
+                            default_colormap_to_screen_info
+                            visual_is_dynamic
+                            visual_class_is_dynamic
+                            window_size
+                            window_visual
+                            hexstr_to_rgb
+                          );
 
 require X11::Protocol;
 MyTestHelpers::diag ("X11::Protocol version ", X11::Protocol->VERSION);

@@ -49,7 +49,7 @@ use Smart::Comments;
   # $X->XFixesCreateRegion ($region);
   # $X->QueryPointer($X->{'root'}); # sync
 
-  $X->DamageSubtract ($damage, 'None', 'None');
+  $X->DamageSubtract ($damage+1, 'None', 'None');
   $X->QueryPointer($X->{'root'}); # sync
 
   exit 0;

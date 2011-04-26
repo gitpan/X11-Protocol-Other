@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               X11-Protocol-Other
-version:            5
+version:            6
 abstract:           Miscellaneous helpers for X11::Protocol connections.
 author:
     - Kevin Ryde <user42@zip.com.au>

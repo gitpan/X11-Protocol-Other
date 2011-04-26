@@ -22,14 +22,14 @@
 use X11::Protocol::Ext::DAMAGE;
 
 use Test;
-BEGIN { plan tests => 5 }
+BEGIN { plan tests => 7 }
 ok (1, 1, 'X11::Protocol::Ext::DAMAGE load as first thing');
 
 
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 5;
+my $want_version = 6;
 ok ($X11::Protocol::Ext::DAMAGE::VERSION,
     $want_version,
     'VERSION variable');
@@ -44,5 +44,14 @@ my $check_version = $want_version + 1000;
 ok (! eval { X11::Protocol::Ext::DAMAGE->VERSION($check_version); 1 },
     1,
     "VERSION class check $check_version");
+
+#------------------------------------------------------------------------------
+# CLIENT_MAJOR_VERSION / CLIENT_MINOR_VERSION
+
+ok (X11::Protocol::Ext::DAMAGE::CLIENT_MAJOR_VERSION(), 1,
+    'CLIENT_MAJOR_VERSION');
+ok (X11::Protocol::Ext::DAMAGE::CLIENT_MINOR_VERSION(), 1,
+    'CLIENT_MINOR_VERSION');
+
 
 exit 0;

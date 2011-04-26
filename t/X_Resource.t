@@ -76,6 +76,7 @@ $X->QueryPointer($X->root); # sync
 
 MyTestHelpers::diag (sprintf 'resource_id_base %#X', $X->resource_id_base);
 
+
 #------------------------------------------------------------------------------
 # XResourceQueryVersion
 
@@ -146,15 +147,16 @@ $X->QueryPointer($X->{'root'}); # sync
   my $data = pack 'x8LL', 123, 3;
   my $got = $X->unpack_reply('XResourceQueryClientPixmapBytes', $data);
   my $want = 3 * (2.0**32) + 123;
-  ok ($got, $want, "with bytes_overflow");
+  ok ($got == $want, 1, "XResourceQueryClientPixmapBytes with bytes_overflow==3");
   MyTestHelpers::diag("35-bit type is ",ref($got)||'number');
 }
 {
   my $data = pack 'x8LL', 0xFFFFFFFF, 0xFFFFFFFF;
   my $got = $X->unpack_reply('XResourceQueryClientPixmapBytes', $data);
   my $want = '18446744073709551615';
-  ok ("$got", "$want", "with bytes_overflow");
-  MyTestHelpers::diag("64-bit FFs type is ",ref($got));
+  ok ($got == $want, 1,
+      "XResourceQueryClientPixmapBytes with bytes_overflow=0xFFFFFFFF");
+  MyTestHelpers::diag("64-bit FFs ref type is ",ref($got)||'number');
 }
 
 #------------------------------------------------------------------------------

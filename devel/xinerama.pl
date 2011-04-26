@@ -25,8 +25,9 @@ use lib 'devel', '.';
 # uncomment this to run the ### lines
 use Smart::Comments;
 
+$ENV{DISPLAY} = ":102";
 {
-  my $X = X11::Protocol->new (':0');
+  my $X = X11::Protocol->new ($ENV{DISPLAY} || ':0');
   ### root: $X->{'root'}
 
   { my @query = $X->QueryExtension('XINERAMA');
@@ -38,67 +39,38 @@ use Smart::Comments;
   $X->QueryPointer($X->{'root'}); # sync
 
   { my @version = $X->PanoramiXQueryVersion (99,99);
-    ### @version
+    ### PanoramiXQueryVersion: @version
   }
   $X->QueryPointer($X->{'root'}); # sync
 
   my @state = $X->PanoramiXGetState ($X->{'root'});
-  ### @state
+  ### PanoramiXGetState: @state
   $X->QueryPointer($X->{'root'}); # sync
 
   my @count = $X->PanoramiXGetScreenCount ($X->{'root'});
-  ### @count
+  ### PanoramiXGetScreenCount: @count
   $X->QueryPointer($X->{'root'}); # sync
+  my ($count) = @count;
 
-  my @size = $X->PanoramiXGetScreenSize ($X->{'root'}, 0);
-  ### @size
-  $X->QueryPointer($X->{'root'}); # sync
-
-  my @active = $X->XineramaIsActive;
-  ### @active
-  $X->QueryPointer($X->{'root'}); # sync
-
-  my @query = $X->XineramaQueryScreens ($X->{'root'}, 0);
-  ### @query
-  $X->QueryPointer($X->{'root'}); # sync
-
-  # my $pixmap;
-  # foreach (1 .. 37) {
-  #   $pixmap = $X->new_rsrc;
-  #   $X->CreatePixmap ($pixmap,
-  #                     $X->{'root'},
-  #                     $X->{'root_depth'},
-  #                     2,2);  # width,height
-  # }
-  # $X->QueryPointer($X->{'root'}); # sync
-  # 
-  # { my @res = $X->XineramaQueryClientResources ($pixmap);
-  #   ### @res
-  #   foreach (@res) {
-  #     printf "%s (atom %d)   %d\n", atom_name_maybe($X,$_->[0]), @$_;
-  #   }
-  # }
-  # 
-  # foreach my $client (@clients) {
-  #   my $xid = $client->[0];
-  #   my @res = $X->XineramaQueryClientResources ($xid);
-  #   printf "\nclient %X\n", $xid;
-  #   foreach (@res) {
-  #     printf "%s (atom %d)   %d\n", atom_name_maybe($X,$_->[0]), @$_;
-  #   }
-  # }
-  # 
-  # { my @bytes = $X->XineramaQueryClientPixmapBytes ($pixmap);
-  #   ### @bytes
-  # }
-  exit 0;
-}
-
-sub atom_name_maybe {
-  my ($X, $atom) = @_;
-  my $ret = $X->robust_req ('GetAtomName', $atom);
-  if (ref $ret) {
-    return @$ret;
+  {
+    my @size = $X->PanoramiXGetScreenSize ($X->{'root'}, 999999);
+    ### PanoramiXGetScreenSize: @size
   }
-  return '[not-atom]';
+  foreach my $monitor (0 .. $count+5) {
+    ### $monitor
+    my @size = $X->PanoramiXGetScreenSize ($X->{'root'}, $monitor);
+    ### PanoramiXGetScreenSize: @size
+    $X->QueryPointer($X->{'root'}); # sync
+  }
+
+
+  my @active = $X->XineramaIsActive ();
+  ### XineramaIsActive: @active
+  $X->QueryPointer($X->{'root'}); # sync
+
+  my @query = $X->XineramaQueryScreens ($X->{'root'});
+  ### XineramaQueryScreens: @query
+  $X->QueryPointer($X->{'root'}); # sync
+
+  exit 0;
 }

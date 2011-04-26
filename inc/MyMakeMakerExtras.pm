@@ -430,7 +430,7 @@ $(DEBFILE) deb:
 	rm -rf $(DISTVNAME)
 
 lintian-deb: $(DEBFILE)
-	lintian -I -i --suppress-tags new-package-should-close-itp-bug \
+	lintian -I -i --suppress-tags new-package-should-close-itp-bug,desktop-entry-contains-encoding-key \
 	  $(DEBFILE)
 lintian-source:
 	rm -rf temp-lintian; \
