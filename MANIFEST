@@ -22,13 +22,6 @@ devel/icon-window.pl
 devel/kill-client.pl
 devel/magnifier.pl
 devel/Makefile
-devel/MIT_SCREEN_SAVER-load.t
-devel/MIT_SCREEN_SAVER.t
-devel/MIT_SHM-load.t
-devel/MIT_SHM-pixmap.t
-devel/MIT_SHM-readonly.t
-devel/MIT_SHM-readwrite.t
-devel/MIT_SHM.t
 devel/mwm-hints-tearoff.pl
 devel/mydmx
 devel/saver.pl
@@ -41,8 +34,6 @@ devel/wm.pl
 devel/X11/CursorFont.pm
 devel/X11/Protocol/ChooseWindow.pm
 devel/X11/Protocol/Ext/DOUBLE_BUFFER.pm
-devel/X11/Protocol/Ext/MIT_SCREEN_SAVER.pm
-devel/X11/Protocol/Ext/MIT_SHM.pm
 devel/X11/Protocol/Ext/TOG_CUP.pm
 devel/X11/Protocol/Ext/XFIXES.pm
 devel/XFIXES-1.t
@@ -65,6 +56,8 @@ inc/MyMakeMakerExtras.pm
 lib/X11/AtomConstants.pm
 lib/X11/Protocol/Ext/Composite.pm
 lib/X11/Protocol/Ext/DAMAGE.pm
+lib/X11/Protocol/Ext/MIT_SCREEN_SAVER.pm
+lib/X11/Protocol/Ext/MIT_SHM.pm
 lib/X11/Protocol/Ext/X_Resource.pm
 lib/X11/Protocol/Ext/XINERAMA.pm
 lib/X11/Protocol/GrabServer.pm
@@ -84,6 +77,15 @@ t/DAMAGE-load.t
 t/DAMAGE.t
 t/GrabServer-load.t
 t/GrabServer.t
+t/MIT_SCREEN_SAVER-load.t
+t/MIT_SCREEN_SAVER.t
+t/MIT_SHM-get.t
+t/MIT_SHM-load.t
+t/MIT_SHM-pixmap.t
+t/MIT_SHM-put.t
+t/MIT_SHM.t
+t/MyShmGetFails.pm
+t/MyShmNotImplemented.pm
 t/MyTestHelpers.pm
 t/Other-import.t
 t/Other-load.t
@@ -97,6 +99,7 @@ t/XINERAMA-11.t
 t/XINERAMA-load.t
 t/XSetRoot.t
 xt/0-META-read.t
+xt/0-no-debug-left-on.t
 xt/0-Test-ConsistentVersion.t
 xt/0-Test-DistManifest.t
 xt/0-Test-Pod.t

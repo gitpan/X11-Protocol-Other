@@ -346,11 +346,6 @@ check-copyright-years:
 	  done; \
 	  exit $$result)
 
-# only a DEBUG non-zero number is bad, so an expression can copy a debug from
-# another package
-check-debug-constants:
-	if egrep -nH 'DEBUG => [1-9]|^[ \t]*(use|no) Smart::Comments' $(EXE_FILES) $(TO_INST_PM) examples/*.pl t/*.t xt/*.t; then exit 1; else exit 0; fi
-
 check-spelling:
 	if find . -type f | egrep -v '(Makefile|dist-deb)' | xargs egrep --color=always -nHi '[a]vailabe|[g]rabing|[c]usor|[r]efering|[w]riteable|[n]ineth|\b[o]mmitt?ed|[o]mited|[$$][rd]elf|[r]equrie|[n]oticable|[c]ontinous|[e]xistant|[e]xplict|[a]gument|[d]estionation|\b[t]he the\b|\b[i]n in\b|\b[tw]hen then\b|\b[n]ote sure\b'; \
 	then false; else true; fi

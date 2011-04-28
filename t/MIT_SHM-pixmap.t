@@ -17,17 +17,9 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use lib 'devel';
-
-
-
-
-
 BEGIN { require 5 }
 use strict;
 use X11::Protocol;
-use IPC::SysV;
 use Test;
 
 use lib 't';
@@ -36,13 +28,22 @@ BEGIN { MyTestHelpers::nowarnings() }
 END { MyTestHelpers::diag ("END"); }
 
 # uncomment this to run the ### lines
-use Smart::Comments;
+#use Smart::Comments;
 
 my $test_count = 8;
 plan tests => $test_count;
 
 require X11::Protocol;
 MyTestHelpers::diag ("X11::Protocol version ", X11::Protocol->VERSION);
+
+# supplied with perl 5.005, might not be available earlier
+if (! eval { require IPC::SysV; 1 }) {
+  MyTestHelpers::diag ('IPC::SysV not available -- ',$@);
+  foreach (1 .. $test_count) {
+    skip ('IPC::SysV not available', 1, 1);
+  }
+  exit 0;
+}
 
 my $display = $ENV{'DISPLAY'};
 if (! defined $display) {
@@ -81,10 +82,33 @@ if (! $X->init_extension ('MIT-SHM')) {
 }
 $X->QueryPointer($X->root); # sync
 
+{
+  my ($major, $minor, $uid, $gid, $shared_pixmaps, $format)
+    = $X->MitShmQueryVersion ();
+  if (! $shared_pixmaps) {
+    MyTestHelpers::diag ("MitShmQueryVersion says shared pixmaps not supported");
+    foreach (1 .. $test_count) {
+      skip ("no shared pixmaps", 1, 1);
+    }
+    exit 0;
+  }
+}
+
 # perms 666 so server is certain to be able to read it
-my $shmid = shmget (IPC::SysV::IPC_PRIVATE(),
-                    5000,
-                    IPC::SysV::IPC_CREAT() | 0666); # world read/write
+my $shmid;
+if (! eval {
+  $shmid = shmget (IPC::SysV::IPC_PRIVATE(),
+                   5000,
+                   IPC::SysV::IPC_CREAT() | 0666); # world read/write
+  1;
+}) {
+  # usually a die or croak if no shm on the system
+  MyTestHelpers::diag ('shmget() dies -- ',$@);
+  foreach (1 .. $test_count) {
+    skip ('shmget() dies', 1, 1);
+  }
+  exit 0;
+}
 if (! defined $shmid) {
   MyTestHelpers::diag ("shmget() cannot get shared memory: $!");
   foreach (1 .. $test_count) {
@@ -93,12 +117,9 @@ if (! defined $shmid) {
   exit 0;
 }
 
-#------------------------------------------------------------------------------
-# MitShmAttach
-
 my $shmseg = $X->new_rsrc;
 if (! eval {
-  my $seq = $X->send ('MitShmAttach', $shmseg, $shmid, 0); # read/write
+  my $seq = $X->MitShmAttach($shmseg, $shmid, 0); # read/write
   $X->QueryPointer($X->{'root'}); # sync
   1;
 }) {
@@ -110,52 +131,44 @@ if (! eval {
 }
 
 #------------------------------------------------------------------------------
-# MitShmGetImage
+# MitShmCreatePixmap
 
 {
-  my @ret =  $X->MitShmGetImage ($X->root,
-                                 0,0, 1,1,
-                                 0xFFFFFF,
-                                 'ZPixmap',
-                                 $shmseg,
-                                 0);
+  my $pixmap = $X->new_rsrc;
+  my @ret = $X->MitShmCreatePixmap ($pixmap,
+                                    $X->root,  # drawable for screen
+                                    1,         # depth, bitmap
+                                    10,20,     # width,height
+                                    $shmseg, 0);
   $X->QueryPointer($X->{'root'}); # sync
 
-  ok (scalar(@ret), 3,
-      'MitShmGetImage window -- num return values');
-  my ($depth, $visual, $size) = @ret;
-  ok ($depth > 0, 1,
-      "MitShmGetImage window -- depth>0, $depth");
-  ok (defined $X->{'visuals'}->{$visual}, 1,
-      "MitShmGetImage window -- known visual $visual");
-  ok ($size > 0, 1,
-      "MitShmGetImage window -- size>0, $size");
+  my %geom = $X->GetGeometry ($pixmap);
+  ok ($geom{'root'}, $X->root);
+  ok ($geom{'width'}, 10);
+  ok ($geom{'height'}, 20);
+  ok ($geom{'depth'}, 1);
+
+  $X->FreePixmap ($pixmap);
+  $X->QueryPointer($X->{'root'}); # sync
 }
 
 {
   my $pixmap = $X->new_rsrc;
-  $X->CreatePixmap ($pixmap,
-                    $X->root,
-                    1,     # depth
-                    2,2);  # width,height
-
-  my @ret =  $X->MitShmGetImage ($pixmap,
-                                 0,0, 1,1,
-                                 0xFFFFFF,
-                                 'XYPixmap',
-                                 $shmseg,
-                                 0);
+  my @ret = $X->MitShmCreatePixmap ($pixmap,
+                                    $X->root,  # drawable for screen
+                                    $X->root_depth,         # depth, bitmap
+                                    5,6,     # width,height
+                                    $shmseg, 0);
   $X->QueryPointer($X->{'root'}); # sync
 
-  ok (scalar(@ret), 3,
-      'MitShmGetImage pixmap -- num return values');
-  my ($depth, $visual, $size) = @ret;
-  ok ($depth, 1,
-      "MitShmGetImage pixmap -- depth $depth");
-  ok ($visual, 'None',
-      "MitShmGetImage pixmap -- visual None");
-  ok ($size > 0, 1,
-      "MitShmGetImage pixmap -- size>0, $size");
+  my %geom = $X->GetGeometry ($pixmap);
+  ok ($geom{'root'}, $X->root);
+  ok ($geom{'width'}, 5);
+  ok ($geom{'height'}, 6);
+  ok ($geom{'depth'}, $X->root_depth);
+
+  $X->FreePixmap ($pixmap);
+  $X->QueryPointer($X->{'root'}); # sync
 }
 
 exit 0;

@@ -48,7 +48,7 @@ use Smart::Comments;
                     0,                # depth, from parent
                     'CopyFromParent', # visual
                     0,0,              # x,y
-                    100,100,          # width,height
+                    200,200,          # width,height
                     0,                # border
                     background_pixel => $X->white_pixel,
                    );
@@ -59,8 +59,8 @@ use Smart::Comments;
   require IPC::SharedMem;
   require IPC::SysV;
   my $shmid = shmget (IPC::SysV::IPC_PRIVATE(),
-                      100_000,
-                      IPC::SysV::IPC_CREAT() | 0600);
+                      5000,
+                      IPC::SysV::IPC_CREAT() | 0666); # world read/write
   # $shmid = 122550155;
   ### $shmid
 
@@ -71,28 +71,64 @@ use Smart::Comments;
   my $shmseg = $X->new_rsrc;
   $X->MitShmAttach ($shmseg,
                     $shmid,
-                    1); # readonly or read/write
-  $X->QueryPointer($X->{'root'}); # sync
-
-  my $gc = $X->new_rsrc;
-  $X->CreateGC ($gc, $X->root, foreground => $X->{'white_pixel'});
+                    0); # readonly or read/write
   $X->QueryPointer($X->{'root'}); # sync
 
   {
+    ### MitShmGetImage
+    my ($depth, $visual, $size) = my @ret =  $X->MitShmGetImage
+      ($window,
+       0,0, 10,10,
+       0xFFFFFFFF,
+       'ZPixmap',
+       $shmseg,
+       0);
+    ### $depth
+    ### $visual
+    ### $size
+    # ### vis: $X->{'visuals'}->{$visual}
+    $X->QueryPointer($X->{'root'}); # sync
+  }
+
+  {
+    my $gc = $X->new_rsrc;
+    $X->CreateGC ($gc, $X->root, foreground => $X->{'white_pixel'});
+    $X->QueryPointer($X->{'root'}); # sync
+
+    shmwrite ($shmid, "\xAA" x 1000, 0, 1000);
+    $X->MitShmPutImage ($window,
+                        $gc,
+                        $X->root_depth,  # depth
+                        10,10,
+                        0,0,
+                        10,10,
+                        0,0,
+                        'ZPixmap',
+                        1,               # send event
+                        $shmseg, 0);
+    ### PutImage sent
+    $X->QueryPointer($X->{'root'}); # sync
+  }
+  sleep 1;
+  {
     my $shpixmap = $X->new_rsrc;
     $X->MitShmCreatePixmap ($shpixmap,
-                            $X->root,
-                            $X->root_depth,
+                            $X->root,         # drawable
+                            $X->root_depth,   # depth
                             5,5,
                             $shmseg, 0);
     $X->QueryPointer($X->{'root'}); # sync
 
     shmwrite ($shmid, "\0"x100, 0, 100) || die "$!";
 
+    my $gc = $X->new_rsrc;
+    $X->CreateGC ($gc, $X->root, foreground => $X->{'white_pixel'});
+    $X->QueryPointer($X->{'root'}); # sync
+    #
     $X->CopyArea ($shpixmap, $window, $gc,
                   0,0,
                   5,5,
-                  0,0); # dst x,y
+                  100,100); # dst x,y
     $X->QueryPointer($X->{'root'}); # sync
 
     $X->init_extension('DAMAGE') or die $@;
@@ -103,26 +139,6 @@ use Smart::Comments;
     $X->QueryPointer($X->{'root'}); # sync
 
     shmwrite ($shmid, "0xAA"x100, 0, 100) || die "$!";
-    $X->handle_input;
-  }
-
-
-
-
-
-  {
-    my ($depth, $visual, $size) = my @ret =  $X->MitShmGetImage
-      ($window,
-       0,0, 10,10,
-       0xFFFFFF,
-       'ZPixmap',
-       $shmseg,
-       0);
-    ### $depth
-    ### $visual
-    ### $size
-    # ### vis: $X->{'visuals'}->{$visual}
-    $X->QueryPointer($X->{'root'}); # sync
   }
   {
     my $buff;
@@ -135,22 +151,7 @@ use Smart::Comments;
     ### $buff
   }
 
-  # {
-  #   my @put = $X->MitShmPutImage ($window,
-  #                                 $gc,
-  #                                 1,
-  #                                 10,10,
-  #                                 0,0,
-  #                                 10,10,
-  #                                 0,0,
-  #                                 $X->root_depth, 'ZPixmap',
-  #                                 $shmseg, 0);
-  #   ### @put
-  #   $X->QueryPointer($X->{'root'}); # sync
-  # }
-
-
-
+  $X->handle_input;
   sleep 1;
   exit 0;
 }

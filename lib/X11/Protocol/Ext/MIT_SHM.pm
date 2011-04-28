@@ -28,11 +28,11 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 6;
+$VERSION = 7;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
-use Smart::Comments;
+#use Smart::Comments;
 
 # /usr/share/doc/x11proto-xext-dev/shm.txt.gz
 #
@@ -109,8 +109,9 @@ my $reqs =
    [ 'MitShmGetImage',     # 4
      sub {
        my $self = shift;
-       my ($drawable, $x, $y, $width, $height, $planemask,
-           $format, $shmseg, $offset) = @_;
+       my ($drawable, $x, $y, $width, $height,
+           $planemask, $format,
+           $shmseg, $offset) = @_;
        $format = $self->num('ImageFormat', $format);
        return pack ('LssSSLCxxxLL',
                     $drawable, $x, $y, $width, $height,
@@ -125,9 +126,12 @@ my $reqs =
 
    [ 'MitShmCreatePixmap',       # 5
      sub {
-       # ($X, $pixmap, $drawable, $depth, $width, $height, $shmseg, $offset)
-       shift;
-       return pack 'LLSSCxxxLL', @_;
+       my ($X, $pixmap, $drawable, $depth, $width, $height, $shmseg, $offset)
+         = @_;
+       return pack ('LLSSCxxxLL',
+                    $pixmap, $drawable,
+                    $width, $height, $depth,
+                    $shmseg, $offset);
      } ],
 
   ];
@@ -205,7 +209,7 @@ X11::Protocol::Ext::MIT_SHM - ...
 
  use IPC::SysV;
  my $shmid = shmget (IPC::SysV::IPC_PRIVATE(),
-                     100_000,  # bytes
+                     100000,  # bytes
                      IPC::SysV::IPC_CREAT() | 0666);
 
  my $shmseg = $X->new_rsrc;
@@ -231,37 +235,48 @@ The aim is to avoid sending large images through the I/O connection when on
 the same machine.  Memory is faster, and may help avoid request size limits
 for very big images.
 
-=head2 Permissions
+Byte order, padding, etc, required or generated in images is specified by
+the server C<$X-E<gt>{'image_byte_order'}>, C<$X-E<gt>{'pixmap_formats'}>,
+etc, the same as for the core C<GetImage> and C<PutImage>.  It's up to the
+client to adapt to the server's layout, which can be a bit of a chore.
+
+=head2 Shm Permissions
 
 A SysV shared memory segment has owner/group/other permission bits similar
-to a file.  The server will only attach to segments that the requesting
+to a file.  The server will only attach to segments which the requesting
 client UID/GID has permission to read or write.
 
-The server can usually determine a client's UID/GID on a local I/O transport
-such as Unix sockets (L<X11::Protocol::Connection::UNIXSocket>, and
-C<SO_PEERCRED> in L<socket(7)>), and perhaps TCP localhost loopback too.
+The server can usually determine a client's UID/GID for local I/O such as
+Unix sockets (see L<X11::Protocol::Connection::UNIXSocket>, and
+C<SO_PEERCRED> in L<socket(7)>), and perhaps TCP localhost loopback.
 Failing that the server treats the client as an "other" and will only attach
-world-readable (or read-writable) segments.
+to world-readable (or read-writable) segments.
 
-If a PutImage comes from a world-readable file or is otherwise public anyway
-then permissions 0644 on the memory segment for readable by everyone will
-guarantee the server can read it.  Remember to ask for read-only in the
-C<MitShmAttach> in that case, so as not to have the server demand writable.
-In all likelihood if the connection is not a local transport with
+If a PutImage comes from a world-readable file or is public anyway then
+permissions 0644 on the memory segment will guarantee the server can read
+it, no matter what UID/GID it can identify.  Remember to ask for read-only
+in the C<MitShmAttach> in that case so the server doesn't demand writable
+too.  But chances are if the connection is not a local transport with
 identifiable UID/GID then the server is probably on a different machine
 anyway and shared memory can't be used.
 
-=head2 Perl Shm
+=head2 Shm from Perl
 
-The client creates a shared memory segment with C<shmget()> then reads or
-writes its contents with C<shmread()> and C<shmwrite()>.  Those functions
+A shared memory segment can be created from Perl with C<shmget()> then read
+or write its contents with C<shmread()> and C<shmwrite()>.  Those functions
 attach and detach it each time with C<shmat()> and C<shmdt()> system calls,
 which is fine for grabbing the lot, but will be a bit slow for lots of
-access.
+little accesses.
 
-C<IPC::SysV> offers a C<shmat()> to keep the block attached and then
-C<memread()> and C<memwrite()> to access it (see L<IPC::SysV>).  See
-L<IPC::SharedMem> for an object-oriented wrapper around this.
+C<IPC::SysV> offers a C<shmat()> to keep the block attached and C<memread()>
+and C<memwrite()> to access it (see L<IPC::SysV>).  See L<IPC::SharedMem>
+for an object-oriented wrapper around this too.
+
+Incidentally, if C<shmget> is not available on the system then Perl's
+C<shmget()> croaks, and it's always possible for it to return C<undef> when
+not enough memory etc.  Between that, not being on the same machine, not
+having identifiable perms, etc, there's a quite a few cases where a fallback
+to plain I/O will be necessary.
 
 =head1 REQUESTS
 
@@ -316,45 +331,51 @@ XID.
 
 =item C<$X-E<gt>MitShmPutImage ($drawable, $gc, $depth, $total_width, $total_height, $src_x, $src_y, $src_width, $src_height, $dst_x, $dst_y, $format, $send_event, $shmseg, $offset)>
 
-Draw an image from C<$shmseg> (an XID) into C<$drawable>.
+Draw an image from C<$shmseg> (an XID) into C<$drawable>.  The parameters
+are similar to the core C<PutImage>.
+
+C<$depth> is the depth of the image.  For C<$format> "Bitmap" it must be 1
+and the foreground and background colours of C<$gc> are then drawn.  For
+C<$format> "XYPixmap" and "ZPixmap" it must be the depth of C<$drawable>.
 
 C<$total_width>,C<$total_height> is the full size of the image in the shared
 memory.  C<$src_x>,C<$src_y> and C<$src_width>,C<$src_height> are the
 portion of it to draw.  C<$dst_x>,C<$dst_y> is where in C<$drawable> to put
-the image.
+it.
 
-C<$depth> is the bits per pixel in the shared memory.  C<$format> is
-"XYPixmap" or "ZPixmap" for its layout in memory.  C<$offset> is a byte
-offset into the shared memory where the image starts.
+C<$format> is "Bitmap", "XYPixmap" or "ZPixmap" (an ImageFormat).
 
 C<$send_event> is 1 to have an C<MitShmCompletionEvent> sent to the client
 when drawing is finished (see L</"EVENTS"> below), or 0 if that's not
 wanted.
 
+C<$offset> is a byte offset into the shared memory where the image starts.
+
 =item C<($depth, $visual, $size) = $X-E<gt>MitShmGetImage ($drawable, $x, $y, $width, $height, $planemask, $format, $shmseg, $offset)>
 
-Copy an image from C<$drawable> to shared memory C<$shmseg> (an XID).
+Copy an image from C<$drawable> to shared memory C<$shmseg> (an XID).  The
+parameters are similar to the core C<GetImage>.
 
 C<$x>,C<$y>, C<$width>,C<$height> are the part of C<$drawable> to get.
-C<$planemask> is a bit mask for which bit positions of the pixels are
-wanted.
+C<$planemask> is a bit mask for which bit planes of the pixels are wanted.
 
 C<$format> is "XYPixmap" or "ZPixmap" for the layout to be written to the
-memory, and C<$offset> is a byte offset into the memory where the image
-should start.
-
-If C<$shmseg> was attached in C<MitShmAttach> read-only then
-C<MitShmGetImage> will fail with an Access error.
+shared memory, and C<$offset> is a byte offset into the memory where the
+image should start.
 
 The returned C<$depth> (an integer) is the depth of C<$drawable>.
 C<$visual> (integer ID) is its visual for a window, or "None" for a pixmap.
 C<$size> is how many bytes were written.
 
+C<$shmseg> must be attached read-write in C<MitShmAttach> or an Access error
+results.
+
 =item C<$X-E<gt>MitShmCreatePixmap ($pixmap, $drawable, $depth, $width, $height, $shmseg, $offset)>
 
 Create C<$pixmap> (a new XID) as a pixmap with contents in shared memory
 C<$shmseg> (an XID).  When the client reads or writes that memory it changes
-the pixmap contents.
+the pixmap contents.  The parameters are similar to the core
+C<CreatePixmap>.
 
     my $pixmap = $X->new_rsrc;
     $X->MitShmCreatePixmap ($pixmap,         # new XID
@@ -369,20 +390,22 @@ supported, and if so whether they're "XYPixmap" or "ZPixmap" layout.
 
 C<$drawable> is used to determine the screen for C<$pixmap> and can be any
 drawable on the screen.  C<$offset> is a byte offset into the shared memory
-where the pixmap contents will begin.
+where the pixmap data will begin.
 
-If a damage object is asked to monitor the shared C<$pixmap> (see
-L<X11::Protocol::Ext::Damage>) then changes made through the shared memory
-aren't reported by the damage object.  C<DamageAdd> in Damage version 1.1
-can be used if necessary.
+If any damage objects from the DAMAGE extension (see
+L<X11::Protocol::Ext::DAMAGE>) monitoring the shared C<$pixmap> then changes
+made through the shared memory generally don't produce C<DamageNotify>
+events from those objects.  Listening for damage on a shared pixmap might be
+unlikely, but explicit C<DamageAdd> (in Damage version 1.1) requests can
+tell the server about changes, when ready, and if necessary.
 
 =back
 
 =head1 EVENTS
 
 C<MitShmCompletionEvent> is sent to the client when requested in an
-C<MitShmPutImage>, to indicate that memory access for the put is finished.
-The event has the usual fields
+C<MitShmPutImage>, to say memory access for the put is finished.  The event
+has the usual fields
 
     name             "MitShmCompletionEvent"
     synthetic        true if from a SendEvent
@@ -398,9 +421,13 @@ and event-specific fields
     minor_opcode   integer, 3==MitShmPutImage
 
 C<major_opcode> and C<minor_opcode> are the codes of the originating
-C<MitShmPutImage>.  They're similar to what's found in the core
-C<GraphicsExposure> and C<NoExposure> events, though here there's only one
-request C<MitShmPutImage> which can give the completion event.
+C<MitShmPutImage>.  They're similar to the core C<GraphicsExposure> and
+C<NoExposure> events, though here there's only one request
+(C<MitShmPutImage>) which gives a completion event so they're hardly needed.
+
+=head1 ERRORS
+
+Error type "ShmSeg" is a bad C<$shmseg> resource XID in a request.
 
 =head1 SEE ALSO
 

@@ -17,14 +17,6 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use lib 'devel';
-
-
-
-
-
-
 ## no critic (RequireUseStrict, RequireUseWarnings)
 use X11::Protocol::Ext::MIT_SCREEN_SAVER;
 
@@ -36,7 +28,7 @@ ok (1, 1, 'X11::Protocol::Ext::MIT_SCREEN_SAVER load as first thing');
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 6;
+my $want_version = 7;
 ok ($X11::Protocol::Ext::MIT_SCREEN_SAVER::VERSION,
     $want_version,
     'VERSION variable');

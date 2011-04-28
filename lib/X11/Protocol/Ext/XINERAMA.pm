@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 6;
+$VERSION = 7;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines

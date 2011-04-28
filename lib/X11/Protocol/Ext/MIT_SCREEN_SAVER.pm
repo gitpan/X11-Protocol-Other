@@ -1,10 +1,5 @@
 # Copyright 2011 Kevin Ryde
 
-# $tilOrSince  negative ?
-
-
-
-
 # This file is part of X11-Protocol-Other.
 #
 # X11-Protocol-Other is free software; you can redistribute it and/or
@@ -26,11 +21,11 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 5;
+$VERSION = 7;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
-use Smart::Comments;
+#use Smart::Comments;
 
 # /usr/share/doc/x11proto-scrnsaver-dev/saver.txt.gz
 #
@@ -41,7 +36,7 @@ use Smart::Comments;
 
 ### MIT_SCREEN_SAVER.pm loads
 
-# these not documented yet ...
+# these not documented yet ... and not used as such
 use constant CLIENT_MAJOR_VERSION => 1;
 use constant CLIENT_MINOR_VERSION => 0;
 
@@ -75,7 +70,7 @@ my $reqs =
      } ],
 
    [ 'MitScreenSaverSelectInput',  # 2
-     \&_request_card32s ],  # ($drawable, $event_mask)
+     \&_request_card32s ],  # ($X, $drawable, $event_mask)
 
    [ 'MitScreenSaverSetAttributes',  # 3
      sub {
@@ -103,7 +98,7 @@ my $reqs =
      } ],
 
    [ 'MitScreenSaverUnsetAttributes',     # 4
-     \&_request_card32s ],  # ($drawable)
+     \&_request_card32s ],  # ($X, $drawable)
 
   ];
 
@@ -194,48 +189,55 @@ sub _interp_none {
   }
 }
 
-{
-  package X11::Protocol;
-
-  sub MitScreenSaverRegister {
-    my ($X, $screen, $type, $xid) = @_;
-    $X->ChangeProperty ($X->{'screen'}->[$screen]->{'root'},
-                        $X->atom('_SCREEN_SAVER_ID'),  # property
-                        $type,
-                        32,                            # format
-                        'Replace',
-                        $xid);
-  }
-  sub MitScreenSaverUnregister {
-    my ($X, $screen) = @_;
-    $X->DeleteProperty ($X->{'screen'}->[$screen]->{'root'},
-                        $X->atom('_SCREEN_SAVER_ID'));
-  }
-  sub MitScreenSaverGetRegistered {
-    my ($X, $screen, $type, $xid) = @_;
-    my ($value, $got_type, $format, $bytes_after)
-      = $X->GetProperty ($X->{'screen'}->[$screen]->{'root'},
-                         $X->atom('_SCREEN_SAVER_ID'),  # property
-                         $type,
-                         0,  # offset
-                         1,  # length
-                         0); # delete;
-    if ($format == 32) {
-      return unpack 'L', $value;
-    } else {
-      return undef;
-    }
-  }
-}
+# Similar to Xlib XScreenSaverSaverRegister() maybe.
+# Or plain funcs X11::Protocol::Ext::MIT_SCREEN_SAVER::register()
+# set_screen_saver_id()
+# get_screen_saver_id()
+#
+# {
+#   package X11::Protocol;
+# 
+#   sub MitScreenSaverRegister {
+#     my ($X, $screen, $type, $xid) = @_;
+#     $X->ChangeProperty ($X->{'screen'}->[$screen]->{'root'},
+#                         $X->atom('_SCREEN_SAVER_ID'),  # property
+#                         $type,
+#                         32,                            # format
+#                         'Replace',
+#                         $xid);
+#   }
+#   sub MitScreenSaverUnregister {
+#     my ($X, $screen) = @_;
+#     $X->DeleteProperty ($X->{'screen'}->[$screen]->{'root'},
+#                         $X->atom('_SCREEN_SAVER_ID'));
+#   }
+#   sub MitScreenSaverGetRegistered {
+#     my ($X, $screen, $type, $xid) = @_;
+#     my ($value, $got_type, $format, $bytes_after)
+#       = $X->GetProperty ($X->{'screen'}->[$screen]->{'root'},
+#                          $X->atom('_SCREEN_SAVER_ID'),  # property
+#                          $type,
+#                          0,  # offset
+#                          1,  # length
+#                          0); # delete;
+#     if ($format == 32) {
+#       return unpack 'L', $value;
+#     } else {
+#       return undef;
+#     }
+#   }
+# }
 
 1;
 __END__
 
-=for stopwords XID arrayrefs Ryde enum pixmap closedown NotifyMask CycleMask
+=for stopwords XID arrayrefs Ryde enum pixmap closedown NotifyMask CycleMask XFree86 builtin
 
 =head1 NAME
 
 X11::Protocol::Ext::MIT_SCREEN_SAVER - external screen saver support
+
+=for test_synopsis my ($X)
 
 =head1 SYNOPSIS
 
@@ -247,12 +249,12 @@ X11::Protocol::Ext::MIT_SCREEN_SAVER - external screen saver support
 =head1 DESCRIPTION
 
 The MIT-SCREEN-SAVER extension allows a client screen saver program to draw
-the screen saver image.  Any other client can listen for screen saver
+the screen saver image.  Other clients can listen for screen saver
 activation too.
 
-See the core C<SetScreenSaver> for the idle timeout, cycle period, and
-"Blank" or "Internal" builtin saver, and see C<ForceScreenSaver> for
-forcibly turning on the screen saver.
+See the core C<SetScreenSaver> for the idle timeout, cycle period, and the
+"Blank" or "Internal" builtin saving, and see the core C<ForceScreenSaver>
+for forcibly turning on the screen saver.
 
 =head1 REQUESTS
 
@@ -270,8 +272,8 @@ C<$client_minor> is what the client would like, the returned
 C<$server_major> and C<$server_minor> is what the server will do, which will
 be the closest to the client requested version that the server supports.
 
-The current code in this module supports 1.0 and the intention would be to
-automatically negotiate within C<init_extension()> if necessary.
+The current code in this module supports 1.0 and the intention is to
+automatically negotiate within C<init_extension()> if/when necessary.
 
 =item C<($state, $window, $til_or_since, $idle, $event_mask, $kind) = $X-E<gt>MitScreenSaverQueryInfo ($drawable)>
 
@@ -285,17 +287,18 @@ might be created only for "External" or only when required, etc.  In any
 case it's an override-redirect child of the root window but does not appear
 in the C<QueryTree> children.
 
-C<$til_or_since> is how long in milliseconds remaining until the saver will
-be activated due to idle.  Or if C<$state> "On" already then how long in
-milliseconds since it was activated.  (But see L</"BUGS"> below.)
+C<$til_or_since> is a time in milliseconds.  If C<$state> is "Off" then it's
+how long until the saver will be activated due to idle.  Or if C<$state> is
+"On" then how long in milliseconds since it was activated.  (But see
+L</"BUGS"> below.)
 
 C<$idle> is how long in milliseconds the screen has been idle.
 
 C<$event_mask> is the current client's mask per C<MitScreenSaverSelectInput>
 below.
 
-C<$kind> is an enum string which is how the saver is being done now, or will
-be done when next activated,
+C<$kind> is an enum string for how the saver is being done, or will be done
+when next activated,
 
     "Blanked"     video output turned off
     "Internal"    server builtin saver
@@ -318,14 +321,14 @@ There's no pack function for these yet, so just give an integer, for example
 Setup the screen saver window on the screen of C<$drawable> (an XID).
 
 The arguments are the same as the core C<CreateWindow>, except there's no
-new XID to create, and the parent window is the root window on the screen of
-C<$drawable>.
+new XID to create, and the parent window is always the root window on the
+screen of C<$drawable>.
 
-This makes the saver "External" kind on its next activation.  (If currently
-active then it's not changed.)  The client can listen for
+This setup makes the saver "External" kind on its next activation.  If
+currently active then it's not changed.  The client can listen for
 C<MitScreenSaverNotify> (see L</"EVENTS"> below) to know when the saver is
-activated and should be drawn, unless a background pixel or pixmap is
-enough.  The saver window XID is reported in that Notify.
+activated and should be drawn (unless a background pixel or pixmap in this
+create is enough).  The saver window XID is reported in that Notify.
 
 Only one client at a time can setup a saver window this way.  If another has
 done so then an Access error results.
@@ -335,10 +338,10 @@ done so then an Access error results.
 Unset the screen saver window.  If the client did not set it up then do
 nothing.
 
-This changes the saver from "External" kind back to the server "Internal".
-If the screen saver is currently active then that happens immediately.
+This changes the saver from "External" kind back to the server builtin.  If
+the screen saver is currently active then that happens immediately.
 
-At client connection shutdown this Unset is done automatically, except for
+At client shutdown an Unset is done automatically, except for
 C<RetainPermanent> closedown mode.
 
 =back
@@ -368,8 +371,8 @@ C<forced> is 1 if the change was due to a C<ForceScreenSaver> request rather
 than user activity/inactivity.  On/Off events are selected by the NotifyMask
 to C<MitScreenSaverSelectInput()> above.
 
-C<state> is "Cycle" if the saver cycling period has expired which means time
-to show something different.  This is selected by CycleMask to
+C<state> is "Cycle" if the saver cycling period has expired, which means
+time to show something different.  This is selected by CycleMask to
 C<MitScreenSaverSelectInput()> above.
 
 C<kind> is the current saver mechanism, as described under
@@ -377,17 +380,15 @@ C<MitScreenSaverQueryInfo> above.
 
 =head1 BUGS
 
-In XFree86 and X.org servers through to circa X.org 1.10 the
-C<$til_or_since> from C<MitScreenSaverQueryInfo> when the screen saver is
-active (state "On") might be slightly dubious.  If the screen saver is
-activated programmatically by C<ForceScreenSaver> then it's some negative
-value (which comes back as a big unsigned number).  Is it meant to be so?
-Is the "since" negative because the idle timeout is in the future, not the
-past?
+In XFree86 and X.org servers through to circa X.org 1.10, if the screen
+saver is activated with a C<ForceScreenSaver> request then the
+C<$til_or_since> from C<MitScreenSaverQueryInfo> is a big number, apparently
+a negative to the future time when it would have activated due to idle.
+There's no attempt to do anything about that here.
 
 While "On" the idle timeout apparently continues to fire too, so the "since"
-time is since the last firing, as if screen saver was re-activated, not the
-time since first saved, apparently.
+of C<$til_or_since> is only since the last firing, as if screen saver was
+re-activated, not the time since first activated, or something like that.
 
 =head1 SEE ALSO
 

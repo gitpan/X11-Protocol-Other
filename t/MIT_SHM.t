@@ -17,17 +17,12 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use lib 'devel';
-
-
-
-
+use strict;
+use X11::Protocol;
+use Test;
 
 BEGIN { require 5 }
 use strict;
-use X11::Protocol;
-use IPC::SysV;
 use Test;
 
 use lib 't';
@@ -36,9 +31,9 @@ BEGIN { MyTestHelpers::nowarnings() }
 END { MyTestHelpers::diag ("END"); }
 
 # uncomment this to run the ### lines
-use Smart::Comments;
+#use Smart::Comments;
 
-my $test_count = 3;
+my $test_count = 29;
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -67,7 +62,6 @@ my ($major_opcode, $first_event, $first_error)
   = $X->QueryExtension('MIT-SHM');
 {
   if (! defined $major_opcode) {
-    MyTestHelpers::diag ('QueryExtension() no MIT-SHM on the server');
     foreach (1 .. $test_count) {
       skip ('QueryExtension() no MIT-SHM on the server', 1, 1);
     }
@@ -81,62 +75,78 @@ if (! $X->init_extension ('MIT-SHM')) {
 }
 $X->QueryPointer($X->root); # sync
 
-{
-  my ($major, $minor, $uid, $gid, $shared_pixmaps, $format)
-    = $X->MitShmQueryVersion ();
-  if (! $shared_pixmaps) {
-    MyTestHelpers::diag ("MitShmQueryVersion says shared pixmaps not supported");
-    foreach (1 .. $test_count) {
-      skip ("no shared pixmaps", 1, 1);
-    }
-    exit 0;
-  }
-}
 
-# perms 666 so server is certain to be able to read it
-my $shmid = shmget (IPC::SysV::IPC_PRIVATE(),
-                    5000,
-                    IPC::SysV::IPC_CREAT() | 0666); # world read/write
-if (! defined $shmid) {
-  MyTestHelpers::diag ("shmget() cannot get shared memory: $!");
-  foreach (1 .. $test_count) {
-    skip ('shmget() cannot get shared memory', 1, 1);
+#------------------------------------------------------------------------------
+# "ShmSeg" error
+
+{
+  ok ($X->num('Error','ShmSeg'),     $first_error);
+  ok ($X->num('Error',$first_error), $first_error);
+  ok ($X->interp('Error',$first_error), 'ShmSeg');
+  {
+    local $X->{'do_interp'} = 0;
+    ok ($X->interp('Error',$first_error), $first_error);
   }
-  exit 0;
 }
 
 #------------------------------------------------------------------------------
-# MitShmAttach
-
-my $shmseg = $X->new_rsrc;
-if (! eval {
-  my $seq = $X->send ('MitShmAttach', $shmseg, $shmid, 0); # read/write
-  $X->QueryPointer($X->{'root'}); # sync
-  1;
-}) {
-  MyTestHelpers::diag ('MitShmAttach cannot attach read/write -- ',$@);
-  foreach (1 .. $test_count) {
-    skip ('MitShmAttach cannot attach read/write', 1, 1);
-  }
-  exit 0;
-}
-
-#------------------------------------------------------------------------------
-# MitShmCreatePixmap
+# MitShmCompletion event
 
 {
-  my $pixmap = $X->new_rsrc;
-  my @ret =  $X->MitShmCreatePixmap ($pixmap,
-                                     $X->root,
-                                     1,  # bitmap
-                                     10,20,
-                                     $shmseg, 0);
-  $X->QueryPointer($X->{'root'}); # sync
+  my $aref = $X->{'ext'}->{'MIT_SHM'};
+  my ($request_num, $event_num, $error_num, $obj) = @$aref;
 
-  my %geom = $X->GetGeometry ($pixmap);
-  ok ($geom{'width'}, 10);
-  ok ($geom{'height'}, 20);
-  ok ($geom{'depth'}, 1);
+  my $offset;
+  foreach $offset (0, 0xFFFFFFFF) {
+    my %input = (# can't "name" to pack an extension event, at least in 0.56
+                 # name      => "MitShmCompletion",
+                 synthetic => 1,
+                 code      => $event_num,
+                 sequence_number => 100,
+
+                 drawable     => 101,
+                 minor_opcode => 102,
+                 major_opcode => 103,
+                 shmseg       => 104,
+                 offset       => $offset);
+    my $data = $X->pack_event(%input);
+    ok (length($data), 32);
+
+    my %output = $X->unpack_event($data);
+    ### %output
+
+    ok ($output{'code'},          $input{'code'});
+    ok ($output{'name'},          'MitShmCompletion');
+    ok ($output{'synthetic'},     $input{'synthetic'});
+    ok ($output{'drawable'},      $input{'drawable'});
+    ok ($output{'major_opcode'},  $input{'major_opcode'});
+    ok ($output{'minor_opcode'},  $input{'minor_opcode'});
+    ok ($output{'shmseg'},        $input{'shmseg'});
+    ok ($output{'offset'},        $input{'offset'});
+  }
 }
+
+
+#------------------------------------------------------------------------------
+# MitShmQueryVersion
+
+ok (eval { $X->MitShmQueryVersion (1,0); 1 },
+    undef,
+    'MitShmQueryVersion with args throws an error');
+
+{
+  my @ret = $X->MitShmQueryVersion ();
+  MyTestHelpers::diag ("MitShmQueryVersion got ", join(', ',@ret));
+  ok (scalar(@ret), 6);
+
+  my ($major, $minor, $uid, $gid, $shared_pixmaps, $format) = @ret;
+  ok ($major >= 0, 1);
+  ok ($minor >= 0, 1);
+  ok ($uid >= 0, 1);
+  ok ($gid >= 0, 1);
+  ok ($shared_pixmaps >= 0, 1);
+  # $format XYPixmap or ZPixmap, probably, maybe
+}
+$X->QueryPointer($X->root); # sync
 
 exit 0;

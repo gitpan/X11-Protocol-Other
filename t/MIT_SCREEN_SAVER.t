@@ -17,10 +17,6 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-use lib 'devel', '.';
-
-
-
 use strict;
 use X11::Protocol;
 use Test;
@@ -37,7 +33,7 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-my $test_count = 4;
+my $test_count = 8;
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -106,5 +102,81 @@ ok (!!$mit_obj, 1, 'Mit object');
 }
 
 #------------------------------------------------------------------------------
+# MitScreenSaverQueryInfo
+
+{
+  my @info = $X->MitScreenSaverQueryInfo ($X->root);
+  ok (scalar(@info), 6);
+
+  my ($state, $window, $til_or_since, $idle, $event_mask, $kind) = @info;
+  ok ($window ne '0', 1, 'window None if 0');
+  ok ($event_mask, 0, 'event_mask');
+  ok ($idle >= 0, 1, 'idle milliseconds');
+}
+
+#------------------------------------------------------------------------------
+# MitScreenSaverSelectInput
+
+{
+  $X->MitScreenSaverSelectInput ($X->root, 0x03);
+  $X->QueryPointer($X->root); # sync
+
+  $X->MitScreenSaverSelectInput ($X->root, 0);
+  $X->QueryPointer($X->root); # sync
+}
+
+#------------------------------------------------------------------------------
+
+# could fail if another saver running
+# {
+#   $X->MitScreenSaverSetAttributes
+#     ($X->root,
+#      'InputOutput',    # class
+#      0,                # depth, from parent
+#      'CopyFromParent', # visual
+#      0,0,              # x,y
+#      1000,500,         # width,height
+#      0,                # border
+#      background_pixel => $X->white_pixel,
+#     );
+#   $X->QueryPointer($X->root); # sync
+# }
+#
+# { my @info = $X->MitScreenSaverQueryInfo ($X->root);
+#   ### @info
+# }
+# $X->QueryPointer($X->root); # sync
+#
+# $X->{'event_handler'} = sub {
+#   my (%h) = @_;
+#   ### event_handler: \%h
+#
+#   if ($h{'name'} eq 'MitScreenSaverNotify') {
+#     my @info = $X->MitScreenSaverQueryInfo ($X->root);
+#     ### @info
+#   }
+# };
+#
+# $X->ForceScreenSaver ('Activate');
+# $X->QueryPointer($X->root); # sync
+#
+#
+# foreach (1 .. 20) {
+#   $X->handle_input;
+# }
+
+#------------------------------------------------------------------------------
+# MitScreenSaverUnsetAttributes
+
+{
+  $X->MitScreenSaverUnsetAttributes ($X->root);
+  $X->QueryPointer($X->root); # sync
+}
+
+# when not already set is not an error
+{
+  $X->MitScreenSaverUnsetAttributes ($X->root);
+  $X->QueryPointer($X->root); # sync
+}
 
 exit 0;

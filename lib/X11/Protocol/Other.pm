@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 6;
+$VERSION = 7;
 
 use Exporter;
 @ISA = ('Exporter');
