@@ -1,12 +1,5 @@
 # Copyright 2011 Kevin Ryde
 
-
-# pixels ARGB,  ?
-
-# XFixesInvertRegion arrayref or values?
-
-
-
 # This file is part of X11-Protocol-Other.
 #
 # X11-Protocol-Other is free software; you can redistribute it and/or
@@ -29,7 +22,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 5;
+$VERSION = 8;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -41,6 +34,8 @@ $VERSION = 5;
 # /usr/include/X11/extensions/Xfixes.h
 # /usr/include/X11/extensions/xfixesproto.h
 # /usr/include/X11/extensions/xfixeswire.h
+#
+# /usr/share/doc/x11proto-xext-dev/shape.txt.gz
 
 ### XFIXES.pm loads
 
@@ -212,9 +207,8 @@ my $reqs =
 
    [ 'XFixesInvertRegion',   # 16
      sub {
-       shift; # $X
-       # $src_region, $x, $y, $width, $height, $dst_region
-       return pack 'LssSSL', @_;
+       my ($X, $src, $rect, $dst) = @_;
+       return pack 'LssSSL', $src, @$rect, $dst;
      }],
 
    [ 'XFixesTranslateRegion',   # 17
@@ -231,15 +225,15 @@ my $reqs =
      sub {
        my ($X, $data) = @_;
        ### XFixesFetchRegion reply: length($data)
-       my @ret = ([ unpack 'x8ssSS', $data ]);
-       for (my $pos = 8+8+4*4; $pos < length($data); $pos+=8) {
+       my @ret = ([ unpack 'x8ssSS', $data ]);  # bounding
+       for (my $pos = 32; $pos < length($data); $pos+=8) {
          push @ret, [ unpack 'ssSS', substr($data,$pos,8) ];
        }
        return @ret;
      }],
 
    [ 'XFixesSetGCClipRegion',   # 20
-     \&_request_xid_region_xy], # ($gc, $region, $x, $y)
+     \&_request_xid_xy_region], # ($gc, $x, $y, $region)
 
    [ 'XFixesSetWindowShapeRegion',   # 21
      sub {
@@ -256,7 +250,7 @@ my $reqs =
      }],
 
    [ 'XFixesSetPictureClipRegion',   # 22
-     \&_request_xid_region_xy ],  # ($pict, $region, $x, $y)
+     \&_request_xid_xy_region ],  # ($pict, $x, $y, $region)
 
    [ 'XFixesSetCursorName',   # 23
      sub {
@@ -301,7 +295,7 @@ my $reqs =
    [ 'XFixesChangeCursorByName',   # 27
      sub {
        my ($X, $src, $str) = @_;
-       return pack ('LSxx'.padded($str),,
+       return pack ('LSxx'.padded($str),
                     $src, length($str), $str);
      }],
 
@@ -403,9 +397,9 @@ sub _request_card32s {
   return pack 'L*', @_;
 }
 
-sub _request_xid_region_xy {
-  my ($X, $gc, $region, $x, $y) = @_;
-  return pack 'LLss', $gc, _num_none($region), ($x||0),($y||0);
+sub _request_xid_xy_region {
+  my ($X, $xid, $x, $y, $region) = @_;
+  return pack ('LLss', $xid, _num_none($region), $x,$y);
 }
 
 sub _request_region_and_rectangles {
@@ -489,11 +483,13 @@ sub _ext_const_error_install {
 1;
 __END__
 
-=for stopwords XFIXES XID reparent Unmap arrayref AARRGGBB GG pre-multiplied pixmap RENDER ShapeKind subwindow Ryde hotspot ARGB GC ie YX latin-1 DisplayCursor
+=for stopwords XFIXES XID reparent Unmap arrayref AARRGGBB GG pre-multiplied pixmap RENDER ShapeKind subwindow Ryde hotspot ARGB GC ie latin-1 DisplayCursor RGB bitmask XIDs YX-banded
 
 =head1 NAME
 
 X11::Protocol::Ext::XFIXES - miscellaneous "fixes" extension
+
+=for test_synopsis my ($X)
 
 =head1 SYNOPSIS
 
@@ -504,8 +500,25 @@ X11::Protocol::Ext::XFIXES - miscellaneous "fixes" extension
 
 =head1 DESCRIPTION
 
-The XFIXES extension is a grab-bag of requests and events conceived as
-"fixing" omissions or shortcomings in the core X11 protocol.
+The XFIXES extension adds some extra features conceived as "fixing"
+omissions in the core X11 protocol, including
+
+=over
+
+=item *
+
+Events for changes to the selection (the cut and paste between clients).
+
+=item *
+
+Current cursor image fetching, events for cursor change, and cursor naming
+and hiding.
+
+=item *
+
+Server-side "region" objects representing a set of rectangles.
+
+=back
 
 =head1 REQUESTS
 
@@ -538,85 +551,98 @@ version of the core C<ChangeSaveSet> request.
 
 C<$mode> is either "Insert" or "Delete".
 
-C<$target> is how to reparent C<$window> on close-down, either "Nearest" or
-"Root".  "Nearest" is what the core C<ChangeSaveSet> gives and means go to
+C<$target> is how to reparent C<$window> on client close-down, either
+"Nearest" or "Root".  The core C<ChangeSaveSet> is "Nearest" and means go to
 the next non-client ancestor window.  "Root" means go to the root window.
 
 C<$map> is either "Map" or "Unmap" to apply to C<$window> on close-down.
-"Map" is what the core C<ChangeSaveSet> does.
+The core C<ChangeSaveSet> is "Map".
 
 =item $X-E<gt>XFixesSelectSelectionInput ($window, $selection, $event_mask)>
 
-Select for C<XFixesSelectionNotify> events (see L</"EVENTS"> below) to be
-sent to C<$window>.
+Select C<XFixesSelectionNotify> events (see L</"EVENTS"> below) to be sent
+to C<$window> when C<$selection> (an atom) changes.
 
-C<$event_mask> has three bits,
+    $X->XFixesSelectSelectionInput ($my_window,
+                                    $X->atom('PRIMARY'),
+                                    0x07);
+
+C<$window> is given in the resulting C<XFixesSelectionNotify>.  It probably
+works to make it just a root window.  Selections are global to the whole
+server, so the window doesn't implicitly choose a screen or anything.
+
+C<$event_mask> has three bits for which event subtypes should be reported.
 
                             bitpos  bitval
     SetSelectionOwner         0      0x01
     SelectionWindowDestroy    1      0x02
     SelectionClientClose      2      0x04
 
-To choose which of the respective event subtypes should be reported.
-There's no pack function for these yet, so just give an integer, for
-instance 0x07 for all three.
-
-C<$window> is given in the resulting C<XFixesSelectionNotify>.  It probably
-works to make it just a root window.  Selections are global to the whole
-server, so the window doesn't implicitly choose a particular screen or
-anything.
+There's no pack function for these yet so just give an integer, for instance
+0x07 for all three.
 
 =item $X-E<gt>XFixesSelectCursorInput ($window, $event_mask)>
 
-Select for C<XFixesCursorNotify> events (see L</"EVENTS"> below) to be sent
-to the client.
+Select C<XFixesCursorNotify> events (see L</"EVENTS"> below) to be sent to
+the client.
 
-C<$event_mask> has only a single bit, asking for when the displayed mouse
-pointer cursor changes,
+C<$window> is given in the resulting C<XFixesSelectionNotify>.  It probably
+works to make it just a root window.  The cursor image is global and the
+events are for any change, not merely within C<$window>.
+
+C<$event_mask> has only a single bit, asking for displayed cursor changes,
 
                      bitpos  bitval
     DisplayCursor      0      0x01
 
 There's no pack function for this yet, just give integer 1 or 0.
 
-C<$window> is given in the resulting C<XFixesSelectionNotify>.  It probably
-works to make it just a root window.  The cursor image is global and the
-events are for it changing anywhere, not merely within C<$window>.
-
 =item ($root_x,$root_y, $width,$height, $xhot,$yhot, $serial, $pixels) = $X-E<gt>XFixesGetCursorImage ()>
 
-Return the size and pixels of the current mouse pointer cursor.
+Return the size and pixel contents of the currently displayed mouse pointer
+cursor.
 
-C<$root_x>,C<$root_y> is the current pointer location in root window
-coordinates (similar to C<QueryPointer>).
+C<$root_x>,C<$root_y> is the pointer location in root window coordinates
+(similar to C<QueryPointer>).
 
 C<$width>,C<$height> is the size of the cursor image.  C<$xhot>,C<$yhot> is
-the "hotspot" position within that, which is the pixel in the image which
-follows the pointer location.
+the "hotspot" position within that, which is the pixel that follows the
+pointer location.
 
-C<$pixels> is a string of "ARGB" pixel values, 32-bits each pixel in the
-client byte order.  There's C<$width> many for each row, and C<$height> such
-rows, for a total C<4*$width*$height> bytes.  The pixels can be unpacked
-with for instance
+C<$pixels> is a byte string of packed "ARGB" pixel values.  Each is 32-bits
+in client byte order, with C<$width> many for each row and C<$height> such
+rows, no padding in between, for a total C<4*$width*$height> bytes.  This
+can be unpacked with for instance
 
     my @argb = unpack 'L*', $pixels; # each 0xAARRGGBB
 
-    # top left pixel in $argb[0]
+    # top left pixel is in $argb[0]
     my $blue  =  $argb[0]        & 0xFF;  # 0 to 255
     my $green = ($argb[0] >> 8)  & 0xFF;  # components
     my $red   = ($argb[0] >> 16) & 0xFF;
     my $alpha = ($argb[0] >> 24) & 0xFF;
 
-The alpha transparency is pre-multiplied into the RGB components, so they're
-zero when the alpha is zero for fully transparent.  The core C<CreateCursor>
-mask only makes fully transparent or full opaque pixels, so alpha only 0 or
-255.
+The alpha transparency is pre-multiplied into the RGB components, so if the
+alpha is zero (transparent) then the components are zero too.
+
+The core C<CreateCursor> bitmask makes only alpha=0 full-transparent or
+alpha=255 full-opaque pixels.  The RENDER extension (see
+L<X11::Protocol::Ext::RENDER>) can make partially transparent cursors.
+
+There's no direct way to get the image of a cursor by its XID (beyond
+something dodgy like a C<GrabPointer> to make it the displayed cursor).
+Usually cursor XIDs are only ever created by a client itself (they can't be
+read back out of an arbitrary window for instance) so no need to read back.
 
 =back
 
 =head2 XFIXES version 2.0
 
-A region object on the server represents a set of rectangles.
+A region object on the server represents a set of rectangles, each
+x,y,width,height, with positive or negative x,y, and the set possibly in
+disconnected sections, etc.  Since a rectangle might be simply 1x1 it can
+represent any bitmap, but is geared towards the sort or rectangle arithmetic
+arising from overlapping rectangular window areas etc.
 
 =over
 
@@ -646,8 +672,8 @@ L<X11::Protocol::Ext::SHAPE>).
     $X->XFixesCreateRegionFromBitmap ($region, $window, 'Clip');
 
 It's not necessary to C<$X-E<gt>init_extension('SHAPE')> before using this
-request, any shape handling is done on the server, resulting in whatever
-rectangular or non-rectangular region.
+request, the shape as such is just on the server and results in whatever
+rectangular or non-rectangular C<$region>.
 
 =item C<$X-E<gt>XFixesCreateRegionFromGC ($region, $gc)>
 
@@ -665,6 +691,9 @@ Create a region initialized from a RENDER C<$picture> (an XID).
 
     my $region = $X->new_rsrc;
     $X->XFixesCreateRegionFromBitmap ($region, $picture);
+
+The region is relative to the picture C<clip_x_origin> and C<clip_y_origin>,
+ie. those offsets are not applied to the X,Y in the region.
 
 Picture objects are from the RENDER extension (see
 L<X11::Protocol::Ext::RENDER>).  This request always exists, but is not
@@ -692,15 +721,14 @@ Copy a region C<$src> to region C<$dst>.
 
 =item C<$X-E<gt>XFixesSubtractRegion ($src1, $src2, $dst)>
 
-Set region C<$dst> to respectively the region union or intersection or
-C<$src1> and C<$src2>, or subtraction C<$src1> - C<$src2>.
+Set region C<$dst> to respectively the union or intersection of C<$src1> and
+C<$src2>, or the subtraction C<$src1> - C<$src2>.
 
-C<$dst> can be one of the source regions if desired, to do an "in-place"
-change.
+C<$dst> can be one of the source regions if desired, to change in-place.
 
 =item C<$X-E<gt>XFixesInvertRegion ($src, $rect, $dst)>
 
-Set region C<$dst> to the inverse of C<$src>, bounded by rectangle C<$rect>,
+Set region C<$dst> to the inverse of C<$src> bounded by rectangle C<$rect>,
 ie. C<$rect> subtract C<$src>.  C<$rect> is an arrayref
 C<[$x,$y,$width,$height]>.
 
@@ -710,35 +738,58 @@ C<$dst> can be the same as C<$src> to do an "in-place" invert.
 
 =item C<$X-E<gt>XFixesTranslateRegion ($region, $dx, $dy)>
 
-Move the area covered by C<$region> by an offset C<$dx> and C<$dy>.
+Move the area covered by C<$region> by an offset C<$dx> and C<$dy>
+(integers).
 
 =item C<$X-E<gt>XFixesRegionExtents ($dst, $src)>
 
 Set region C<$dst> to the rectangular bounds of region C<$src>.  If C<$src>
 is empty then C<$dst> is set to empty.
 
-=item C<@rects = $X-E<gt>XFixesFetchRegion ($region)>
+=item C<($bounding, @parts) = $X-E<gt>XFixesFetchRegion ($region)>
 
-Return a list of rectangles which cover C<$region>.  Each returned element
-is an arrayref C<[$x,$y,$width,$height]> and are in "YX-banded" order.
+Return the rectangles which cover C<$region>.  Each returned element is an
+arrayref
 
-=item C<$X-E<gt>XFixesSetGCClipRegion ($gc, $region)>
+    [$x,$y,$width,$height]
 
-Set the clip mask of C<$gc> (an XID) to C<$region> (an XID).
+The first is a bounding rectangle, and after that the individual rectangles
+making up the region, in "YX-banded" order.
+
+    my ($bounding, @rects) = $X->XFixesFetchRegion ($region);
+    print "bounded by ",join(',',@$bounding);
+    foreach my $rect (@rects) {
+      print "  rect part ",join(',',@$rect);
+    }
+
+=item C<$X-E<gt>XFixesSetGCClipRegion ($gc, $clip_x_origin, $clip_y_origin, $region)>
+
+Set the clip mask of C<$gc> (an XID) to C<$region> (an XID), and set the
+clip origin to C<$clip_x_origin>,C<$clip_x_origin>.
+
+This is similar to the core C<SetClipRectangles>, but the rectangles are
+from C<$region> (and no "ordering" parameter).
 
 =item C<$X-E<gt>XFixesSetWindowShapeRegion ($window, $kind, $x_offset, $y_offset, $region)>
 
 Set the shape mask of C<$window> (an XID) to C<$region>, at offset
 C<$x_offset>,C<$y_offset> into the window.  C<$kind> is a ShapeKind, either
-"Bounding" or "Clip" (see L<X11::Protocol::Ext::SHAPE>.)
+"Bounding" or "Clip".
+
+This is similar to C<ShapeMask()> (see L<X11::Protocol::Ext::SHAPE>) with
+operation "Set" and a a region instead of a bitmap.
 
 It's not necessary to C<$X-E<gt>init_extension('SHAPE')> before using this
 request.  If SHAPE is not available at all on the server then presumably
 this request gives an error reply.
 
-=item C<$X-E<gt>XFixesSetPictureClipRegion ($picture, $region)>
+=item C<$X-E<gt>XFixesSetPictureClipRegion ($picture, $clip_x_origin, $clip_y_origin, $region)>
 
-Set the clip mask of RENDER C<$picture> (an XID) to C<$region>.
+Set the clip mask of RENDER C<$picture> (an XID) to C<$region>, and set the
+clip origin to C<$clip_x_origin>,C<$clip_x_origin>.
+
+This is similar to C<RenderSetPictureClipRectangles>, but the rectangles are
+from C<$region>.
 
 Picture objects are from the RENDER extension (see
 L<X11::Protocol::Ext::RENDER>).  The request always exists, but is not useful
@@ -748,32 +799,34 @@ without RENDER.
 
 Set a name for cursor object C<$cursor> (an XID).  The name string C<$str>
 is interned as an atom within the server and therefore should consist only
-of latin-1 characters.  (Perhaps in the future there will be some
-enforcement or conversions here.)
+of latin-1 characters.  (Perhaps in the future that might be enforced here,
+or wide chars converted.)
 
 =item C<($atom, $str) = $X-E<gt>XFixesGetCursorName ($cursor)>
 
 Get the name of mouse pointer cursor C<$cursor> (an XID), as set by
 C<XFixesSetCursorName>.
 
-The returned C<$atom> (integer) is the name atom and C<$str> is the name
-string (which is the atom's name).  If there's no name then C<$atom> is
-string "None" (or 0 if no C<$X-E<gt>{'do_interp'}>) and C<$str> is empty "".
+The returned C<$atom> is the name atom (an integer) and C<$str> is the name
+string (which is the atom's name).  If there's no name for C<$cursor> then
+C<$atom> is string "None" (or 0 if no C<$X-E<gt>{'do_interp'}>) and C<$str>
+is empty "".
 
 =item C<($x,$y, $width,$height, $xhot,$yhot, $serial, $pixels, $atom, $str) = $X-E<gt>XFixesGetCursorImageAndName ()>
 
-Get the image and name of the current mouse pointer cursor.  The return per
-C<XFixesGetCursorImage> plus C<XFixesGetCursorName> as described above.
+Get the image and name of the current mouse pointer cursor.  The return is
+per C<XFixesGetCursorImage> plus C<XFixesGetCursorName> described above.
 
 =item C<$X-E<gt>XFixesChangeCursor ($src, $dst)>
 
-Change the contents of cursor C<$dst> (an XID) to the contents of cursor
-C<$src> (an XID).
+Change the contents of cursor C<$dst> (an XID) to the contents of
+cursor C<$src> (an XID).
 
-=item C<$X-E<gt>XFixesChangeCursorByName ($src, $dst_name)>
+=item C<$X-E<gt>XFixesChangeCursorByName ($src, $dst_str)>
 
-Change the contents of any cursors with name C<$dst_name> (a string) to the
-contents of cursor C<$src>.
+Change the contents of any cursors with name C<$dst_str> (a string) to the
+contents of cursor C<$src>.  If there's no cursors with name C<$dst_str>
+then do nothing.
 
 =back
 
@@ -785,11 +838,11 @@ contents of cursor C<$src>.
 
 Set region C<$dst> (an XID) to the rectangles of region C<$src>, with each
 rectangle expanded by C<$left>, C<$right>, C<$top>, C<$bottom> many pixels
-in the respective directions.
+in those respective directions.
 
-Notice that it doesn't matter how C<$src> is expressed as rectangles, the
-effect is simply as if each pixel in C<$src> was individually expanded and
-the union of the result then taken.
+It doesn't matter how C<$src> is expressed as rectangles, the effect is as
+if each pixel in C<$src> was individually expanded and the union of the
+result taken.
 
 =back
 
@@ -801,15 +854,19 @@ the union of the result then taken.
 
 =item C<$X-E<gt>XFixesShowCursor ($window)>
 
-Hide or show the mouse pointer cursor while its in C<$window> (an XID) or
-any subwindow.
+Hide or show the mouse pointer cursor while it's in C<$window> (an XID) or
+any subwindow of C<$window>.
 
 This hide/show for each window is a per-client setting.  If more than one
 client requests hiding then the cursor remains hidden until all of them
-"show" again.  If a client disconnects or is killed then any hides it had
+"show" again.  If a client disconnects or is killed then any hides it has
 are undone.
 
 =back
+
+=head2 XFIXES version 5.0
+
+Code waiting to be tested!
 
 =head1 EVENTS
 
@@ -824,14 +881,13 @@ The following events have the usual fields
 
 =item C<XFixesSelectionNotify>
 
-C<XFixesSelectionNotify> is sent to the client when selected with
-C<XFixesSelectSelectionInput> above.  It reports changes to the selection.
-The event-specific fields are
+This is sent to the client when selected by C<XFixesSelectSelectionInput>
+above.  It reports changes to the selection.  The event-specific fields are
 
     subtype         enum string
     window          XID
     owner           XID of owner window, or "None"
-    selection       atom, eg. "PRIMARY"
+    selection       atom integer
     time            integer, server timestamp
     selection_time  integer, server timestamp
 
@@ -846,9 +902,9 @@ selection was owned.
 
 =item C<XFixesCursorNotify>
 
-C<XFixesCursorNotify> is sent to the client when selected by
-C<XFixesSelectCursorInput> above.  It reports when the mouse pointer cursor
-displayed has changed.  It has the following event-specific fields,
+This is sent to the client when selected by C<XFixesSelectCursorInput>
+above.  It reports when the mouse pointer cursor displayed has changed.  It
+has the following event-specific fields,
 
     subtype         enum string, currently always "DisplayCursor"
     window          XID
@@ -859,14 +915,15 @@ displayed has changed.  It has the following event-specific fields,
 C<subtype> is "DisplayCursor" when the displayed cursor has changed.  This
 is the only subtype currently.
 
-C<cursor_serial> is a serial number as obtained from
-C<XFixesGetCursorImage>.  A client can use this to notice the cursor has
-become an already-fetched image.
+C<cursor_serial> is a serial number as per C<XFixesGetCursorImage>.
+A client can use this to notice when the cursor changes to something it
+already fetched with C<XFixesGetCursorImage>.
 
 C<cursor_name> is the atom of the name given to cursor by
 C<XFixesSetCursorName>, or string "None" if no name.  This is new in XFIXES
-2.0 and is returned by the event unpack only if the server is 2.0 or higher.
-In an event repack it's optional and is put in if given.
+2.0 and is in event unpack only if the server does XFIXES 2.0 or higher.  In
+an C<$X-E<gt>pack_event()> re-pack, C<cursor_name> is optional and the field
+set if given.
 
 =back
 

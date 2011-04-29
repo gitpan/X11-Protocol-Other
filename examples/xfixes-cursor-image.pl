@@ -18,37 +18,51 @@
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
 
-# Usage: perl xfixes-current-cursor.pl
+# Usage: perl xfixes-cursor-image.pl
 #
 # This is an example of getting the mouse pointer cursor image with XFIXES.
 #
 # XFixesGetCursorImage() retrieves the cursor image.  CursorNotify events
-# report when it has changed, normally due to moving into a window with a
-# "cursor" attribute, but also for a pointer grab.
+# report when it changes.  That's normally due to moving into a window with
+# a "cursor" attribute, but can also be a pointer grab, or even an animated
+# cursor from the RENDER extension.
 #
-# The only slightly painful thing is that GetCursorImage gives 8-bit RGBA,
-# so it's necessary to allocate colours etc to display that in a window.  In
-# the code here its drawn to a pixmap, then that pixmap put up under Expose.
+# The only painful thing is that GetCursorImage gives 8-bit RGBA, so it's
+# necessary to allocate colours etc to display that in a window.  In the
+# code here its drawn to a pixmap, then that pixmap put up under Expose.
 #
 # XFixesGetCursorImage() isn't done in the "event_handler" code, since it's
 # a round-trip request and waiting for the reply might read new events and
-# call the event_handler recursively.  If we're badly lagged and continually
+# call the event_handler recursively.  If badly lagged and continually
 # getting CursorNotify or whatever then that could be a very deep recursion,
-# or make a mess of the drawing bits.  So the event_handler just notes a
-# fresh get image is required and that's done in the main $X->handle_input()
-# loop.
+# or make a mess of the drawing code.  So the event_handler just notes a
+# fresh get is required and that's done in the main $X->handle_input() loop.
 #
-# With just the core X protocol there's no real way to get the current
+# With only the core X protocol there's no real way to get the current
 # cursor or its image.  The windows cursor attribute can't be read back with
 # GetWindowAttributes(), and all the area copying things, including
 # GetImage(), ignore the cursor.
+#
+# Things Not Done:
+#
+# The display window is a fixed 63x63 and the image positioned so the
+# hotspot is always at 31,31.  This fits a cursor of up to 32x32.  A real
+# program might centre the hotspot in the current window size (listening to
+# ConfigureNotify), and might make the pixmap only the size of the cursor
+# then draw it at the right place.
+#
+# The ChangeGC() plus PolyPoint() for each pixel is a bit wasteful.  Better
+# would be to send all the pixels in one PutImage(), but building the
+# server's required bit units, byte order and padding is bit like hard work.
+#
+# The alpha channel in the cursor image is only mapped to a pixel drawn or
+# not.  It might be combined with the grey window background without too
+# much trouble.  What's the right multiplication?
 #
 
 use strict;
 use X11::Protocol;
 use X11::AtomConstants;
-
-use lib 'devel', '.';
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -89,7 +103,7 @@ $X->CreateWindow ($window,
                   $X->root_depth,   # depth
                   'CopyFromParent', # visual
                   0,0,              # x,y
-                  64,64,            # w,h initial size
+                  63,63,            # w,h initial size
                   0,                # border
                   background_pixel => $background_pixel,
                   event_mask       => $X->pack_event_mask('Exposure'),
@@ -105,7 +119,7 @@ my $pixmap = $X->new_rsrc;
 $X->CreatePixmap ($pixmap,
                   $window,
                   $X->root_depth,
-                  64,64);  # width,height
+                  63,63);  # width,height
 
 my $gc = $X->new_rsrc;
 $X->CreateGC ($gc, $pixmap,
@@ -128,7 +142,7 @@ $X->{'event_handler'} = sub {
   } elsif ($h{'name'} eq 'Expose') {
     $X->CopyArea ($pixmap, $window, $gc,
                   0,0,    # src x,y
-                  64,64,  # src w,h
+                  63,63,  # src w,h
                   0,0);   # dst x,y
   }
 };
@@ -145,7 +159,7 @@ for (;;) {
     $current_cursor_serial = $serial;
 
     $X->ChangeGC ($gc, foreground => $background_pixel);
-    $X->PolyFillRectangle ($pixmap, $gc, [0,0, 64,64]);
+    $X->PolyFillRectangle ($pixmap, $gc, [0,0, 63,63]);
 
     my $pos = 0;
     foreach my $y (0 .. $height-1) {
@@ -158,19 +172,19 @@ for (;;) {
         my $blue  =  $argb        & 0xFF;
         $pos += 4;
 
-        if ($alpha != 0) {
+        if ($alpha >= 128) {
           my $pixmap_pixel = rgb8_to_pixel($red, $green, $blue);
           $X->ChangeGC ($gc, foreground => $pixmap_pixel);
           $X->PolyPoint ($pixmap, $gc, 'Origin',
-                         # hotspot at position x=32,y=32
-                         $x + 32-$xhot,
-                         $y + 32-$yhot);
+                         # hotspot at position x=31,y=31 in the display
+                         $x + 31-$xhot,
+                         $y + 31-$yhot);
         }
       }
     }
     $X->CopyArea ($pixmap, $window, $gc,
                   0,0,    # src x,y
-                  64,64,  # src w,h
+                  63,63,  # src w,h
                   0,0);   # dst x,y
 
     # print "Cursor size ${width}x${height}\n";

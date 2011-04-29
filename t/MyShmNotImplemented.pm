@@ -20,10 +20,19 @@
 package MyShmNotImplemented;
 use strict;
 
-*CORE::GLOBAL::shmget = sub {
-  # as per Perl_do_ipcget()
-  die "shmget not implemented";
-};
+# Usage: perl -MMyShmNotImplemented ...
+#
+# Fake up shmget() and friends to die() as for SysV IPC not available on the
+# system.
+
+# as per doio.c Perl_do_ipcget()
+
+*CORE::GLOBAL::shmget
+  = *CORE::GLOBAL::shmread
+  = *CORE::GLOBAL::shmwrite
+  = sub {
+    die "shmget not implemented";
+  };
 
 1;
 __END__

@@ -17,6 +17,10 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 8, April 2011
+    - new X11::Protocol::Ext::XFIXES
+    - tests avoid some warning messages
+
 Version 7, April 2011
     - new X11::Protocol::Ext::MIT_SHM
     - new X11::Protocol::Ext::MIT_SCREEN_SAVER

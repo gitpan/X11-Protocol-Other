@@ -1,7 +1,9 @@
 # Copyright 2011 Kevin Ryde
 
+   # [ 'DbeAllocateBackBufferName',  # 1
+   # [ 'DoubleBufferAllocateBackBufferName',  # 1
 
-# visuals supporting dbe as hash ?
+# visuals supporting dbe as a hash ?
 
 
 

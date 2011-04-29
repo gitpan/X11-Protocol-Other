@@ -17,13 +17,6 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use lib 'devel';
-
-
-
-
-
 use strict;
 use X11::Protocol;
 use Test;
@@ -38,9 +31,9 @@ BEGIN { MyTestHelpers::nowarnings() }
 END { MyTestHelpers::diag ("END"); }
 
 # uncomment this to run the ### lines
-use Smart::Comments;
+#use Smart::Comments;
 
-my $test_count = 104;
+my $test_count = 108;
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -150,10 +143,10 @@ $X->QueryPointer($X->root); # sync
   ok ($bounding->[3], $X->height_in_pixels, 'height');
 
   ok (scalar(@rects), 1);
-  ok ($rect->[0]->[0], 0, 'x');
-  ok ($rect->[0]->[1], 0, 'y');
-  ok ($rect->[0]->[2], $X->width_in_pixels, 'width');
-  ok ($rect->[0]->[3], $X->height_in_pixels, 'height');
+  ok ($rects[0]->[0], 0, 'x');
+  ok ($rects[0]->[1], 0, 'y');
+  ok ($rects[0]->[2], $X->width_in_pixels, 'width');
+  ok ($rects[0]->[3], $X->height_in_pixels, 'height');
 
   $X->XFixesDestroyRegion ($region);
   $X->QueryPointer($X->root); # sync
@@ -197,7 +190,7 @@ $X->CreateGC ($gc, $X->root);
 
 
 #------------------------------------------------------------------------------
-# XFixesCreateRegionFromPicture() - in XFIXES-render.t
+# XFixesCreateRegionFromPicture() - in XFIXES-2-render.t
 
 
 #------------------------------------------------------------------------------
@@ -346,10 +339,10 @@ $X->XFixesCreateRegion ($r3);
 # XFixesInvertRegion()
 
 {
-  $X->XFixesSetRegion ($r2, [0,0,5,10]);
+  $X->XFixesSetRegion ($r2, [0,0,5,100]);
   $X->QueryPointer($X->root); # sync
 
-  $X->XFixesInvertRegion ($r2, 0,0,10,10, $region);
+  $X->XFixesInvertRegion ($r2, [0,0,10,10], $region);
   $X->QueryPointer($X->root); # sync
 
   my ($bounding, @rects) = $X->XFixesFetchRegion ($region);
@@ -420,16 +413,26 @@ $X->XFixesCreateRegion ($r3);
 # XFixesSetGCClipRegion()
 
 {
-  $X->XFixesSetGCClipRegion ($gc, $region);
+  $X->XFixesSetGCClipRegion ($gc, 3,4, $region);
+  $X->QueryPointer($X->root); # sync
+
+  my $rr = $X->new_rsrc;
+  $X->XFixesCreateRegionFromGC ($rr, $gc);
+  my ($bounding, @rects) = $X->XFixesFetchRegion ($region);
+  ok ($bounding->[0], 1, 'x');
+  ok ($bounding->[1], 2, 'y');
+  ok ($bounding->[2], 3, 'width');
+  ok ($bounding->[3], 4, 'height');
+  $X->XFixesDestroyRegion ($rr);
   $X->QueryPointer($X->root); # sync
 }
 
 #------------------------------------------------------------------------------
-# XFixesSetWindowShapeRegion() - in XFIXES-shape.t
+# XFixesSetWindowShapeRegion() - in XFIXES-2-shape.t
 
 
 #------------------------------------------------------------------------------
-# XFixesSetPictureClipRegion() - in XFIXES-render.t maybe
+# XFixesSetPictureClipRegion() - in XFIXES-2-render.t
 
 
 #------------------------------------------------------------------------------

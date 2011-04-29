@@ -119,6 +119,7 @@ if (! defined $shmid) {
 
 my $shmseg = $X->new_rsrc;
 if (! eval {
+  local $^W = 0; # avoid warnings from X11::Protocol 0.56 format_error_msg()
   my $seq = $X->MitShmAttach($shmseg, $shmid, 0); # read/write
   $X->QueryPointer($X->{'root'}); # sync
   1;

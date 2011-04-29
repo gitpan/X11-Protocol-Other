@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 7;
+$VERSION = 8;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -397,6 +397,8 @@ L<X11::Protocol::Ext::DPMS>
 
 L<xset(1)>, for setting the core screen saver parameters from the command
 line.
+
+L<xscreensaver(1)>
 
 =head1 HOME PAGE
 

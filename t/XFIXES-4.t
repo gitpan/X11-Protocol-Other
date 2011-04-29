@@ -17,13 +17,6 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use lib 'devel';
-
-
-
-
-
 use strict;
 use X11::Protocol;
 use Test;
@@ -38,9 +31,9 @@ BEGIN { MyTestHelpers::nowarnings() }
 END { MyTestHelpers::diag ("END"); }
 
 # uncomment this to run the ### lines
-use Smart::Comments;
+#use Smart::Comments;
 
-my $test_count = 104;
+my $test_count = 2;
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -101,12 +94,14 @@ $X->QueryPointer($X->root); # sync
 
 $X->XFixesHideCursor ($X->root);
 $X->QueryPointer($X->root); # sync
+ok(1,1);
 
 #------------------------------------------------------------------------------
 # XFixesShowCursor()
 
 $X->XFixesShowCursor ($X->root);
 $X->QueryPointer($X->root); # sync
+ok(1,1);
 
 
 exit 0;

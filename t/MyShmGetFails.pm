@@ -17,6 +17,11 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
+
+# Usage: perl -MMyShmGetFails ...
+#
+# Fake up a shmget() which always fails to get a memory block.
+
 package MyShmGetFails;
 use strict;
 use POSIX ();

@@ -88,8 +88,6 @@ use Getopt::Long;
 use X11::Protocol;
 use X11::AtomConstants;
 
-use lib 'devel', '.';
-
 # uncomment this to run the ### lines
 #use Smart::Comments;
 

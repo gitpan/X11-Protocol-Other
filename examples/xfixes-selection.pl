@@ -24,12 +24,14 @@
 # changes to selection ownership.
 #
 # With just the core protocol this sort of thing has to be done by polling
-# GetSelectionOwner() periodically.
+# GetSelectionOwner() periodically.  If you're the selection owner you're
+# notified of its loss, but third parties like a cut-buffer display have to
+# poll.
 #
-# The key part is merely the $X->XFixesSelectSelectionInput() and the
+# The key part is merely $X->XFixesSelectSelectionInput() and the
 # XFixesSelectionNotify events.  The window creation and GetProperty
-# nonsense are only to then retrieve the selection.  A typical program
-# interested in selection changes will more than likely want to fetch the
+# nonsense are only to retrieve the selection contents.  If you're
+# interested in selection changes then you probably want to fetch the
 # selection contents at some point.
 #
 # Don't think the window supplied to XFixesSelectSelectionInput() has to be
@@ -45,8 +47,6 @@
 use strict;
 use X11::Protocol;
 use X11::AtomConstants;
-
-use lib 'devel', '.';
 
 # uncomment this to run the ### lines
 #use Smart::Comments;

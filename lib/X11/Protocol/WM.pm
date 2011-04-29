@@ -15,14 +15,14 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
+BEGIN { require 5 }
 package X11::Protocol::WM;
-use 5.004;
 use strict;
 use Carp;
 use X11::AtomConstants;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 7;
+$VERSION = 8;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -219,36 +219,35 @@ __END__
 # C<get_net_wm_window_type_atom> returns C<$window_type> as an atom (integer).
 #
 # not documented ...
-sub _get_net_wm_window_type_atom {
-  my ($X, $window) = @_;
-  _get_single_property ($X, $window,
-                        $X->atom('_NET_WM_WINDOW_TYPE'),
-                        X11::AtomConstants::ATOM);
-}
+# sub _get_net_wm_window_type_atom {
+#   my ($X, $window) = @_;
+#   _get_single_property ($X, $window,
+#                         $X->atom('_NET_WM_WINDOW_TYPE'),
+#                         X11::AtomConstants::ATOM);
+# }
 
 # not documented ...
-sub _get_single_property {
-  my ($X, $window, $prop, $type) = @_;
-  my ($value, $got_type, $format, $bytes_after)
-    = $X->GetProperty ($window,
-                       $prop,
-                       $type,
-                       0,  # offset
-                       1,  # length, 1 x CARD32
-                       0); # delete
-  if ($format == 32) {
-    $ret = scalar(unpack 'L', $value);
-    if ($type == X11::AtomConstants::WINDOW || $type == X11::AtomConstants::PIXMAP) {
-      if ($ret == 0 && $X->{'do_interp'}) {
-        $ret = 'None';
-      }
-    }
-    return $ret;
-  } else {
-    return undef;
-  }
-}
-
+# sub _get_single_property {
+#   my ($X, $window, $prop, $type) = @_;
+#   my ($value, $got_type, $format, $bytes_after)
+#     = $X->GetProperty ($window,
+#                        $prop,
+#                        $type,
+#                        0,  # offset
+#                        1,  # length, 1 x CARD32
+#                        0); # delete
+#   if ($format == 32) {
+#     $ret = scalar(unpack 'L', $value);
+#     if ($type == X11::AtomConstants::WINDOW || $type == X11::AtomConstants::PIXMAP) {
+#       if ($ret == 0 && $X->{'do_interp'}) {
+#         $ret = 'None';
+#       }
+#     }
+#     return $ret;
+#   } else {
+#     return undef;
+#   }
+# }
 
 
 

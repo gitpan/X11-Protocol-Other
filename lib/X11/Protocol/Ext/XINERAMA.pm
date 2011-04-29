@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 7;
+$VERSION = 8;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -177,11 +177,11 @@ sub _num_none {
 1;
 __END__
 
-=for stopwords XINERAMA Xinerama XID arrayrefs Ryde
+=for stopwords XINERAMA Xinerama XID arrayrefs Ryde multi-monitor PanoramiX natively
 
 =head1 NAME
 
-X11::Protocol::Ext::XINERAMA - multi-monitor screen
+X11::Protocol::Ext::XINERAMA - multi-monitor display information
 
 =for test_synopsis my ($X)
 

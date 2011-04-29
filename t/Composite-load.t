@@ -29,7 +29,7 @@ ok (1, 1, 'X11::Protocol::Ext::Composite load as first thing');
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 7;
+my $want_version = 8;
 ok ($X11::Protocol::Ext::Composite::VERSION,
     $want_version,
     'VERSION variable');
@@ -52,6 +52,5 @@ ok (X11::Protocol::Ext::Composite::CLIENT_MAJOR_VERSION(), 0,
     'CLIENT_MAJOR_VERSION');
 ok (X11::Protocol::Ext::Composite::CLIENT_MINOR_VERSION(), 3,
     'CLIENT_MINOR_VERSION');
-
 
 exit 0;

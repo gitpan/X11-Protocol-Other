@@ -30,7 +30,7 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-my $test_count = 8;
+my $test_count = 6;
 plan tests => $test_count;
 
 # supplied with perl 5.005, might not be available earlier
@@ -82,12 +82,12 @@ if (! $X->init_extension ('MIT-SHM')) {
 }
 $X->QueryPointer($X->root); # sync
 
-# perms 666 so server is certain to be able to read it
+# perms 644 so server is certain to be able to read it
 my $shmid;
 if (! eval {
   $shmid = shmget (IPC::SysV::IPC_PRIVATE(),
                    5000,
-                   IPC::SysV::IPC_CREAT() | 0644); # world read
+                   0644 | IPC::SysV::IPC_CREAT()); # world read
   1;
 }) {
   # usually a die or croak if no shm on the system
@@ -110,39 +110,20 @@ if (! defined $shmid) {
 
 my $shmseg = $X->new_rsrc;
 if (! eval {
-  my $seq = $X->send ('MitShmAttach', $shmseg, $shmid, 0); # read/write
+  local $^W = 0; # avoid warnings from X11::Protocol 0.56 format_error_msg()
+  my $seq = $X->send ('MitShmAttach', $shmseg, $shmid, 1); # read-only
   $X->QueryPointer($X->{'root'}); # sync
   1;
 }) {
-  MyTestHelpers::diag ('MitShmAttach cannot attach read/write -- ',$@);
+  MyTestHelpers::diag ('MitShmAttach cannot attach readonly -- ',$@);
   foreach (1 .. $test_count) {
-    skip ('MitShmAttach cannot attach read/write', 1, 1);
+    skip ('MitShmAttach cannot attach readonly', 1, 1);
   }
   exit 0;
 }
 
 #------------------------------------------------------------------------------
-# MitShmGetImage
-
-{
-  my @ret =  $X->MitShmGetImage ($X->root,
-                                 0,0, 1,1,
-                                 0xFFFFFF,
-                                 'ZPixmap',
-                                 $shmseg,
-                                 0);
-  $X->QueryPointer($X->{'root'}); # sync
-
-  ok (scalar(@ret), 3,
-      'MitShmGetImage window -- num return values');
-  my ($depth, $visual, $size) = @ret;
-  ok ($depth > 0, 1,
-      "MitShmGetImage window -- depth>0, $depth");
-  ok (defined $X->{'visuals'}->{$visual}, 1,
-      "MitShmGetImage window -- known visual $visual");
-  ok ($size > 0, 1,
-      "MitShmGetImage window -- size>0, $size");
-}
+# MitShmPutImage
 
 {
   my $pixmap = $X->new_rsrc;
@@ -151,23 +132,34 @@ if (! eval {
                     1,     # depth
                     2,2);  # width,height
 
-  my @ret =  $X->MitShmGetImage ($pixmap,
-                                 0,0, 1,1,
-                                 0xFFFFFF,
-                                 'XYPixmap',
+  my $gc = $X->new_rsrc;
+  $X->CreateGC ($gc, $pixmap, foreground => $X->{'white_pixel'});
+
+  my %event;
+  local $X->{'event_handler'} = sub {
+    my %h = @_;
+    if ($h{'name'} eq 'MitShmCompletion') {
+      %event = %h;
+    }
+  };
+  my @ret =  $X->MitShmPutImage ($pixmap, $gc,
+                                 1,    # depth,
+                                 1,1,  # total width,height
+                                 0,0,  # src x,y
+                                 1,1,  # src width,height
+                                 0,0,  # dst x,y
+                                 'ZPixmap',
+                                 1,
                                  $shmseg,
                                  0);
   $X->QueryPointer($X->{'root'}); # sync
 
-  ok (scalar(@ret), 3,
-      'MitShmGetImage pixmap -- num return values');
-  my ($depth, $visual, $size) = @ret;
-  ok ($depth, 1,
-      "MitShmGetImage pixmap -- depth $depth");
-  ok ($visual, 'None',
-      "MitShmGetImage pixmap -- visual None");
-  ok ($size > 0, 1,
-      "MitShmGetImage pixmap -- size>0, $size");
+  ok ($event{'name'}, 'MitShmCompletion');
+  ok ($event{'drawable'}, $pixmap);
+  ok ($event{'major_opcode'}, $major_opcode);
+  ok ($event{'minor_opcode'}, 3);  # MitShmPutImage request num
+  ok ($event{'shmseg'}, $shmseg);
+  ok ($event{'offset'}, 0);
 }
 
 exit 0;

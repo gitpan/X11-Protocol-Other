@@ -43,8 +43,6 @@
 use strict;
 use X11::Protocol;
 
-use lib 'devel';
-
 my $X = X11::Protocol->new;
 if (! $X->init_extension('X-Resource')) {
   print "X-Resource extension not available on the server\n";

@@ -17,13 +17,6 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use lib 'devel';
-
-
-
-
-
 use strict;
 use X11::Protocol;
 use Test;
@@ -38,9 +31,9 @@ BEGIN { MyTestHelpers::nowarnings() }
 END { MyTestHelpers::diag ("END"); }
 
 # uncomment this to run the ### lines
-use Smart::Comments;
+#use Smart::Comments;
 
-my $test_count = 104;
+my $test_count = 4;
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -66,6 +59,17 @@ if (! eval { $X = X11::Protocol->new ($display); }) {
 $X->QueryPointer($X->{'root'});  # sync
 
 {
+  local $^W = 0;
+  if (! $X->init_extension ('SHAPE')) {
+    MyTestHelpers::diag ('Server SHAPE extension not available');
+    foreach (1 .. $test_count) {
+      skip ('Server SHAPE extension not available', 1, 1);
+    }
+    exit 0;
+  }
+}
+
+{
   my ($major_opcode, $first_event, $first_error)
     = $X->QueryExtension('XFIXES');
   if (! defined $major_opcode) {
@@ -83,7 +87,7 @@ if (! $X->init_extension ('XFIXES')) {
 $X->QueryPointer($X->root); # sync
 
 {
-  my $client_major = 3;
+  my $client_major = 2;
   my $client_minor = 0;
   my ($server_major, $server_minor) = $X->XFixesQueryVersion ($client_major, $client_minor);
   MyTestHelpers::diag ("XFixesQueryVersion ask for $client_major.$client_minor got server version $server_major.$server_minor");
@@ -97,35 +101,37 @@ $X->QueryPointer($X->root); # sync
 
 
 #------------------------------------------------------------------------------
-# XFixesExpandRegion()
+# XFixesSetWindowShapeRegion()
 
+my $window = $X->new_rsrc;
+$X->CreateWindow ($window,
+                  $X->root,         # parent
+                  'InputOutput',
+                  0,                # depth, from parent
+                  'CopyFromParent', # visual
+                  0,0,              # x,y
+                  100,100,          # width,height
+                  0);               # border
+
+my $region = $X->new_rsrc;
+$X->XFixesCreateRegion ($region, [10,11, 25,26]);
+
+$X->XFixesSetWindowShapeRegion ($window,
+                                'Clip',  # kind
+                                6,7,         # x,y offset
+                                $region);
+$X->QueryPointer($X->root); # sync
 {
-  my $region = $X->new_rsrc;
-  $X->XFixesCreateRegion ($region, [5,6,7,8]);
-  $X->QueryPointer($X->root); # sync
-
   my $r2 = $X->new_rsrc;
-  $X->XFixesCreateRegion ($r2, [5,6,7,8]);
-  $X->QueryPointer($X->root); # sync
-
-  $X->XFixesExpandRegion ($region, $r2,
-                          10,  # left
-                          20,  # right
-                          30,  # top
-                          40); # bottom
+  $X->XFixesCreateRegionFromWindow ($r2, $window, 'Clip');
   $X->QueryPointer($X->root); # sync
 
   my ($bounding, @rects) = $X->XFixesFetchRegion ($r2);
-  ### @rects
-  ok ($bounding->[0], 5-10, 'x');
-  ok ($bounding->[1], 6-30, 'y');
-  ok ($bounding->[2], 7+10+20, 'width');
-  ok ($bounding->[3], 8+30+40, 'height');
-
-  ok (scalar(@rects), 1);
-
-  $X->XFixesDestroyRegion ($region);
-  $X->QueryPointer($X->root); # sync
+  ok ($bounding->[0], 10+6, 'x');
+  ok ($bounding->[1], 11+7, 'y');
+  ok ($bounding->[2], 25, 'width');
+  ok ($bounding->[3], 26, 'height');
 }
+
 
 exit 0;
