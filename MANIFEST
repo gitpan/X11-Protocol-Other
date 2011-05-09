@@ -55,6 +55,7 @@ lib/X11/Protocol/Ext/Composite.pm
 lib/X11/Protocol/Ext/DAMAGE.pm
 lib/X11/Protocol/Ext/MIT_SCREEN_SAVER.pm
 lib/X11/Protocol/Ext/MIT_SHM.pm
+lib/X11/Protocol/Ext/MIT_SUNDRY_NONSTANDARD.pm
 lib/X11/Protocol/Ext/X_Resource.pm
 lib/X11/Protocol/Ext/XFIXES.pm
 lib/X11/Protocol/Ext/XINERAMA.pm
@@ -82,6 +83,8 @@ t/MIT_SHM-load.t
 t/MIT_SHM-pixmap.t
 t/MIT_SHM-putimage.t
 t/MIT_SHM.t
+t/MIT_SUNDRY_NONSTANDARD-load.t
+t/MIT_SUNDRY_NONSTANDARD.t
 t/MyShmGetFails.pm
 t/MyShmNotImplemented.pm
 t/MyTestHelpers.pm

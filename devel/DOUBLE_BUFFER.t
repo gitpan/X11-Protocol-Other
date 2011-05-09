@@ -134,6 +134,14 @@ my $have_root_dbe = 0;
   }
 }
 
+{
+  my @infos = $X->DbeGetVisualInfo ();
+  $X->QueryPointer($X->{'root'}); # sync
+
+  my $num_screens = scalar(@{$X->{'screens'}});
+  ok (scalar(@infos), $num_screens);
+}
+
 #------------------------------------------------------------------------------
 
 {
@@ -146,8 +154,8 @@ my $have_root_dbe = 0;
     ok ($got_window, $X->root, 'GetBackBufferAttributes window');
   }
 
-  $X->DbeBeginIdiom ($buffer);
-  $X->DbeEndIdiom ($buffer);
+  $X->DbeBeginIdiom;
+  $X->DbeEndIdiom;
 
   $X->DbeSwapBuffers ($X->root, 'Untouched');
   $X->DbeSwapBuffers ($X->root, 'Untouched');

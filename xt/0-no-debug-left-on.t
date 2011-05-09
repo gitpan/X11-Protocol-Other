@@ -65,7 +65,6 @@ sub check {
       $good = 0;
       next;
     }
-    my $line;
     while (<FH>) {
       if (/^__END__/) {
         last;

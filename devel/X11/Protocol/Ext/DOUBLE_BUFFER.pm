@@ -5,6 +5,7 @@
 
 # visuals supporting dbe as a hash ?
 
+# [ id => [ depth, perf ], id => ... ]
 
 
 # This file is part of X11-Protocol-Other.
@@ -100,7 +101,7 @@ my $reqs =
        return map {
          my $num_visuals = unpack 'L', substr($data,$pos,4);
          $pos += 4;
-         [ map {[ unpack 'LCCx', substr($data,($pos+=8)-8,8) ]}
+         [ map {[ unpack 'LCC', substr($data,($pos+=8)-8,6) ]}
            1 .. $num_visuals ]
        } 1 .. $num_screens;
      }],
@@ -265,21 +266,31 @@ C<$swap_action> (an enum string) for each window,
     Undefined      undefined contents
     Background     cleared to the window background
     Untouched      left at current contents (ie. what was visible)
-    Copied         contents of the old back buffer (so unchanged)
+    Copied         contents of the old back buffer (unchanged)
 
-=item C<$X-E<gt>DbeBeginIdiom ($buffer)>
+=item C<$X-E<gt>DbeBeginIdiom ()>
 
-=item C<$X-E<gt>DbeEndIdiom ($buffer)>
+=item C<$X-E<gt>DbeEndIdiom ()>
 
 Hint to the server that a sequence of drawing and/or swap operations between
-Begin and End might be done atomically for higher performance.  If the
-server doesn't recognise the sequence then it just runs as normal.
+Begin and End might be done atomically, as a combination, for higher
+performance.  If the server doesn't recognise the sequence then it just runs
+as normal.
+
+If there's a C<DbeSwapBuffers> in the idiom then it should be the first
+request, ie. immediately following the Begin.  There need not be a swap in
+the idiom, for example a C<CopyArea> of some of the back buffer to the
+window might be in a Begin/End and might perhaps be optimized by the server.
 
 =item C<@infos = $X-E<gt>DbeGetVisualInfo ($drawable1, $drawable2, ...)>
 
+=item C<@infos = $X-E<gt>DbeGetVisualInfo ()>
+
 For each C<$drawable>, return a list of the visuals IDs on its screen which
-support double-buffering.  Each returned info is an arrayref containing
-sub-arrayrefs,
+support double-buffering.  If no drawables are given then return information
+for all the screens on the server.
+
+Each returned info is an arrayref containing sub-arrayrefs,
 
     [ [$visual_id1, $depth, $perf_level],
       [$visual_id2, $depth, $perf_level],

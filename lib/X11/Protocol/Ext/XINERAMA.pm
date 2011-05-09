@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 8;
+$VERSION = 9;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -183,12 +183,10 @@ __END__
 
 X11::Protocol::Ext::XINERAMA - multi-monitor display information
 
-=for test_synopsis my ($X)
-
 =head1 SYNOPSIS
 
  use X11::Protocol;
- $X = X11::Protocol->new;
+ my $X = X11::Protocol->new;
  $X->init_extension('XINERAMA')
    or print "XINERAMA extension not available";
 

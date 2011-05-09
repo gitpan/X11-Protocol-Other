@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION';
-$VERSION = 8;
+$VERSION = 9;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -170,12 +170,12 @@ __END__
 
 X11::Protocol::Ext::X_Resource - server resource usage
 
-=for test_synopsis my ($X, $client_xid)
+=for test_synopsis my ($client_xid)
 
 =head1 SYNOPSIS
 
  use X11::Protocol;
- $X = X11::Protocol->new;
+ my $X = X11::Protocol->new;
  $X->init_extension('X-Resource')
    or print "X-Resource extension not available";
 

@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 8;
+$VERSION = 9;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -237,12 +237,10 @@ __END__
 
 X11::Protocol::Ext::MIT_SCREEN_SAVER - external screen saver support
 
-=for test_synopsis my ($X)
-
 =head1 SYNOPSIS
 
  use X11::Protocol;
- $X = X11::Protocol->new;
+ my $X = X11::Protocol->new;
  $X->init_extension('MIT-SCREEN-SAVER')
    or print "MIT-SCREEN-SAVER extension not available";
 

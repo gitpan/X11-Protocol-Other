@@ -1,11 +1,5 @@
 # Copyright 2011 Kevin Ryde
 
-
-# param orders
-
-
-
-
 # This file is part of X11-Protocol-Other.
 #
 # X11-Protocol-Other is free software; you can redistribute it and/or
@@ -28,7 +22,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 8;
+$VERSION = 9;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -198,12 +192,12 @@ __END__
 
 X11::Protocol::Ext::MIT_SHM - ...
 
-=for test_synopsis my ($X, $window, $bpp)
+=for test_synopsis my ($window, $bpp)
 
 =head1 SYNOPSIS
 
  use X11::Protocol;
- $X = X11::Protocol->new;
+ my $X = X11::Protocol->new;
  $X->init_extension('MIT-SHM')
    or print "MIT-SHM extension not available";
 

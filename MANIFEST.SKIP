@@ -106,6 +106,8 @@
 # special case p..ulp test build stuff
 devel/h2xs/TestConstFoo/
 
+# special case various executables
+^devel/exe-[^/.]+$
 # special case mall executables
 ^devel/hblk$
 ^devel/mallopt$
