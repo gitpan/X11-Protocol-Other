@@ -22,7 +22,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 9;
+$VERSION = 10;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -234,62 +234,69 @@ the server C<$X-E<gt>{'image_byte_order'}>, C<$X-E<gt>{'pixmap_formats'}>,
 etc, the same as for the core C<GetImage> and C<PutImage>.  It's up to the
 client to adapt to the server's layout, which can be a bit of a chore.
 
+=head2 Shm from Perl
+
+A shared memory segment can be created from Perl with C<shmget()>, then read
+or write its contents with C<shmread()> and C<shmwrite()>.  Those functions
+attach and detach it each time with C<shmat()> and C<shmdt()> system calls,
+which is fine for grabbing the lot, but will be a bit slow for lots of
+little accesses.
+
+C<IPC::SysV> offers a C<shmat()> to keep the block attached then
+C<memread()> and C<memwrite()> to access it (see L<IPC::SysV>).  See
+L<IPC::SharedMem> for an object-oriented wrapper around this too.
+
+Incidentally, if C<shmget> is not available on the system then Perl's
+C<shmget()> croaks.  It's always possible for it to return C<undef> too for
+not enough memory etc.  Between that, not being on the same machine, not
+having identifiable perms, etc, there's a quite a few cases where a fallback
+to plain I/O will be necessary.
+
 =head2 Shm Permissions
 
 A SysV shared memory segment has owner/group/other permission bits similar
 to a file.  The server will only attach to segments which the requesting
 client UID/GID has permission to read or write.
 
-The server can usually determine a client's UID/GID for local I/O such as
-Unix sockets (see L<X11::Protocol::Connection::UNIXSocket>, and
-C<SO_PEERCRED> in L<socket(7)>), and perhaps TCP localhost loopback.
-Failing that the server treats the client as an "other" and will only attach
-to world-readable (or read-writable) segments.
+The server can usually determine a client's UID/GID on a local connection
+such as Unix socket (L<X11::Protocol::Connection::UNIXSocket>, and
+C<SO_PEERCRED> in L<socket(7)>), and perhaps on a TCP localhost loopback.
+Failing that the server treats the client as "other" and will only attach to
+world-readable (or world read-writable) segments.
 
-If a PutImage comes from a world-readable file or is public anyway then
-permissions 0644 on the memory segment will guarantee the server can read
-it, no matter what UID/GID it can identify.  Remember to ask for read-only
-in the C<MitShmAttach> in that case so the server doesn't demand writable
-too.  But chances are if the connection is not a local transport with
-identifiable UID/GID then the server is probably on a different machine
-anyway and shared memory can't be used.
+You can make a shm segment world-readable to ensure the server can read it.
+If the data for a PutImage etc already comes from a world-readable file or
+is public then it doesn't matter who else reads it too.  Remember to ask for
+read-only in the C<MitShmAttach> so the server doesn't want writable too.
 
-=head2 Shm from Perl
+There's probably no need to worry about relaxing permissions.  Chances are
+that if client UID/GID can't be identified then it's because the connection
+is not local and the server is on a different machine so shared memory can't
+be used anyway.
 
-A shared memory segment can be created from Perl with C<shmget()> then read
-or write its contents with C<shmread()> and C<shmwrite()>.  Those functions
-attach and detach it each time with C<shmat()> and C<shmdt()> system calls,
-which is fine for grabbing the lot, but will be a bit slow for lots of
-little accesses.
-
-C<IPC::SysV> offers a C<shmat()> to keep the block attached and C<memread()>
-and C<memwrite()> to access it (see L<IPC::SysV>).  See L<IPC::SharedMem>
-for an object-oriented wrapper around this too.
-
-Incidentally, if C<shmget> is not available on the system then Perl's
-C<shmget()> croaks, and it's always possible for it to return C<undef> when
-not enough memory etc.  Between that, not being on the same machine, not
-having identifiable perms, etc, there's a quite a few cases where a fallback
-to plain I/O will be necessary.
+It's usual for the server to run as root, hence it's own permission checks,
+but it's also possible for the server to be an ordinary user.  In that case
+the shm segments it can access will be limited in the usual way for the user
+it's running as.
 
 =head1 REQUESTS
 
-The following requests are made available with an C<init_extension()> per
+The following requests are available after an C<init_extension()> as per
 L<X11::Protocol/EXTENSIONS>.
 
     my $bool = $X->init_extension('MIT-SHM');
 
-In the following C<$shmid> is the shared memory ID as obtained from the
-kernel with C<shmget()>.  C<$shmseg> is an XID, allocated as usual by client
-C<$X-E<gt>new_rsrc()>, on the server representing the server attachment to
-the block.
+In the following C<$shmid> is the shared memory ID (an integer) as obtained
+from the kernel with C<shmget()>.  C<$shmseg> is an XID (allocated as usual
+by client C<$X-E<gt>new_rsrc()>) on the server representing the server
+attachment to the block.
 
 =over
 
 =item C<($server_major, $server_minor, $uid, $gid, $shared_pixmaps, $pixmap_format) = $X-E<gt>MitShmQueryVersion ()>
 
 Return information about the MIT-SHM extension.  Unlike other extensions
-there's no client version vs server version negotiation.
+there's no client version / server version negotiation.
 
 C<$server_major> and C<$server_minor> are the extension version number
 implemented by the server.
@@ -325,12 +332,13 @@ XID.
 
 =item C<$X-E<gt>MitShmPutImage ($drawable, $gc, $depth, $total_width, $total_height, $src_x, $src_y, $src_width, $src_height, $dst_x, $dst_y, $format, $send_event, $shmseg, $offset)>
 
-Draw an image from C<$shmseg> (an XID) into C<$drawable>.  The parameters
-are similar to the core C<PutImage>.
+Put image data from C<$shmseg> (an XID) to C<$drawable>.  The parameters are
+similar to the core C<PutImage>.
 
-C<$depth> is the depth of the image.  For C<$format> "Bitmap" it must be 1
+C<$depth> is the depth of the image.  For C<$format> "Bitmap" this must be 1
 and the foreground and background colours of C<$gc> are then drawn.  For
-C<$format> "XYPixmap" and "ZPixmap" it must be the depth of C<$drawable>.
+C<$format> "XYPixmap" and "ZPixmap" C<$depth> must be the depth of
+C<$drawable>.
 
 C<$total_width>,C<$total_height> is the full size of the image in the shared
 memory.  C<$src_x>,C<$src_y> and C<$src_width>,C<$src_height> are the
@@ -379,27 +387,29 @@ C<CreatePixmap>.
                             $shmseg,
                             0);      # byte offset into shm
 
-C<MitShmQueryVersion> above reports whether shared memory pixmaps are
-supported, and if so whether they're "XYPixmap" or "ZPixmap" layout.
+The C<MitShmQueryVersion> request above reports whether shared memory
+pixmaps are supported, and if so whether they're "XYPixmap" or "ZPixmap"
+layout.
 
-C<$drawable> is used to determine the screen for C<$pixmap> and can be any
-drawable on the screen.  C<$offset> is a byte offset into the shared memory
-where the pixmap data will begin.
+C<$drawable> is used to determine the screen for the new C<$pixmap> and can
+be any drawable on the screen.  C<$offset> is a byte offset into the shared
+memory where the pixmap data will begin.
 
-If any damage objects from the DAMAGE extension (see
-L<X11::Protocol::Ext::DAMAGE>) monitoring the shared C<$pixmap> then changes
-made through the shared memory generally don't produce C<DamageNotify>
-events from those objects.  Listening for damage on a shared pixmap might be
-unlikely, but explicit C<DamageAdd> (in Damage version 1.1) requests can
-tell the server about changes, when ready, and if necessary.
+If damage objects from the DAMAGE extension (see
+L<X11::Protocol::Ext::DAMAGE>) are monitoring a shared C<$pixmap> then
+client writes to the shared memory generally don't produce C<DamageNotify>
+events from those objects.  The client can use C<DamageAdd> requests (in
+Damage version 1.1) to tell the server about changes made, which it will
+broadcast to interested damage objects.  Damage objects listening to a
+shared pixmap are probably unlikely though.
 
 =back
 
 =head1 EVENTS
 
 C<MitShmCompletionEvent> is sent to the client when requested in an
-C<MitShmPutImage>, to say memory access for the put is finished.  The event
-has the usual fields
+C<MitShmPutImage>, to say that the server has finished reading the memory.
+The event has the usual fields
 
     name             "MitShmCompletionEvent"
     synthetic        true if from a SendEvent
@@ -411,13 +421,13 @@ and event-specific fields
     drawable       XID, target as from request
     shmseg         XID, source as from request
     offset         integer, byte offset as from request
-    major_opcode   integer, MIT-SHM extension start
-    minor_opcode   integer, 3==MitShmPutImage
+    major_opcode   integer, MIT-SHM extension code
+    minor_opcode   integer, 3 for MitShmPutImage
 
 C<major_opcode> and C<minor_opcode> are the codes of the originating
-C<MitShmPutImage>.  They're similar to the core C<GraphicsExposure> and
-C<NoExposure> events, though here there's only one request
-(C<MitShmPutImage>) which gives a completion event so they're hardly needed.
+C<MitShmPutImage>.  These fields are similar to the core C<GraphicsExposure>
+and C<NoExposure> events, though here there's only one request
+(C<MitShmPutImage>) which gives a completion event.
 
 =head1 ERRORS
 
@@ -427,7 +437,7 @@ Error type "ShmSeg" is a bad C<$shmseg> resource XID in a request.
 
 L<X11::Protocol>,
 L<perlfunc/shmget>,
-L<perlipc/"SysV IPC">),
+L<perlipc/"SysV IPC">,
 L<IPC::SysV>,
 L<IPC::SharedMem>
 

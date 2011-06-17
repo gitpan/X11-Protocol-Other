@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION';
-$VERSION = 9;
+$VERSION = 10;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -294,8 +294,8 @@ Or put the list into a hash to lookup a particular resource type,
     print "using $windows many windows, and $grabs passive grabs";
 
 C<List::Pairwise> has a C<mapp()> and other things to work with this sort of
-two-at-a-time list too (see F<examples/xresource-pairwise.pl> in the
-C<X11-Protocol-Other> sources).
+two-at-a-time list too.  See F<examples/xresource-pairwise.pl> in the
+C<X11-Protocol-Other> sources for a complete program.
 
 Generally a count entry is only present when the client has 1 or more of the
 thing.  So if no pixmaps then no C<PIXMAP> entry at all.

@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 9;
+$VERSION = 10;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -102,7 +102,7 @@ The MIT-SUNDRY-NONSTANDARD extension controls a "bug mode" setting in the
 server which helps some X11R2 and X11R3 client programs, including C<xterm>
 from those releases.
 
-Bug mode includes: relaxing event mask checking in grab pointer and button
+Bug mode means: relaxing event mask checking in grab pointer and button
 requests and window do-not-propagate attributes (to ignore mask bits which
 are not applicable); something for non-overlapping sibling window stacking
 order; and keeping maximum keycode below 255 to avoid an Xt toolkit

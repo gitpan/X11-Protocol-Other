@@ -22,13 +22,16 @@ use Carp;
 use X11::AtomConstants;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 9;
+$VERSION = 10;
 
 use Exporter;
 @ISA = ('Exporter');
-@EXPORT_OK = qw(set_wm_hints
+@EXPORT_OK = qw(frame_window_to_client
+                get_wm_state
+                set_wm_hints
                 set_wm_transient_for
-                set_net_wm_window_type);
+                set_net_wm_window_type
+                set_net_wm_user_time);
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -37,6 +40,76 @@ use Exporter;
 # /usr/share/doc/xorg-docs/specs/ICCCM/icccm.txt.gz
 # /usr/share/doc/xorg-docs/specs/CTEXT/ctext.txt.gz
 
+
+#------------------------------------------------------------------------------
+
+# /usr/share/doc/libxmu-headers/Xmu.txt.gz for XmuClientWindow()
+# https://bugs.freedesktop.org/show_bug.cgi?id=7474
+#     XmuClientWindow() bottom-up was hurting fluxbox and probably ion, pekwm
+#
+sub frame_window_to_client {
+  my ($X, $frame) = @_;
+
+  my @search = ($frame);
+  my $property = $X->atom('WM_STATE');
+
+  # ENHANCE-ME: do three reqs in parallel, better yet all reqs for an
+  # @search depth level in parallel
+
+  my $count = 0;
+ OUTER: foreach (1 .. 5) {   # limit search depth for safety
+    my $child;
+    foreach $child (splice @search) {   # breadth-first search
+      ### look at: sprintf '0x%X', $child
+
+      if ($count++ > 50) {
+        ### abandon search at count: $count
+        return undef;
+      }
+
+      {
+        my $ret = $X->robust_req ('GetWindowAttributes', $child);
+        if (! ref $ret) {
+          ### some error, skip this child
+          next;
+        }
+        my %attr = @$ret;
+        ### map_state: $attr{'map_state'}
+        if ($attr{'map_state'} ne 'Viewable') {
+          ### not viewable, skip
+          next;
+        }
+      }
+      {
+        my $ret = $X->robust_req ('GetProperty',
+                                  $child, $property, 'AnyPropertyType',
+                                  0,  # offset
+                                  0,  # length
+                                  0); # delete;
+        if (! ref $ret) {
+          ### some error, skip this child
+          next;
+        }
+        my ($value, $type, $format, $bytes_after) = @$ret;
+        if ($type) {
+          ### found
+          return $child;
+        }
+      }
+      {
+        my $ret = $X->robust_req ('QueryTree', $child);
+        if (ref $ret) {
+          my ($root, $parent, @children) = @$ret;
+          ### push children: @children
+          # @children are in bottom up order, prefer the topmost
+          push @search, reverse @children;
+        }
+      }
+    }
+  }
+  ### not found
+  return undef;
+}
 
 #------------------------------------------------------------------------------
 # WM_TRANSIENT
@@ -79,6 +152,101 @@ sub set_wm_transient_for {
     return $wmstate;
   }
 }
+
+{
+  # DontCareState==0 no longer ICCCM
+  my @wmstate = ('WithdrawnState', # 0
+                 'NormalState',    # 1
+                 'ZoomState',      # 2, no longer ICCCM
+                 'IconicState',    # 3
+                 'InactiveState',  # 4, no longer in ICCCM
+                );
+  sub _wmstate_interp {
+    my ($X, $num) = @_;
+    if ($X->{'do_interp'} && defined (my $str = $wmstate[$num])) {
+      return $str;
+    }
+    return $num;
+  }
+}
+
+
+# Maybe through $X->interp() with ...
+#
+# {
+#   # $X->interp('WmState',$num);
+#   # $X->num('WmState',$str);
+#   my %const_arrays
+#     = (
+#        WmState => ['WithdrawnState', # 0
+#                    'NormalState',    # 1
+#                    'ZoomState',      # 2, no longer ICCCM
+#                    'IconicState',    # 3
+#                    'InactiveState',  # 4, no longer in ICCCM
+#                   ],
+#        # motif has the name "MWM_INPUT_APPLICATION_MODAL" as an alias for
+#        # "MWM_INPUT_PRIMARY_APPLICATION_MODAL", but says prefer the latter
+#        MwmModal => ['modeless',                  # 0
+#                     'primary_application_modal', # 1
+#                     'system_modal',              # 2
+#                     'full_application_modal',    # 3
+#                    ],
+#        MwmStatus => ['tearoff_window',           # 0
+#                    ],
+#       );
+# 
+#   my %const_hashes
+#     = (map { $_ => { X11::Protocol::make_num_hash($const_arrays{$_}) } }
+#        keys %const_arrays);
+# 
+# 
+#   sub ext_const_init {
+#     my ($X) = @_;
+#     unless ($X->{'ext_const'}->{'WmState'}) {
+#       %{$X->{'ext_const'}} = (%{$X->{'ext_const'}}, %const_arrays);
+#       $X->{'ext_const_num'} ||= {};
+#       %{$X->{'ext_const_num'}} = (%{$X->{'ext_const_num'}}, %const_hashes);
+#     }
+#   }
+# }
+
+
+#------------------------------------------------------------------------------
+# WM_STATE
+
+sub get_wm_state {
+  my ($X, $window) = @_;
+  my $xa_wm_state = $X->atom('WM_STATE');
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window,
+                       $xa_wm_state,  # property
+                       $xa_wm_state,  # type
+                       0,             # offset
+                       2,             # length, 2 x CARD32
+                       0);            # delete
+  if ($format == 32) {
+    return _unpack_wm_state($X,$value);
+  } else {
+    return;
+  }
+}
+
+# or maybe $X->interp('IDorNone',$xid) or 'XIDorNone'
+sub _none_interp {
+  my ($X, $xid) = @_;
+  if ($X->{'do_interp'} && $xid == 0) {
+    return 'None';
+  } else {
+    return $xid;
+  }
+}
+
+sub _unpack_wm_state {
+  my ($X, $data) = @_;
+  my ($state, $icon_window) = unpack 'L*', $data;
+  return (_wmstate_interp($X,$state), _none_interp($X,$icon_window));
+}
+
 
 #------------------------------------------------------------------------------
 # WM_HINTS
@@ -183,6 +351,15 @@ sub _net_wm_window_type_to_atom {
 
 
 #------------------------------------------------------------------------------
+# _NET_WM_USER_TIME
+
+sub set_net_wm_user_time {
+  my ($X, $window, $time) = @_;
+  _set_single_property ($X, $window, $X->atom('_NET_WM_USER_TIME'),
+                        X11::AtomConstants::CARDINAL, $time);
+}
+
+#------------------------------------------------------------------------------
 # helpers
 
 sub _set_single_property {
@@ -251,7 +428,7 @@ __END__
 
 
 
-=for stopwords Ryde XID NETWM enum NormalState IconicState ICCCM ClientMessage iconify EWMH multi-colour
+=for stopwords Ryde XID NETWM enum NormalState IconicState ICCCM ClientMessage iconify EWMH multi-colour ie pixmap iconified toplevel WithdrawnState keypress KeyRelease ButtonRelease popup Xlib
 
 =head1 NAME
 
@@ -294,40 +471,71 @@ The key/value parameters are as follows.
     window_group      window XID (integer)
     urgency           boolean
 
-C<input> should be 1 if the client wants the window manager to give
-C<$window> the keyboard input focus using C<SetInputFocus> (or if you ask
-for C<WM_TAKE_FOCUS> in C<WM_PROTOCOLS> then with a ClientMessage instead).
-C<input> should be 0 if the window manager should not give the focus, either
-because C<$window> is output-only, or if you put C<WM_TAKE_FOCUS> in
-C<WM_PROTOCOLS> then because the client will C<SetInputFocus> to itself on a
-suitable button press etc.
+C<input> is 1 if the client wants the window manager to give
+C<$window> the keyboard input focus.  This is with the C<SetInputFocus>
+request, or if if you ask for C<WM_TAKE_FOCUS> in C<WM_PROTOCOLS> then
+instead by a   ClientMessage instead.
 
-C<initial_state> can be a string or number.  "NormalState" or "IconicState"
-are allowed by the ICCCM as a desired initial state.
+C<input> is 0 if the window manager should not give the client the focus.
+This is either because C<$window> is output-only, or if you put
+C<WM_TAKE_FOCUS> in C<WM_PROTOCOLS> then because the client will
+C<SetInputFocus> to itself on an appropriate button press etc.
 
-    NormalState       1
-    IconicState       3
+C<initial_state> is a string or number.  "NormalState" or "IconicState" are
+allowed by the ICCCM as a desired initial state.
 
-C<icon_pixmap> should be a bitmap (depth 1).  The window manager will choose
-suitable contrasting colours.  C<$icon_window> can be used for a
-multi-colour icon, either with a suitable background or drawn on-demand
-(Expose events etc).  The window manager might set a C<WM_ICON_SIZE>
-property on the root window for good icon sizes but there's nothing in this
-module to retrieve that yet.
+    "NormalState"       1
+    "IconicState"       3
+
+C<icon_pixmap> should be a bitmap, ie. a pixmap of depth 1.  The window
+manager will draw it in suitable contrasting colours.
+
+C<icon_window> is a window which the window manager can show when C<$window>
+is iconified.  This can be used to show a multi-colour icon, either with a
+desired background or drawn on-demand (Expose events etc).
+
+The window manager might set a C<WM_ICON_SIZE> property on the root window
+for good icon sizes to use in C<icon_pixmap> and C<icon_window> but there's
+nothing in this module to retrieve that yet.
 
 C<urgency> true means the window is important and the window manager should
-draw the user's attention to it in some way.  The client can change this at
-any time to reflect current importance.
+draw the user's attention to it in some way.  The client can change this in
+the hints at any time to change the current importance.
 
-=cut
+=back
 
-    # message            boolean (obsolete)
+=head2 WM State
 
-    # WithdrawnState     0
-    # NormalState        1
-    # ZoomState          2
-    # IconicState        3
-    # InactiveState      4
+=over
+
+=item C<($state, $icon_window) = X11::Protocol::WM::get_wm_state ($X, $window)>
+
+Return the C<WM_STATE> property from C<$window>.  This is set by the window
+manager on top-level application windows.  If there's no such property then
+the return is an empty list.
+
+C<$state> returned is an enum string, or integer value if
+$X->{'do_interp'} is disabled or the value unrecognised.
+
+    "WithdrawnState"    0      neither window nor icon display
+    "NormalState"       1      window displayed
+    "IconicState"       3      iconified in some way
+
+    "ZoomState"         2    \ no longer in ICCCM
+    "InactiveState"     4    /
+
+C<$icon_window> returned is the window (integer XID) used by the window
+manager to display an icon of C<$window>.  If there's no such window then
+C<$icon_window> is "None".
+
+C<$icon_window> might be the icon window from the client's C<WM_HINTS>, or
+it might be created by the window manager.  Either way the client can draw
+into it for animations etc, perhaps selecting Expose events to do so.
+
+C<WM_STATE> is set by the window manager when a toplevel window is first
+mapped (or perhaps earlier), and then kept up-to-date.  Generally both no
+C<WM_STATE> or a C<WM_STATE> of WithdrawnState mean the window manager is
+not (or not yet) managing the window.
 
 =back
 
@@ -367,6 +575,63 @@ C<$window_type> can be a  type string as follows from the EWMH,
 
 C<$window_type> can also be an integer atom such as
 C<$X-E<gt>atom('_NET_WM_WINDOW_TYPE_DIALOG')>.
+
+=back
+
+=head2 Net WM User Time
+
+=over
+
+=item C<set_net_wm_user_time ($X, $window, $time)>
+
+Set the C<_NET_WM_USER_TIME> property on C<$window>.  C<$time> should be a
+server C<time> value (an integer) from the last user keypress etc in
+C<$window>, or at C<$window> creation then from the event which caused it to
+be opened.
+
+On a newly created window special C<$time> value 0 means the window should
+not receive the focus when mapped.  (For window managers which recognise
+C<_NET_WM_USER_TIME>.)
+
+If the client has the active window it should update C<_NET_WM_USER_TIME>
+for every user input.  Generally it can ignore KeyRelease and
+ButtonRelease since it's Press events which begin something.
+
+The window manager can use C<_NET_WM_USER_TIME> to control focus and/or
+stacking order so for example a popup which is slow to start doesn't steal
+the focus if you've gone on to do other work in another window.
+
+=back
+
+=head2 Other Operations
+
+=over
+
+=item C<$window = X11::Protocol::WM::frame_window_to_client ($X, $frame)>
+
+Return the client window (XID) contained within window manager C<$frame>
+window (an XID).  C<$frame> is usually an immediate child of the root
+window.
+
+If no client window can be found in C<$frame> then return C<undef>.  This
+could be if C<$frame> is an icon window or similar created by the window
+manager itself, or an override-redirect client without a frame, or if
+there's no window manager running.  In the latter two cases C<$frame> would
+be the client already.
+
+The current strategy is to look at C<$frame> and down the window tree
+seeking a C<WM_STATE> property which the window manager sets on a client's
+toplevel (once mapped).  The search depth and total windows are limited, in
+case the window manager does its decoration in some ridiculous way, or the
+client uses excessive windows (traversed when there's no window manager).
+
+Care is taken not to error out if some windows are destroyed during the
+search.  They belong to other clients, so could be destroyed at any time.
+If C<$frame> itself doesn't exist then the return is C<undef>.
+
+This code is similar to what C<xwininfo> and similar programs do to go from
+a toplevel root window child down to the client window, per F<dmsimple.c>
+C<Select_Window()> or Xlib C<XmuClientWindow()>.
 
 =back
 

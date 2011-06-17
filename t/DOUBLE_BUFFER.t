@@ -17,16 +17,9 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-use lib 'devel', '.';
-
-
-
-use strict;
-use X11::Protocol;
-use Test;
-
 BEGIN { require 5 }
 use strict;
+use X11::Protocol;
 use Test;
 
 use lib 't';
@@ -37,7 +30,7 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-my $test_count = 18;
+my $test_count = 21;
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -75,7 +68,8 @@ $X->QueryPointer($X->root);  # sync
 }
 
 if (! $X->init_extension ('DOUBLE-BUFFER')) {
-  die "QueryExtension says DOUBLE-BUFFER avaiable, but init_extension() failed";
+  MyTestHelpers::diag ("QueryExtension says DOUBLE-BUFFER avaiable, but init_extension() failed");
+  die;
 }
 $X->QueryPointer($X->root); # sync
 
@@ -109,38 +103,80 @@ MyTestHelpers::diag ("DOUBLE-BUFFER extension version $dbe_obj->{'major'}.$dbe_o
 
 my $have_root_dbe = 0;
 {
-  my @infos = $X->DbeGetVisualInfo ($X->root);
+  my @info_aref_list = $X->DbeGetVisualInfo ($X->root);
   $X->QueryPointer($X->{'root'}); # sync
+  ### @info_aref_list
 
-  ok (scalar(@infos), 1);
-  my $info = $infos[0];
-  ok (ref $info, 'ARRAY');
+  ok (scalar(@info_aref_list), 1);
+  my $info_aref = $info_aref_list[0];
+  ok (ref $info_aref, 'ARRAY');
+  ok (ref $info_aref eq 'ARRAY' && (scalar(@$info_aref) % 2) == 0,
+      1,
+      'info array even length');
 
   my $good = 1;
-  foreach my $elem (@$info) {
-    my ($visual, $depth, $perflevel) = @$elem;
-    $have_root_dbe ||= ($visual == $X->root_visual);
+  if (ref $info_aref eq 'ARRAY') {
+    my $visual = shift @$info_aref;
+    my $dp = shift @$info_aref;
 
+    if ($visual !~ /^\d+$/) {
+      MyTestHelpers::diag ("DbeGetVisualInfo visual not numeric: $visual");
+      $good = 0;
+    }
     if (! $X->{'visuals'}->{$visual}) {
-      MyTestHelpers::diag ("DbeGetVisualInfo no such visual $visual");
+      MyTestHelpers::diag ("DbeGetVisualInfo no such visual: $visual");
       $good = 0;
       next;
     }
+    $have_root_dbe ||= ($visual == $X->root_visual);
     my $want_depth = $X->{'visuals'}->{$visual}->{'depth'};
-    if ($depth != $want_depth) {
-      MyTestHelpers::diag ("DbeGetVisualInfo visual $visual depth $depth but server info has $want_depth");
+
+    if (ref $dp ne 'ARRAY') {
+      MyTestHelpers::diag ("DbeGetVisualInfo depth/perf not an arrayref: $dp");
+      $good = 0;
+      next;
+    }
+    if (scalar(@$dp) ne 2) {
+      MyTestHelpers::diag ("DbeGetVisualInfo depth/perf length bad: ",
+                           scalar(@$dp));
+      $good = 0;
+    }
+    my $got_depth = $dp->[0];
+    my $got_perf = $dp->[1];
+
+    if ($got_depth != $want_depth) {
+      MyTestHelpers::diag ("DbeGetVisualInfo visual $visual depth $got_depth but server info has $want_depth");
+      $good = 0;
+    }
+    if ($got_perf !~ /^\d+$/) {
+      MyTestHelpers::diag ("DbeGetVisualInfo perf not numeric: $got_perf");
       $good = 0;
     }
   }
+  ok ($good, 1);
 }
 
 {
-  my @infos = $X->DbeGetVisualInfo ();
+  my @info_aref_list = $X->DbeGetVisualInfo ();
   $X->QueryPointer($X->{'root'}); # sync
 
   my $num_screens = scalar(@{$X->{'screens'}});
-  ok (scalar(@infos), $num_screens);
+  ok (scalar(@info_aref_list), $num_screens);
 }
+
+# in scalar context unspecified yet
+# {
+#   my $info_aref = $X->DbeGetVisualInfo ($X->root);
+#   $X->QueryPointer($X->{'root'}); # sync
+# 
+#   ok (ref $info_aref, 'ARRAY');
+#   if (ref $info_aref ne 'ARRAY') {
+#     MyTestHelpers::diag ("DbeGetVisualInfo scalar context info: $info_aref");
+#   }
+#   my $visual = (ref($info_aref) eq 'ARRAY') && $info_aref->[0];
+#   ok ($visual =~ /^\d+$/ ? 1 : 0, 1);
+# }
+
 
 #------------------------------------------------------------------------------
 

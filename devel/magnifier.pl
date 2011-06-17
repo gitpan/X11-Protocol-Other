@@ -31,6 +31,7 @@ $X->{'event_handler'} = \&event_handler;
 $X->init_extension('XFIXES') or die $@;
 $X->init_extension('DAMAGE') or die $@;
 
+$|=1;
 my $root_x = 0;
 my $root_y = 0;
 my $width = 100;
@@ -49,19 +50,18 @@ my $origin = $X->root;
 #                  );
 # $X->MapWindow ($origin);
 
-my $origin_x = 0;
+my $origin_x = 1000;
 my $origin_y = 0;
 my $origin_region = $X->new_rsrc;
 $X->XFixesCreateRegion ($origin_region, [$origin_x,$origin_y,10,10]);
 
 
-my $damage = $X->new_rsrc;
-$X->DamageCreate ($damage, $origin, 'NonEmpty');
-  $X->QueryPointer ($X->{'root'});
-
 my $parts = $X->new_rsrc;
 $X->XFixesCreateRegion ($parts);
-  $X->QueryPointer ($X->{'root'});
+
+my $damage = $X->new_rsrc;
+$X->DamageCreate ($damage, $origin, 'NonEmpty');
+$X->QueryPointer ($X->{'root'});
 
 my $window = $X->new_rsrc;
 $X->CreateWindow ($window,
@@ -78,6 +78,7 @@ $X->CreateWindow ($window,
 $X->MapWindow ($window);
 
 my $gc;
+my $want_freshen;
 
 sub event_handler {
   my (%h) = @_;
@@ -85,54 +86,55 @@ sub event_handler {
   if ($h{'name'} eq 'ConfigureNotify') {
     $width = $h{'width'};
     $width = $h{'height'};
-    freshen();
+    $want_freshen = 1;
   } elsif ($h{'name'} eq 'DamageNotify') {
-    freshen();
+    $want_freshen = 1;
   } elsif ($h{'name'} eq 'Expose') {
     expose();
   }
 };
 
 sub freshen {
-  ### freshen()
+  ### freshen(): $damage, $parts
   $X->DamageSubtract ($damage, 'None', $parts);
-  if ($window) {
-    if (! $gc) {
-      ### make gc
-      $gc = $X->new_rsrc;
-      $X->CreateGC ($gc, $window,
-                    subwindow_mode => 'IncludeInferiors');
-    }
-    my $window_region = $X->new_rsrc;
-    ### from window
+  dump_region ($X,$parts,'damaged');
+  return if ! $window;
 
-    $X->XFixesIntersectRegion ($parts, $origin_region, $parts);
-    dump_region ($X,$parts,'intersect with origin');
+  $X->XFixesIntersectRegion ($parts, $origin_region, $parts);
+  dump_region ($X,$parts,'intersected with origin');
 
-    $X->XFixesCreateRegionFromWindow ($window_region, $window, 'Bounding');
-    dump_region ($X,$window_region,'own window');
-    my ($same_screen, $child, $x, $y) = $X->TranslateCoordinates ($window, $X->root, 0,0);
-    ### $x
-    ### $y
-    $X->XFixesTranslateRegion ($window_region, $x, $y);
-    dump_region ($X,$window_region,'own window translated');
-    $X->XFixesSubtractRegion ($parts, $window_region, $parts);
-    $X->XFixesDestroyRegion ($window_region);
+  my $window_region = $X->new_rsrc;
+  $X->XFixesCreateRegionFromWindow ($window_region, $window, 'Bounding');
+  dump_region ($X,$window_region,'own window');
 
-#    $X->XFixesSetGCClipRegion ($gc, $parts, 0,0);
-    dump_region ($X,$parts,'parts');
+  my ($same_screen, $child, $x, $y)
+    = $X->TranslateCoordinates ($window, $X->root, 0,0);
+  ### $x
+  ### $y
+  $X->XFixesTranslateRegion ($window_region, $x, $y);
+  dump_region ($X,$window_region,'own window translated');
+  $X->XFixesSubtractRegion ($parts, $window_region, $parts);
+  $X->XFixesDestroyRegion ($window_region);
 
-    my @rects = $X->XFixesFetchRegion ($parts);
-    if (@rects > 1) {
-      ### draw
-      expose();
-    } else {
-      ### no draw
-    }
+  dump_region ($X,$parts,'subtracted own window');
+
+  #    $X->XFixesSetGCClipRegion ($gc, $parts, 0,0);
+
+  my ($bounding, @rects) = $X->XFixesFetchRegion ($parts);
+  if ($bounding->[2] && $bounding->[3]) {
+    expose();
+  } else {
+    ### no draw...
   }
 }
 
 sub expose {
+  ### expose...
+  if (! $gc) {
+    ### make gc
+    $gc = $X->new_rsrc;
+    $X->CreateGC ($gc, $window, subwindow_mode => 'IncludeInferiors');
+  }
   # $X->SetGCClipRegion ($gc, $parts, 0,0);
   $X->CopyArea ($origin, $window, $gc,
                 $origin_x,$origin_y,
@@ -142,9 +144,9 @@ sub expose {
 
 sub dump_region {
   my ($X, $region, $name) = @_;
+  my @rects = $X->XFixesFetchRegion ($region);
   if (! defined $name) { $name = ''; }
   printf "region %X  $name\n", $region;
-  my @rects = $X->XFixesFetchRegion ($region);
   if (@rects) {
     foreach my $rect (@rects) {
       print "  ",join(',',@$rect),"\n";
@@ -154,7 +156,28 @@ sub dump_region {
   }
 }
 
-foreach (1 .. 20) {
-  $X->handle_input;
+sub fh_readable {
+  my ($fh);
+  require IO::Select;
+  my $s = IO::Select->new;
+  $s->add($fh);
+  my @ready = $s->can_read(1);
+  return scalar(@ready);
 }
+
+for (;;) {
+  if (fh_readable ($X->{'connection'}->fh)) {
+    ### handle_input
+    $X->handle_input;
+  }
+  if ($want_freshen) {
+    $want_freshen = 0;
+    freshen();
+  }
+  # else {
+  #    $X->handle_input;
+  #  }
+}
+
+### exit
 exit 0;

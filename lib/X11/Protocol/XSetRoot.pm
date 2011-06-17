@@ -23,7 +23,7 @@ use X11::AtomConstants;
 use X11::Protocol::Other 3;  # v.3 for hexstr_to_rgb()
 
 use vars '$VERSION';
-$VERSION = 9;
+$VERSION = 10;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -161,7 +161,7 @@ sub _kill_current {
     my $xid = unpack 'L', $value;
     ### $value
     ### kill id_pixmap: sprintf('%#X', $xid)
-    if ($xid) { # watch out for $xid==None, ie. 0, maybe
+    if ($xid) { # watch out for $xid==0 for none maybe
       $X->KillClient($xid);
     }
   }
@@ -169,12 +169,14 @@ sub _kill_current {
 
 sub _alloc_named_or_hex_color {
   my ($X, $colormap, $str) = @_;
-  if (my @exact = X11::Protocol::Other::hexstr_to_rgb($str)) {
-    my ($pixel, @actual) = $X->AllocColor($colormap, @exact);
-    return ($pixel, @exact, @actual);
-  } else {
-    return $X->AllocNamedColor($colormap, $str);
+  {
+    my @exact;
+    if (@exact = X11::Protocol::Other::hexstr_to_rgb($str)) {
+      my ($pixel, @actual) = $X->AllocColor($colormap, @exact);
+      return ($pixel, @exact, @actual);
+    }
   }
+  return $X->AllocNamedColor($colormap, $str);
 }
 
 # or maybe $X->num('IDorNone',$xid)

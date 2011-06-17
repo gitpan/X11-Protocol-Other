@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 9;
+$VERSION = 10;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -200,6 +200,9 @@ for more than one X screen made up of multiple physical monitors, but in
 practice the servers have only made one screen this way and the 1.1
 "Xinerama" requests don't have that.
 
+See F<examples/xinerama-info.pl> in the sources for a sample program dumping
+the Xinerama state information.
+
 =head1 REQUESTS
 
 The following requests are made available with an C<init_extension()> per
@@ -260,32 +263,32 @@ C<$x>,C<$y> is the top-left corner of the monitor in the combined screen.
 =head2 C<Xsun>
 
 Rumour has it the C<Xsun> server with Xinerama 1.0 had a different request
-number 4 than the C<XineramaIsActive> of 1.1,
+number 4 than the C<XineramaIsActive> of Xinerama 1.1 above.
 
     http://blogs.sun.com/alanc/entry/xinerama_protocol_clashes_on_solaris
 
 There's no attempt to do anything about this here, as yet.  If
 C<PanoramiXQueryVersion> reports 1.0 then you shouldn't use
 C<XineramaIsActive> anyway, so no clash.  If you do and it's the C<Xsun>
-server then expect either a Length error reply, or for the server to adapt
-itself to the request length and give C<XineramaIsActive>.
+server then expect either a Length error reply, or the server to adapt
+itself to the request length and behave as C<XineramaIsActive>.
 
 =head2 C<PanoramiXGetScreenSize> Buffer Overrun
 
 Early server code such as X11R6.4 might not range check the monitor number
 in C<PanoramiXGetScreenSize>.  Did big values read out fragments of
-arbitrary memory or cause a segfault?  Don't do that.
+arbitrary memory, or cause a segfault?  Don't do that.
 
-  X.org some time post 1.5.x
-  "Prevent buffer overrun in ProcPanoramiXGetScreenSize"
-  http://cgit.freedesktop.org/xorg/xserver/commit/?id=2b266eda6e23d16116f8a8e258192df353970279
+    X.org some time post 1.5.x,
+    "Prevent buffer overrun in ProcPanoramiXGetScreenSize"
+    http://cgit.freedesktop.org/xorg/xserver/commit/?id=2b266eda6e23d16116f8a8e258192df353970279
 
 =head1 OTHER NOTES
 
-To simulate some Xinerama for testing, the C<Xdmx> server can multiplex
+To simulate some Xinerama for testing the C<Xdmx> server can multiplex
 together two or more other servers to present one big screen.  Those
-sub-servers can even be C<Xnest> or C<Xephyr> in windows on an existing X
-display.  For example, running up C<Xdmx> as ":102",
+sub-servers can even be C<Xnest> or C<Xephyr> windows on an existing X
+display.  For example running up C<Xdmx> as display ":102",
 
     Xephyr :5 -screen 200x100 &
     Xephyr :6 -screen 190x110 &
@@ -293,8 +296,8 @@ display.  For example, running up C<Xdmx> as ":102",
     Xdmx -display :5 -display :6 +xinerama -input :5 -input :6 :102
 
 C<Xephyr> implements some extensions natively, whereas C<Xnest> relies on
-its target server capabilities.  Or to run up without bothering to look at
-anything C<Xvfb> just in memory or a disk file.
+the target server capabilities.  Or to run up without bothering to look at
+anything C<Xvfb> in memory or a disk file.
 
 =head1 SEE ALSO
 

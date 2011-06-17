@@ -141,7 +141,8 @@ use Smart::Comments;
       }
       foreach my $field (keys %arefargs) {
         my $bits = 0;
-        if (my $h = $hint{$field}) {
+        my $h;
+        if ($h = $hint{$field}) {
           if (ref $h) {
             foreach my $key (@$h) {
               if (defined (my $bit = $arefargs{$field}->{$key})) {

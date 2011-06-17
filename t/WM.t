@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = 25;
+my $test_count = 62;
 plan tests => $test_count;
 
 require X11::Protocol::WM;
@@ -63,6 +63,9 @@ $X->CreateWindow ($window,
                   0,0,              # x,y
                   1,1,              # width,height
                   0);               # border
+$X->MapWindow ($window);
+$X->QueryPointer($X->{'root'});  # sync
+sleep 1;
 
 my $window2 = $X->new_rsrc;
 $X->CreateWindow ($window2,
@@ -77,7 +80,7 @@ $X->CreateWindow ($window2,
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 9;
+my $want_version = 10;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');
@@ -92,6 +95,129 @@ my $check_version = $want_version + 1000;
 ok (! eval { X11::Protocol::WM->VERSION($check_version); 1 },
     1,
     "VERSION class check $check_version");
+
+#------------------------------------------------------------------------------
+# get_wm_state()
+
+{
+  my $target;
+  foreach $target ($window, $X->{'root'}) {
+    my @ret = X11::Protocol::WM::get_wm_state ($X, $target);
+    ok (scalar(@ret) == 0 || scalar(@ret) == 2, 1,
+        'get_wm_state() return 0 or 2 values');
+    MyTestHelpers::diag ("WM_STATE: ",join(' ',@ret));
+  }
+}
+{
+  my @ret = X11::Protocol::WM::_unpack_wm_state ($X, pack 'L2',0,0);
+  ok (scalar(@ret), 2);
+  ok ($ret[0], 'WithdrawnState');
+  ok ($ret[1], 'None');
+}
+{
+  my @ret = X11::Protocol::WM::_unpack_wm_state ($X, pack 'L2',1,123);
+  ok (scalar(@ret), 2);
+  ok ($ret[0], 'NormalState');
+  ok ($ret[1], 123);
+}
+{
+  my @ret = X11::Protocol::WM::_unpack_wm_state ($X, pack 'L2',3,123);
+  ok (scalar(@ret), 2);
+  ok ($ret[0], 'IconicState');
+  ok ($ret[1], 123);
+}
+
+{
+  my $toplevel = $X->new_rsrc;
+  $X->CreateWindow($toplevel,
+                   $X->root,           # parent
+                   'InputOutput',      # class
+                   $X->root_depth,     # depth
+                   'CopyFromParent',   # visual
+                   0,0,                # x,y
+                   100,100,            # width,height
+                   10,                 # border
+                   background_pixel => $X->{'white_pixel'},
+                   override_redirect => 1,
+                   colormap => 'CopyFromParent',
+                  );
+
+  my $subwin = $X->new_rsrc;
+  $X->CreateWindow($subwin,
+                   $toplevel,           # parent
+                   'InputOutput',       # class
+                   $X->root_depth,      # depth
+                   'CopyFromParent',    # visual
+                   0,0,                 # x,y
+                   10,10,               # width,height
+                   0,                   # border
+                   background_pixel => $X->{'black_pixel'},
+                   colormap => 'CopyFromParent',
+                  );
+
+  $X->ChangeProperty($subwin,
+                     $X->atom('WM_STATE'),  # property
+                     $X->atom('WM_STATE'),  # type
+                     32,                    # format
+                     'Replace',             # mode
+                     pack ('L*', 1, 0));
+  {
+    my @ret = X11::Protocol::WM::get_wm_state ($X, $subwin);
+    ok (scalar(@ret), 2);
+    ok ($ret[0], 'NormalState');
+    ok ($ret[1], 'None');
+  }
+  {
+    local $X->{'do_interp'} = 0;
+    my @ret = X11::Protocol::WM::get_wm_state ($X, $subwin);
+    ok (scalar(@ret), 2);
+    ok ($ret[0], 1);
+    ok ($ret[1], 0);
+  }
+
+  $X->ChangeProperty($subwin,
+                     $X->atom('WM_STATE'),  # property
+                     $X->atom('WM_STATE'),  # type
+                     32,                    # format
+                     'Replace',             # mode
+                     pack ('L*', 3, $toplevel));
+  {
+    my @ret = X11::Protocol::WM::get_wm_state ($X, $subwin);
+    ok (scalar(@ret), 2);
+    ok ($ret[0], 'IconicState');
+    ok ($ret[1], $toplevel);
+  }
+  {
+    local $X->{'do_interp'} = 0;
+    my @ret = X11::Protocol::WM::get_wm_state ($X, $subwin);
+    ok (scalar(@ret), 2);
+    ok ($ret[0], 3);
+    ok ($ret[1], $toplevel);
+  }
+
+  $X->ChangeProperty($subwin,
+                     $X->atom('WM_STATE'),  # property
+                     $X->atom('STRING'),    # type
+                     8,                     # format
+                     'Replace',             # mode
+                     'Wrong data type');
+  {
+    my @ret = X11::Protocol::WM::get_wm_state ($X, $subwin);
+    ok (scalar(@ret), 0);
+  }
+
+  $X->DeleteProperty($subwin, $X->atom('WM_STATE'));
+  {
+    my @ret = X11::Protocol::WM::get_wm_state ($X, $subwin);
+    ok (scalar(@ret), 0);
+  }
+
+  $X->DestroyWindow($subwin);
+  $X->DestroyWindow($toplevel);
+}
+
+
+
 
 #------------------------------------------------------------------------------
 # set_wm_transient_for()
@@ -119,6 +245,7 @@ ok (! eval { X11::Protocol::WM->VERSION($check_version); 1 },
     ok ($type_name, (defined $want ? 'WINDOW' : 'None'));
     my ($got) = unpack 'L', $value;
     ok ($got, $want, $window);
+    ok ($bytes_after, 0);
   }
 }
 
@@ -197,9 +324,11 @@ X11::Protocol::WM::set_net_wm_window_type ($X, $window, 'NORMAL');
   ok ($format, 32);
   ok ($type, $X->atom('ATOM'));
   ok ($X->atom_name($type), 'ATOM');
+  ok (length($value), 4);
   my ($value_atom) = unpack 'L', $value;
   ok ($value_atom, $X->atom('_NET_WM_WINDOW_TYPE_NORMAL'));
   ok ($X->atom_name($value_atom), '_NET_WM_WINDOW_TYPE_NORMAL');
+  ok ($bytes_after, 0);
 }
 
 #------------------------------------------------------------------------------
@@ -210,6 +339,42 @@ X11::Protocol::WM::set_net_wm_window_type ($X, $window, 'NORMAL');
 # 
 #   # my $atom = X11::Protocol::WM::_get_net_wm_window_type_atom ($X, $window);
 # }
+
+#------------------------------------------------------------------------------
+# set_net_wm_user_time()
+
+X11::Protocol::WM::set_net_wm_user_time ($X, $window, 123);
+{
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window,
+                       $X->atom('_NET_WM_USER_TIME'),
+                       'AnyPropertyType',
+                       0,  # offset
+                       1,  # length, 1 x CARD32
+                       0); # delete
+  ok ($format, 32);
+  ok ($type, $X->atom('CARDINAL'));
+  ok ($X->atom_name($type), 'CARDINAL');
+  ok (length($value), 4);
+  my ($time) = unpack 'L', $value;
+  ok ($time, 123);
+  ok ($bytes_after, 0);
+}
+
+#------------------------------------------------------------------------------
+# frame_window_to_client()
+
+{
+  my ($root_root, $root_parent, @toplevels) = $X->QueryTree ($X->root);
+  my $window;
+  my $count_found = 0;
+  foreach $window (@toplevels) {
+    my $client_window = X11::Protocol::WM::frame_window_to_client($X,$window);
+    $count_found += (defined $client_window);
+  }
+  MyTestHelpers::diag ("frame_window_to_client() found $count_found clients out of ",scalar(@toplevels)," toplevels");
+}
+
 
 #------------------------------------------------------------------------------
 $X->QueryPointer($X->{'root'});  # sync

@@ -40,6 +40,7 @@
 # error).
 #
 
+use 5.004;
 use strict;
 use X11::Protocol;
 

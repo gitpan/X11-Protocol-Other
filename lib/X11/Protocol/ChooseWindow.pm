@@ -1,0 +1,414 @@
+# Copyright 2011 Kevin Ryde
+
+# This file is part of X11-Protocol-Other.
+#
+# X11-Protocol-Other is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as published
+# by the Free Software Foundation; either version 3, or (at your option) any
+# later version.
+#
+# X11-Protocol-Other is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
+
+
+# /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
+
+BEGIN { require 5 }
+package X11::Protocol::ChooseWindow;
+use strict;
+use Carp;
+
+use vars '$VERSION', '$_instance';
+$VERSION = 10;
+
+# uncomment this to run the ### lines
+#use Smart::Comments;
+
+# undocumented yet ...
+sub new {
+  my $class = shift;
+  return bless { want_client => 1,
+                 @_ }, $class;
+}
+
+sub _X {
+  my ($self) = @_;
+  return ($self->{'X'} ||= do {
+    require X11::Protocol;
+    my $display = $self->{'display'};
+    ### $display
+    X11::Protocol->new (defined $display ? ($display) : ());
+  });
+}
+
+sub choose {
+  my $self = shift;
+  if (ref $self) {
+    %$self = (%$self, @_);    # instance $self->choose()
+  } else {
+    $self = $self->new (@_);  # class X11::Protocol::ChooseWindow->choose()
+  }
+  local $_instance = $self;
+
+  my $X = _X($self);
+  {
+    my $old_event_handler = $X->{'event_handler'};
+    local $X->{'event_handler'} = sub {
+      my (%h) = @_;
+      $self->handle_event (@_);
+      goto $old_event_handler;
+    };
+
+    $self->start;
+    do {
+      $X->handle_input;
+    } until ($self->is_done);
+  }
+
+  return $self->chosen_window;
+}
+
+sub chosen_window {
+  my ($self) = @_;
+  if ($self->{'want_client'}) {
+    return $self->client_window;
+  } else {
+    return $self->{'frame_window'};
+  }
+}
+sub client_window {
+  my ($self) = @_;
+  if (! exists $self->{'client_window'}) {
+    my $frame_window = $self->{'frame_window'};
+    ### $frame_window
+    $self->{'client_window'}
+      = (defined $frame_window && _num_none($frame_window) != 0
+         ? do {
+           require X11::Protocol::WM;
+           X11::Protocol::WM::frame_window_to_client(_X($self),$frame_window);
+         }
+         : undef);
+  }
+  return $self->{'client_window'};
+}
+
+# undocumented yet ...
+sub start {
+  my ($self) = @_;
+
+  $self->abort;
+  $self->{'frame_window'} = undef;
+  delete $self->{'client_window'};
+  $self->{'button_released'} = 0;
+  my $X = _X($self);
+
+  my $want_free_cursor;
+  my $cursor = $self->{'cursor'};
+  if (! defined $cursor) {
+    my $cursor_glyph = $self->{'cursor_glyph'};
+    if (! defined $cursor_glyph) {
+      require X11::CursorFont;
+      my $cursor_name = $self->{'cursor_name'};
+      if (! defined $cursor_name) {
+        $cursor_name = 'crosshair';  # default
+      }
+      if (! defined ($cursor_glyph
+                     = $X11::CursorFont::CURSOR_GLYPH{$cursor_name})) {
+        croak "Unrecognised cursor_name: ",$cursor_name;
+      }
+    }
+
+    my $cursor_font = $X->new_rsrc;
+    $X->OpenFont ($cursor_font, "cursor");
+
+    $cursor = $X->new_rsrc;
+    $X->CreateGlyphCursor ($cursor,
+                           $cursor_font,  # font
+                           $cursor_font,  # mask font
+                           $cursor_glyph,    # glyph number
+                           $cursor_glyph+1,  # and its mask
+                           0,0,0,                    # foreground, black
+                           0xFFFF, 0xFFFF, 0xFFFF);  # background, white
+    $want_free_cursor = 1;
+    $X->CloseFont ($cursor_font);
+  }
+
+  my $root = $self->{'root'};
+  if (! defined $root) {
+    if (defined (my $screen_number = $self->{'screen'})) {
+      $root = $X->{'screens'}->[$screen_number]->{'root'};
+    } else {
+      $root = $X->{'root'};
+    }
+  }
+  ### $root
+
+  my $time = $self->{'time'} || $self->{'event'}->{'time'} || 'CurrentTime';
+  ### $time
+
+  my $status = $X->GrabPointer
+    ($root,          # window
+     0,              # owner events
+     $X->pack_event_mask('ButtonPress','ButtonRelease'),
+     'Synchronous',  # pointer mode
+     'Asynchronous', # keyboard mode
+     $root,          # confine window
+     $cursor,        # crosshair cursor
+     $time);
+  if ($status eq 'Success') {
+    $self->{'ungrab_time'} = $time;
+  }
+  if ($want_free_cursor) {
+    $X->FreeCursor ($cursor);
+  }
+  if ($status ne 'Success') {
+    croak "Cannot grab mouse pointer to choose a window: ",$status;
+  }
+  $X->AllowEvents ('SyncPointer', 'CurrentTime');
+}
+
+# undocumented yet ...
+sub handle_event {
+  my ($self, %h) = @_;
+  ### ChooseWindow handle_event: %h
+  return if $self->is_done;
+
+  my $name = $h{'name'};
+  my $X = _X($self);
+
+  if ($name eq 'ButtonPress') {
+    ### ButtonPress
+    $self->{'frame_window'} = $h{'child'};
+    $self->{'choose_time'} = $h{'time'};
+    $X->AllowEvents ('SyncPointer', 'CurrentTime');
+
+  } elsif ($name eq 'ButtonRelease') {
+    ### ButtonRelease
+    # wait for button pressed to choose window, and then released so the
+    # release event doesn't go to the chosen window
+    if ($self->{'frame_window'}) {
+      # button press seen, and now release seen
+      $self->{'button_released'} = 1;
+      $self->{'ungrab_time'} = $h{'time'};
+      $self->abort;  # ungrab
+    } else {
+      $X->AllowEvents ('SyncPointer', 'CurrentTime');
+    }
+  }
+}
+
+# undocumented yet ...
+sub is_done {
+  my ($self) = @_;
+  return (! defined $self->{'ungrab_time'} # aborted or never started
+          || ($self->{'frame_window'} && $self->{'button_released'}));
+}
+
+sub DESTROY {
+  my ($self) = @_;
+  my ($X, $ungrab_time);
+  if (defined ($X = $self->{'X'})
+      && defined ($ungrab_time = delete $self->{'ungrab_time'})) {
+    # no errors if connection gone
+    eval { $X->UngrabPointer ($ungrab_time) };
+  }
+}
+
+# undocumented yet ...
+sub abort {
+  my ($self, $time) = @_;
+  if (! ref $self) {
+    # class method X11::Protocol::ChooseWindow->abort()
+    $self = $_instance || return;  # if not in a ->choose()
+  }
+  my ($X, $ungrab_time);
+  if (defined ($X = $self->{'X'})
+      && defined ($ungrab_time = delete $self->{'ungrab_time'})) {
+    $X->UngrabPointer ($time || $ungrab_time);
+  }
+}
+
+sub _num_none {
+  my ($xid) = @_;
+  if (defined $xid && $xid eq "None") {
+    return 0;
+  } else {
+    return $xid;
+  }
+}
+
+1;
+__END__
+
+=for stopwords Ryde ChooseWindow
+
+=head1 NAME
+
+X11::Protocol::ChooseWindow -- user click to choose window
+
+=for test_synopsis my ($X)
+
+=head1 SYNOPSIS
+
+ use X11::Protocol::ChooseWindow;
+ my $client_window = X11::Protocol::ChooseWindow->choose (X => $X);
+
+=head1 DESCRIPTION
+
+This spot of code lets the user click on a toplevel window to choose it in
+a similar style to the C<xwininfo> or C<xkill> programs.
+
+=head2 Implementation
+
+The method is similar to the C<xwininfo> etc programs.  It's a
+C<GrabPointer> on the root window, waiting for a ButtonPress (and
+corresponding ButtonRelease) from the user, then take the child window in
+that Press event.  The client window as such under the child is found using
+C<frame_to_client_window()> from C<X11::Protocol::WM>.
+
+KeyPress events are not used and will go to the focus window in the usual
+way.  This can be good in a command line program since it lets the user
+press ^C (SIGINT) in an C<xterm>.  Perhaps in the future there could be an
+option to watch for Esc to cancel or some such.
+
+=head1 FUNCTIONS
+
+The following choose is in class method style with the intention of perhaps
+in the future having objects of type C<X11::Protocol::ChooseWindow> holding
+state and advanced by events supplied by an external main loop.
+
+=head2 Choosing
+
+=over 4
+
+=item C<$window = X11::Protocol::ChooseWindow-E<gt>choose (key=E<gt>value,...)>
+
+Read a user button press to choose a toplevel window.  The key/value options
+are as follows,
+
+    X        => X11::Protocol object
+    display  => string ":0:0" etc
+
+    screen   => integer, eg. 0
+    root     => XID of root window
+
+    time     => integer server timestamp initiating the choose
+    event    => hashref of event initiating the choose
+
+    cursor       => XID of cursor
+    cursor_glyph => integer glyph for cursor font
+    cursor_name  => string name from cursor font
+
+C<X> or C<display> gives the server, or the default is to open the
+C<DISPLAY> environment variable.  An C<X11::Protocol> object is usual, but
+sometimes it can make sense to open a new connection just to choose.
+
+C<root> or C<screen> gives the root window to choose on, or the default is
+the current "chosen" screen of C<$X> (and which in turn defaults to the
+screen part of the display name).
+
+C<time> or the time field within C<event> is a server timestamp for the
+C<GrabPointer>.  This protects against stealing a grab from another client
+if badly lagged.  Omitted means "CurrentTime".  In a command line program at
+startup there might be no initiating event, making "CurrentTime" all that's
+possible.
+
+C<cursor> etc is the mouse pointer cursor to show during the choose as a
+visual indication to the user.  The default is a "crosshair" cursor.
+C<cursor_name> or C<cursor_glyph> are from the usual cursor font.  See
+L<X11::CursorFont> for available names.  For example perhaps the "exchange"
+cursor to choose a window for some sort of swap or flip,
+
+    X11::Protocol::ChooseWindow-E<gt>choose
+          (X => $X,
+           cursor_name => "exchange");
+
+=back
+
+=head1 SEE ALSO
+
+L<X11::Protocol>,
+L<X11::Protocol::WM>,
+L<X11::CursorFont>
+
+L<xwininfo(1)>, L<xkill(1)>, and their F<dsimple.c> C<Select_Window()> code
+
+=head1 HOME PAGE
+
+http://user42.tuxfamily.org/x11-protocol-other/index.html
+
+=head1 LICENSE
+
+Copyright 2010, 2011 Kevin Ryde
+
+X11-Protocol-Other is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 3, or (at your option) any later
+version.
+
+X11-Protocol-Other is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+more details.
+
+You should have received a copy of the GNU General Public License along with
+X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut
+
+
+# =head2 Object
+# 
+# A chooser object can be created to choose in a state-driven style.
+# 
+# =over
+# 
+# =item C<$chooser = X11::Protocol::ChooseWindow-E<gt>new (key=E<gt>value,...)>
+# 
+# Create and return a chooser object.  The key/value parameters are the same
+# as for C<choose()> above.
+# 
+# =item C<$window = $chooser-E<gt>choose ()>
+# 
+# Run a window choose on C<$chooser>.
+# 
+# =item C<$boolean = $chooser-E<gt>start ()>
+# 
+# Start a window choose.  This means a mouse pointer grab, with cursor per the
+# options in C<$chooser>.
+# 
+# =item C<$window = $chooser-E<gt>handle_event (@fields)>
+# 
+# Handle an event in C<$chooser>.  The C<@fields> arguments are the same as
+# from the C<X11::Protocol> event handler function.  All events arriving
+# while the chooser is active should be passed to it, and it will act on
+# those it's interested in.
+#
+# For a C<ButtonPress> or C<ButtonRelease> event an C<AllowEvents> request
+# is sent to get the next button event, in the usual way for an active
+# pointer grab.
+# 
+# =item C<$boolean = $chooser-E<gt>is_done ()>
+# 
+# Return true if choosing is finished, meaning C<$chooser-E<gt>handle_event()>
+# has seen button press and release events.
+# 
+# =item C<$chooser-E<gt>abort>
+# 
+# Stop a choose.
+# 
+# =back
+
+#     want_frame_window   boolean, default false
+# 
+# C<want_frame_window> means return the immediate root window child chosen,
+# which is generally the window manager's frame window.  The default is to
+# seek the client toplevel window within the frame.  When there's no window
+# manager or it doesn't use frame windows then the immediate child is the
+# client window already and C<want_frame_window> has no effect.
+

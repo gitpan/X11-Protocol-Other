@@ -25,7 +25,8 @@
 # XFixesGetCursorImage() retrieves the cursor image.  CursorNotify events
 # report when it changes.  That's normally due to moving into a window with
 # a "cursor" attribute, but can also be a pointer grab, or even an animated
-# cursor from the RENDER extension.
+# cursor from the RENDER extension.  See cursor-font-anim.pl for some fun
+# with an animated root window cursor.
 #
 # The only painful thing is that GetCursorImage gives 8-bit RGBA, so it's
 # necessary to allocate colours etc to display that in a window.  In the
@@ -60,6 +61,7 @@
 # much trouble.  What's the right multiplication?
 #
 
+use 5.004;
 use strict;
 use X11::Protocol;
 use X11::AtomConstants;

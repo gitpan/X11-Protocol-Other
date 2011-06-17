@@ -26,6 +26,70 @@ use lib 'devel', '.';
 use Smart::Comments;
 
 {
+  my $X = X11::Protocol->new (':0');
+  $X->{'event_handler'} = sub {
+    my (%h) = @_;
+    ### event_handler: \%h
+  };
+
+  $X->init_extension('DOUBLE-BUFFER') or die $@;
+  $X->QueryPointer($X->{'root'}); # sync
+
+  my $width = 100;
+  my $height = 100;
+  my $window = $X->new_rsrc;
+  $X->CreateWindow ($window,
+                    $X->root,         # parent
+                    'InputOutput',
+                    0,                # depth, from parent
+                    'CopyFromParent', # visual
+                    0,0,              # x,y
+                    $width,$height,
+                    0,                # border
+                    background_pixel => $X->black_pixel,
+                   );
+  $X->MapWindow ($window);
+  sleep 1;
+
+  my $gc = $X->new_rsrc;
+  $X->CreateGC ($gc, $window,
+                foreground => 0xFF00FF,
+                background => 0);
+
+  my $buffer = $X->new_rsrc;
+  $X->DbeAllocateBackBufferName ($window, $buffer, 'Copied');
+  $X->QueryPointer($X->{'root'}); # sync
+
+  $X->PolyFillRectangle ($buffer, $gc, [10,10, $width,$height]);
+  $X->QueryPointer($X->{'root'}); # sync
+  sleep 1;
+
+  $X->DbeSwapBuffers ($window, 'Copied');
+  $X->QueryPointer($X->{'root'}); # sync
+  sleep 1;
+
+  {
+    my @attr = $X->DbeGetBackBufferAttributes ($buffer);
+    ### @attr
+    $X->QueryPointer($X->{'root'}); # sync
+  }
+  $X->DestroyWindow ($window);
+  $X->QueryPointer($X->{'root'}); # sync
+  {
+    my @attr = $X->DbeGetBackBufferAttributes ($buffer);
+    ### @attr
+    $X->QueryPointer($X->{'root'}); # sync
+  }
+
+  $X->DbeDellocateBackBufferName ($buffer);
+
+  $X->PolyFillRectangle ($buffer, $gc, [0,0, $width,$height]);
+  $X->QueryPointer($X->{'root'}); # sync
+
+  exit 0;
+}
+
+{
   # require("X11/Protocol/Ext/DBE.pm");
 
   my $X = X11::Protocol->new ($ENV{'DISPLAY'} || ':0');
@@ -44,74 +108,7 @@ use Smart::Comments;
   exit 0;
 }
 
-{
-  my $X = X11::Protocol->new (':0');
-  $X->{'event_handler'} = sub {
-    my (%h) = @_;
-    ### event_handler: \%h
-  };
 
-  $X->init_extension('DBE') or die $@;
-  $X->QueryPointer($X->{'root'}); # sync
-
-  my $cursor_font = $X->new_rsrc;
-  $X->OpenFont ($cursor_font, "cursor");
-
-  my $cursor = $X->new_rsrc;
-  $X->CreateGlyphCursor ($cursor,
-                         $cursor_font,
-                         'None',  # mask font
-                         3,
-                         0,
-                         0xFFFF, 0xFFFF, 0xFFFF,
-                         0,0,0);
-  $X->QueryPointer($X->{'root'}); # sync
-
-  # { my @reqdata = $X->get_request('DbeGetCursorName');
-  #   ### @reqdata
-  # }
-  { my @ret = $X->DbeGetCursorName ($cursor);
-    ### DbeGetCursorName: @ret
-  }
-  $X->QueryPointer($X->{'root'}); # sync
-
-  my $region = $X->new_rsrc;
-  $X->DbeCreateRegion ($region);
-  $X->QueryPointer($X->{'root'}); # sync
-
-  my $region_dst = $X->new_rsrc;
-  $X->DbeCreateRegion ($region_dst);
-  $X->DbeExpandRegion ($region, $region_dst, 1,1,1,1);
-  $X->QueryPointer($X->{'root'}); # sync
-
-  my $window = $X->new_rsrc;
-  $X->CreateWindow ($window,
-                    $X->root,         # parent
-                    'InputOutput',
-                    0,                # depth, from parent
-                    'CopyFromParent', # visual
-                    0,0,              # x,y
-                    100,100,          # width,height
-                    0,                # border
-                    background_pixel => $X->black_pixel,
-                   );
-  $X->MapWindow ($window);
-  sleep 1;
-  $X->QueryPointer($X->{'root'}); # sync
-
-  $region = $X->new_rsrc;
-  $X->DbeCreateRegionFromWindow ($region, $window, 'Bounding');
-  { my @ret = $X->DbeFetchRegion ($region);
-    ### @ret
-  }
-
-
-  $X->DbeSelectCursorInput ($X->root, 1);
-  $X->QueryPointer($X->{'root'}); # sync
-  $X->handle_input;
-
-  exit 0;
-}
 
 sub atom_name_maybe {
   my ($X, $atom) = @_;

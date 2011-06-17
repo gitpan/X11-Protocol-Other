@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 9;
+$VERSION = 10;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -42,7 +42,8 @@ use Exporter;
 sub window_size {
   my ($X, $window) = @_;
   ### Other window_size(): "$X $window"
-  if (my $screen = root_to_screen_info($X,$window)) {
+  my $screen;
+  if ($screen = root_to_screen_info($X,$window)) {
     return ($screen->{'width_in_pixels'}, $screen->{'height_in_pixels'});
   }
   my %geom = $X->GetGeometry ($window);
@@ -51,7 +52,8 @@ sub window_size {
 sub window_visual {
   my ($X, $window) = @_;
   ### Other window_visual(): "$X $window"
-  if (my $screen = root_to_screen_info($X,$window)) {
+  my $screen;
+  if ($screen = root_to_screen_info($X,$window)) {
     return $screen->{'root_visual'};
   }
   my %attr = $X->GetWindowAttributes ($window);
@@ -297,6 +299,9 @@ L<X11::Protocol::GrabServer>
 
 L<Color::Library> (many named colours), L<Convert::Color>,
 L<Graphics::Color> (Moose based) for more colour parsing
+
+L<X11::AtomConstants>,
+L<X11::CursorFont>
 
 =head1 HOME PAGE
 

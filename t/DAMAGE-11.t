@@ -17,20 +17,12 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-use lib 'devel', '.';
 
-# ... waiting for XFIXES ...
-
-
-
-# Tests of DAMAGE 1.1 things when available, being DamageAdd.
-
-use strict;
-use X11::Protocol;
-use Test;
+# Tests of DAMAGE 1.1 things when available (ie. DamageAdd).
 
 BEGIN { require 5 }
 use strict;
+use X11::Protocol;
 use Test;
 
 use lib 't';
@@ -99,7 +91,9 @@ $X->QueryPointer($X->root); # sync
 
 my $damage_obj = $X->{'ext'}->{'DAMAGE'}->[3];
 MyTestHelpers::diag ("DAMAGE extension version $damage_obj->{'major'}.$damage_obj->{'minor'}");
-unless (($damage_obj->{'major'} <=> 1 || $damage_obj->{'minor'} <=> 1) >= 0) {
+unless (($damage_obj->{'major'} <=> 1
+         || $damage_obj->{'minor'} <=> 1)
+        >= 0) {
   MyTestHelpers::diag ("DAMAGE 1.1 not available");
   foreach (1 .. $test_count) {
     skip ('no DamageAdd on server', 1, 1);

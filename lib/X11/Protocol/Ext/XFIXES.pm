@@ -22,7 +22,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 9;
+$VERSION = 10;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -579,6 +579,9 @@ C<$event_mask> has three bits for which event subtypes should be reported.
 There's no pack function for these yet so just give an integer, for instance
 0x07 for all three.
 
+See F<examples/xfixes-selection.pl> for a sample program listening to
+selection changes with this request.
+
 =item $X-E<gt>XFixesSelectCursorInput ($window, $event_mask)>
 
 Select C<XFixesCursorNotify> events (see L</"EVENTS"> below) to be sent to
@@ -627,20 +630,25 @@ The core C<CreateCursor> bitmask makes only alpha=0 full-transparent or
 alpha=255 full-opaque pixels.  The RENDER extension (see
 L<X11::Protocol::Ext::RENDER>) can make partially transparent cursors.
 
-There's no direct way to get the image of a cursor by its XID (beyond
+There's no direct way to get the image of a cursor by its XID (except
 something dodgy like a C<GrabPointer> to make it the displayed cursor).
-Usually cursor XIDs are only ever created by a client itself (they can't be
-read back out of an arbitrary window for instance) so no need to read back.
+Usually cursor XIDs are only ever created by a client itself so no need to
+read back (and they can't be read back out of an arbitrary window, though
+the XTEST extension can do some comparing, see
+L<X11::Protocol::Ext::XTEST>).
+
+See F<examples/xfixes-cursor-image.pl> for a sample program getting the
+cursor image with this request.
 
 =back
 
 =head2 XFIXES version 2.0
 
 A region object on the server represents a set of rectangles, each
-x,y,width,height, with positive or negative x,y, and the set possibly in
-disconnected sections, etc.  Since a rectangle might be simply 1x1 it can
-represent any bitmap, but is geared towards the sort or rectangle arithmetic
-arising from overlapping rectangular window areas etc.
+x,y,width,height, with positive or negative x,y, and the set possibly made
+of disconnected sections, etc.  Since each rectangle might be simply 1x1 a
+region can represent any bitmap, but is geared towards the sort of rectangle
+sets arising from overlapping rectangular window areas etc.
 
 =over
 
@@ -901,27 +909,27 @@ selection was owned.
 =item C<XFixesCursorNotify>
 
 This is sent to the client when selected by C<XFixesSelectCursorInput>
-above.  It reports when the mouse pointer cursor displayed has changed.  It
-has the following event-specific fields,
+above.  It reports when the currently displayed mouse pointer cursor has
+changed.  It has the following event-specific fields,
 
     subtype         enum string, currently always "DisplayCursor"
     window          XID
     cursor_serial   integer
     time            integer, server timestamp
-    cursor_name     atom or "None", XFIXES 2.0 up
+    cursor_name     atom or "None", in XFIXES 2.0 up
 
 C<subtype> is "DisplayCursor" when the displayed cursor has changed.  This
 is the only subtype currently.
 
 C<cursor_serial> is a serial number as per C<XFixesGetCursorImage>.
-A client can use this to notice when the cursor changes to something it
+A client can use this to notice when the cursor changes to something it has
 already fetched with C<XFixesGetCursorImage>.
 
-C<cursor_name> is the atom of the name given to cursor by
-C<XFixesSetCursorName>, or string "None" if no name.  This is new in XFIXES
-2.0 and is in event unpack only if the server does XFIXES 2.0 or higher.  In
-an C<$X-E<gt>pack_event()> re-pack, C<cursor_name> is optional and the field
-set if given.
+C<cursor_name> is the atom of the name given to the cursor by
+C<XFixesSetCursorName>, or string "None" if no name.  This field is new in
+XFIXES 2.0 and is present in the event unpack only if the server does XFIXES
+2.0 or higher.  In an C<$X-E<gt>pack_event()>, C<cursor_name> is optional
+and the field is set if given.
 
 =back
 

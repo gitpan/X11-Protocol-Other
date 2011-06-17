@@ -17,12 +17,9 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-use strict;
-use X11::Protocol;
-use Test;
-
 BEGIN { require 5 }
 use strict;
+use X11::Protocol;
 use Test;
 
 use lib 't';
@@ -110,18 +107,20 @@ $X->QueryPointer($X->root); # sync
 my $region = $X->new_rsrc;
 
 my $root_pictformat;
-my ($formatinfos, $screeninfos, $subpixels) = $X->RenderQueryPictFormats;
-### $formatinfos
-foreach my $info (@$formatinfos) {
-  my ($pictformat, $type, $depth, @rgba) = @$info;
-  if ($depth == $X->root_depth) {
-    $root_pictformat = $pictformat;
+{
+  my ($formatinfos, $screeninfos, $subpixels) = $X->RenderQueryPictFormats;
+  ### $formatinfos
+  my $info;
+  foreach $info (@$formatinfos) {
+    my ($pictformat, $type, $depth, @rgba) = @$info;
+    if ($depth == $X->root_depth) {
+      $root_pictformat = $pictformat;
+    }
+  }
+  if (! defined $root_pictformat) {
+    die "Oops, cannot find pictformat for root depth ",$X->root_depth;
   }
 }
-if (! defined $root_pictformat) {
-  die "Oops, cannot find pictformat for root depth ",$X->root_depth;
-}
-
 # at least one attribute arg to RenderCreatePicture() or
 # X11::Protocol::Ext::RENDER 0.01 gives warnings for uninitialized $mask
 my $picture = $X->new_rsrc;

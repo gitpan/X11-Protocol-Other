@@ -17,22 +17,28 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-package MyShmNotImplemented;
+use lib 't/lib';
+
+
+
 use strict;
+use Test::Without::Shm;
+use IPC::SysV;
 
-# Usage: perl -MMyShmNotImplemented ...
-#
-# Fake up shmget() and friends to die() as for SysV IPC not available on the
-# system.
+# uncomment this to run the ### lines
+use Smart::Comments;
 
-# as per doio.c Perl_do_ipcget()
+require IPC::SysV;
+Test::Without::Shm->mode('nomem');
+Test::Without::Shm->mode('enabled');
+my $shmid = shmget (IPC::SysV::IPC_PRIVATE(),
+                    5000,
+                    IPC::SysV::IPC_CREAT() | 0666); # world read/write
+print $shmid,"\n";
 
-*CORE::GLOBAL::shmget
-  = *CORE::GLOBAL::shmread
-  = *CORE::GLOBAL::shmwrite
-  = sub {
-    die "shmget not implemented";
-  };
-
-1;
-__END__
+Test::Without::Shm->mode('not_implemented');
+my $var;
+if (! shmread($shmid,$var,0,1)) {
+  print "shmread: $!\n";
+}
+# shmwrite

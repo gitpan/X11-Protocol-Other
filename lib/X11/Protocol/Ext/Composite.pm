@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 9;
+$VERSION = 10;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -229,7 +229,7 @@ sub _num_none {
 1;
 __END__
 
-=for stopwords subwindows unredirect unredirected BadValue XID umm XFIXES Ryde requrets pixmap
+=for stopwords subwindows unredirect unredirected BadValue XID umm XFIXES Ryde pixmap
 
 =head1 NAME
 
@@ -370,7 +370,8 @@ clients release it the overlay window is destroyed.
 =head1 SEE ALSO
 
 L<X11::Protocol>,
-L<X11::Protocol::Ext::XFIXES>
+L<X11::Protocol::Ext::XFIXES>,
+L<X11::Protocol::Ext::DOUBLE_BUFFER>
 
 "Composite Extension", Version 0.4, 2007-7-3,
 C<http://cgit.freedesktop.org/xorg/proto/compositeproto/plain/compositeproto.txt>

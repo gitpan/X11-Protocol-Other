@@ -29,9 +29,12 @@ my $test_count = 4;
 plan tests => $test_count;
 
 use X11::Protocol::WM
+  'frame_window_to_client',
+  'get_wm_state',
   'set_wm_hints',
   'set_wm_transient_for',
-  'set_net_wm_window_type';
+  'set_net_wm_window_type',
+  'set_net_wm_user_time';
 
 require X11::Protocol;
 MyTestHelpers::diag ("X11::Protocol version ", X11::Protocol->VERSION);
@@ -78,6 +81,8 @@ $X->CreateWindow ($window2,
                   0);               # border
 
 
+{ my $client_window = frame_window_to_client($X,$window); }
+{ my ($state, $icon_window) = get_wm_state($X,$window); }
 set_wm_hints($X,$window,input=>1);
 set_wm_transient_for($X,$window2,$window);
 {
@@ -96,6 +101,7 @@ set_wm_transient_for($X,$window2,$window);
   # ok ($window, get_wm_transient_for($X,$window2,$window));
 }
 set_net_wm_window_type($X,$window,'SPLASH');
+set_net_wm_user_time($X,$window,0);
 
 $X->QueryPointer($X->{'root'});  # sync
 ok (1, 1);

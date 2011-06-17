@@ -17,6 +17,13 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 10, June 2011
+    - new X11::CursorFont
+    - new X11::Protocol::ChooseWindow
+    - new X11::Protocol::Ext::DOUBLE_BUFFER
+    - X11::Protocol::WM new get_wm_state(), set_net_wm_user_time(),
+      frame_window_to_client()
+
 Version 9, May 2011
     - new X11::Protocol::Ext::MIT_SUNDRY_NONSTANDARD
 

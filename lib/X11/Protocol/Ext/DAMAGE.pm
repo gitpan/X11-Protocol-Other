@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 9;
+$VERSION = 10;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -226,7 +226,7 @@ __END__
 
 X11::Protocol::Ext::DAMAGE - drawing notifications
 
-=for test_synopsis my ($drawable, $parts_region)
+=for test_synopsis my ($drawable, $parts_region);
 
 =head1 SYNOPSIS
 

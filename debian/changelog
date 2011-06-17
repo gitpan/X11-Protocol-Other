@@ -1,5 +1,5 @@
-libx11-protocol-other-perl (9-1) unstable; urgency=low
+libx11-protocol-other-perl (10-1) unstable; urgency=low
 
   * Packaged version.
 
- -- Kevin Ryde <user42@zip.com.au>  Tue, 10 May 2011 08:36:36 +1000
+ -- Kevin Ryde <user42@zip.com.au>  Sat, 18 Jun 2011 08:07:07 +1000
