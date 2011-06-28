@@ -65,6 +65,7 @@ use 5.004;
 use strict;
 use X11::Protocol;
 use X11::AtomConstants;
+use X11::Protocol::WM;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -110,12 +111,9 @@ $X->CreateWindow ($window,
                   background_pixel => $background_pixel,
                   event_mask       => $X->pack_event_mask('Exposure'),
                  );
-$X->ChangeProperty($window,
-                   X11::AtomConstants::WM_NAME,  # property
-                   X11::AtomConstants::STRING,   # type
-                   8,                            # byte format
-                   'Replace',
-                   'Current Cursor'); # window title
+X11::Protocol::WM::set_wm_name ($X, $window, 'Current Cursor'); # title
+X11::Protocol::WM::set_wm_icon_name ($X, $window, 'Cursor');
+X11::Protocol::WM::set_wm_client_machine_from_syshostname ($X, $window);
 
 my $pixmap = $X->new_rsrc;
 $X->CreatePixmap ($pixmap,

@@ -1,3 +1,9 @@
+# pack_event ?
+
+
+
+
+
 # Copyright 2011 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
@@ -21,7 +27,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 10;
+$VERSION = 11;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -94,15 +100,63 @@ my $reqs =
    ['XTestFakeInput',  # 2
     sub {
       my $X = shift;
-      return join('',@_);
+      return join('',map {_fake_input_pack($X,$_)} @_);
     }],
 
    ['XTestGrabControl',  # 3
     sub {
       my ($X, $impervious) = @_;
-      return pack 'Cx3', $impervious;
+      return pack 'Cxxx', $impervious;
     }],
   ];
+
+sub _fake_input_pack {
+  my ($X, $href) = @_;
+
+  # if (my $data = $href->{'data'}) {
+  #   return $data;
+  # } else {
+
+  return $X->pack_event (# name - mandatory always
+
+                         ($href->{'name'} eq 'MotionNotify'
+                          ? (# default absolute root_x,root_y for motion
+                             detail => 0)
+                          : ( # detail - mandatory for Key/Button
+                            )),
+
+                         ($href->{'name'} eq 'MotionNotify'
+                          ? ( # root_x,root_y - mandatory for MotionNotify
+                            )
+                          : ( # unused by Key/Button, zero for pack
+                             root_x => 0, root_y => 0)),
+
+                         time    => 0,   # default no delay
+                         root    => 0,   # default current screen
+
+                         # unused by XTestFakeInput, zero for the pack
+                         event   => 0,   # window
+                         child   => 0,   # window
+                         event_x => 0,
+                         event_y => 0,
+                         state   => 0,
+                         same_screen => 0,
+
+                         %$href
+                        );
+}
+
+#        For key events, this field is interpreted as the physical keycode. If
+#        the keycode is less than min-keycode or greater than max-keycode, as
+#        returned in the connection setup, then a Value error occurs. For button
+#        events, this field is interpreted as the physical (or core) button,
+# detail meaning it will be mapped to the corresponding logical button according
+#        to the most recent SetPointerMapping request. If the button number is
+#        less than one or greater than the number of physical buttons, then a
+#        Value error occurs. For motion events, if this field is True , then
+#        rootX and rootY are relative distances from the current pointer
+#        location; if this field is False, then they are absolute positions.
+
 
 sub _num_time {
   my ($time) = @_;
@@ -171,19 +225,23 @@ X11::Protocol::Ext::XTEST - synthetic user input
  $X->init_extension('XTEST')
    or print "XTEST extension not available";
 
+ $X->XTestFakeInput ({ name   => 'ButtonPress',
+                       detail => 3 });  # button 3
+
 =head1 DESCRIPTION
 
-The XTEST extension allows clients to generate synthetic keyboard and mouse
-pointer button presses and movements.  Relevant press, release and motion
-events are sent to all interested client just as if for user input.
+The XTEST extension allows clients to synthesize user keyboard and mouse
+pointer actions.  Press, release and motion events are sent to all
+interested clients of the relevant window just as for user input.
 
-It's designed to exercise library or server features which would otherwise
-require user interaction.  The C<XTestGrabControl> allows this to be done
-even during a C<GrabServer> by another client.
+XTEST is designed to exercise library or server features which would
+otherwise require user interaction.  Only user input events are synthesized,
+it's not general purpose event replaying.
 
-An C<XTestCompareCursor> allows the mouse pointer cursor to be checked (an
-otherwise write-only window setting), mainly to see that an intended cursor
-is shown by some sort of subroutine, library, etc.
+Test input can continue even under a C<GrabServer> by using
+C<XTestGrabControl>.  Mouse cursor display can be checked with
+C<XTestCompareCursor>, to see that an intended cursor is applied by whatever
+subroutine, library, etc.
 
 =head1 REQUESTS
 
@@ -197,26 +255,26 @@ per L<X11::Protocol/EXTENSIONS>.
 =item C<($server_major, $server_minor) = $X-E<gt>XTestGetVersion ($client_major, $client_minor)>
 
 Negotiate a protocol version with the server.  C<$client_major> and
-C<$client_minor> is what the client would like, the returned
+C<$client_minor> is what the client would like.  The returned
 C<$server_major> and C<$server_minor> is what the server will do.
 
-The current code supports up to 2.1 and the intention would be to
+The current code supports up to 2.1.  The intention would be to
 automatically negotiate in C<init_extension> if/when necessary.
 
 =item C<$is_same = $X-E<gt>XTestCompareCursor ($window, $cursor)>
 
-Return true if the cursor set in the attributes of C<$window> is equal to
-C<$cursor>.  C<$cursor> can be
+Return true if the cursor attribute of C<$window> is equal to C<$cursor>.
+C<$cursor> can be
 
 =over
 
 =item *
 
-An XID of a cursor.
+An XID (integer) of a cursor.
 
 =item *
 
-Sting "None" (or 0).
+String "None" (or 0).
 
 =item *
 
@@ -224,84 +282,131 @@ String "CurrentCursor" (or 1) for the currently displayed cursor.
 
 =back
 
-=item C<$X-E<gt>XTestFakeInput ($event, ...)>
+This can be used in two way.  Either give a particular C<$cursor> XID to
+check if a C<$window> has that.  Or alternatively make a C<$window> with a
+particular cursor and then pass "CurrentCursor" to see if that's the
+displayed cursor.  The latter can be used for instance to check the cursor
+shown under a C<GrabPointer>.
 
-Simulate user input on the server.  C<$event> should be a byte string packet
-as from C<$X-E<gt>pack_event>.  The following core event types can be faked,
+=item C<$X-E<gt>XTestFakeInput ({name=E<gt>...})>
 
-    KeyPress
-    KeyRelease
-    ButtonPress
-    ButtonRelease
-    MotionNotify
+Simulate user input.  The argument is a hashref of event fields for
+C<$X-E<gt>pack_event> with defaults for fields not used by the fakery.
 
-For example,
+    name        string "ButtonPress" etc
+    time        milliseconds delay before event, default 0
 
-    $X->XTestFakeInput ($X->pack_event
-                         (name    => 'ButtonPress',
-                          detail  => 3, # button number
-                          time    => 0,
-                          root    => 0,
-                          event   => 0,
-                          child   => 'None',
-                          root_x  => 0,
-                          root_y  => 0,
-                          event_x => 0,
-                          event_y => 0,
-                          state   => 0,
-                          same_screen => 0));
+    for "ButtonPress"/"ButtonRelease",
+    detail      physical button number (1 upwards)
 
-Only some of the fields in the event data are used, though as of
-C<X11::Protocol> 0.56, C<$X-E<gt>pack_event()> requires all fields (or Perl
-warnings result).
+    for "KeyPress"/"KeyRelease",
+    detail      key code (integer)
 
-    time            milliseconds delay before event
+    for "MotionNotify",
+    root_x      \ pointer position to move to
+    root_y      /
+    root        XID of root window, default "None" for current
+    detail      flag 0=absolute, 1=relative, default 0
 
-    Key/Button Press/Release
-        detail      key code or button number
+For example physical button 3 press.
 
-    MotionNotify
-        detail      flag 0=absolute x,y, 1=relative x,y
-        root        XID of root window, or "None"
-        root_x      \ pointer position to move to
-        root_y      /
+    $X->XTestFakeInput ({ name   => 'ButtonPress',
+                          detail => 3 });
 
-The C<time> field is how long in milliseconds the server should wait before
-playing the event.  0 or CurrentTime means no delay.
+Note that the button number is the "physical" button, before the core
+protocol C<SetPointerMapping> is applied.  Consult C<GetPointerMapping> to
+see which (if any) physical button corresponds to a desired "logical" button
+number.
 
-The use of C<pack_event()> in the arguments here allows future extension
-events too, though it's a bit of a chore to make those packs just for the
-plain core events.
+Or a motion moving the pointer (similar to a C<WarpPointer>),
 
-Multiple event arguments can be given when a user input needs more than one
-event packet to describe.  The core events are just one per request, but for
-example the C<XInputExtension> C<DeviceMotionNotify> takes following
-C<DeviceValuator> events for device axis values.
+    $X->XTestFakeInput ({ name   => 'MotionNotify',
+                          root_x => 123,
+                          root_y => 456 });
 
-    $X->XTestFakeInput ($device_motion_event,
-                        $device_valuator_event1,
-                        $device_valuator_event2);
+For C<MotionNotify> the C<detail> field can be 1 to move relative to the
+current mouse position,
 
-Note that the event fields received in a C<$X> event handler function cannot
-be passed directly to C<XTestFakeInput> to replay it.  The C<time> field
-should be cleared to zero as it's a delay not a timestamp, and the C<detail>
-field of C<MotionNotify> should generally be cleared to zero (absolute
-C<root_x>,C<root_y>) as it's a relative flag, not a hint flag.
+    $X->XTestFakeInput ({ name   => 'MotionNotify',
+                          root_x => 10,
+                          root_y => -20,
+                          detail => 1,   # relative motion
+                        });  
 
-Be careful when faking a C<ButtonPress>, it may be necessary to fake a
-matching C<ButtonRelease> too.  On the X.org server circa 1.9.x 
+For C<MotionNotify> the C<root> field is the root window XID (integer) to
+move on.  The default is "None" (or 0) and means the screen the pointer is
+currently on.
+
+C<time> is how long in milliseconds the server should wait before playing
+the event.  The default is 0 for no delay.  No further requests are
+processed from the current client until the time elapses, which means a
+sequence of C<XTestFakeInput> with delays executes serially, with cumulative
+delay times.
+
+Extension events can be faked once C<init_extension> has been done so
+they're recognised by C<pack_event>.  It's up to the server or the relevant
+extension which events are user input which can be faked.
+
+Extension input may require more than one event packet to describe.  For
+example the C<XInputExtension> event C<DeviceMotion> may need further
+C<DeviceValuator> events.  Pass additional arguments to C<XTestFakeInput>
+for those extra event packets,
+
+    $X->XTestFakeInput ({ name   => 'DeviceMotion', ... },
+                        { name   => 'DeviceValuator', ... },
+                        { name   => 'DeviceValuator',  ... });  
+
+In all cases an C<XTestFakeInput> request is a single user input, so for
+instance a button press and button release must be two C<XTestFakeInput>
+requests.
+
+Generally the event fields from a C<$X> event handler cannot be passed
+directly to C<XTestFakeInput> to replay it.  In particular,
+
+=over
+
+=item *
+
+C<time> in an event is a timestamp, not a delay, so would want to be zeroed.
+
+=item *
+
+For C<MotionNotify>, C<detail> in an event is the hint mechanism, so would
+want to be zeroed for the absolute/relative flag.
+
+=item *
+
+For C<ButtonPress> and C<ButtonRelease>, C<detail> in an event is a logical
+button number, after the C<SetPointerMapping> transform, whereas
+C<XFakeInput> takes a phyical number.  An inverse through the
+C<GetPointerMapping> table would be needed.
+
+=back
+
+Be careful when faking a C<ButtonPress> as it may be important to fake a
+matching C<ButtonRelease> too.  On the X.org server circa 1.9.x, after a
+synthetic press the physical mouse buttons don't work to generate a release
+and the button is left hung (presumably in the normal implicit pointer
+grab).
 
 =item C<$X-E<gt>XTestGrabControl ($impervious)>
 
-Make the current client impervious to C<GrabServer> requests by others.
+Control the current client's behaviour under a C<GrabServer> by another
+client.
 
-If C<$impervious> is 1 then the current client can continue to make requests
-even when another client has grabbed the server.
+If C<$impervious> is 1 then the current client can continue to make
+requests, ie. it's impervious to server grabs by other clients.
 
-If C<$impervious> is 0 then the current client behaves as normal.  Its
-requests must wait during a C<GrabServer> by another client.
+If C<$impervious> is 0 then the current client behaves as normal, meaning
+its requests must wait during any C<GrabServer> by another client.
 
 =back
+
+=head1 BUGS
+
+As of C<X11::Protocol> version 0.56, C<pack_event()> of key, button and
+motion events will provoke warnings under C<perl -w>.  This affects all such
+packs, including what XTEST here does.
 
 =head1 SEE ALSO
 

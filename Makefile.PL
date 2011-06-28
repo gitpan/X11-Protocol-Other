@@ -23,6 +23,13 @@ use ExtUtils::MakeMaker;
 use lib 'inc';
 use MyMakeMakerExtras;
 
+my %encode_modules =
+  (
+   # 1.00 for ksc5601-raw, probably
+   'Encode' => 1.00,
+   'Encode::HanExtra' => 0.06,  # 0.06 for cns11643-*
+  );
+
 MyMakeMakerExtras::WriteMakefile
   (NAME         => 'X11-Protocol-Other',
    ABSTRACT     => 'Miscellaneous helpers for X11::Protocol connections.',
@@ -43,11 +50,25 @@ MyMakeMakerExtras::WriteMakefile
      { homepage => 'http://user42.tuxfamily.org/x11-protocol-other/index.html',
      },
      optional_features =>
-     { maximum_devel =>
-       { description => 'Stuff used variously for development.',
-         requires => { 'Smart::Comments'     => 0,
-                     },
-       },
+     {
+      maximum_interoperation =>
+      { description => 'All the optional things which may be used.',
+        requires => { %encode_modules,
+                    },
+        maximum_tests =>
+        { description => 'Have "make test" do as much as possible.',
+          requires => {
+                       'Module::Util' => 0, # checking for HanExtra
+                       %encode_modules,
+                      },
+        },
+        maximum_devel =>
+        { description => 'Stuff used variously for development.',
+          requires => { 'Smart::Comments'     => 0,
+                        'Devel::Comments'     => 0,
+                      },
+        },
+      },
      },
    },
 

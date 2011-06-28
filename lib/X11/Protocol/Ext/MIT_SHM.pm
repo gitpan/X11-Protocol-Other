@@ -22,7 +22,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 10;
+$VERSION = 11;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -242,15 +242,15 @@ attach and detach it each time with C<shmat()> and C<shmdt()> system calls,
 which is fine for grabbing the lot, but will be a bit slow for lots of
 little accesses.
 
-C<IPC::SysV> offers a C<shmat()> to keep the block attached then
-C<memread()> and C<memwrite()> to access it (see L<IPC::SysV>).  See
+C<IPC::SysV> (version 2 up) offers a C<shmat()> to keep the block attached
+and C<memread()> and C<memwrite()> to access it (see L<IPC::SysV>).  See
 L<IPC::SharedMem> for an object-oriented wrapper around this too.
 
-Incidentally, if C<shmget> is not available on the system then Perl's
+Incidentally, if C<shmget()> is not available on the system then Perl's
 C<shmget()> croaks.  It's always possible for it to return C<undef> too for
-not enough memory etc.  Between that, not being on the same machine, not
-having identifiable perms, etc, there's a quite a few cases where a fallback
-to plain I/O will be necessary.
+not enough memory etc.  With that, not being on the same machine, not having
+identifiable perms, etc, there's a quite a few cases where a fallback to
+plain I/O will be necessary.
 
 =head2 Shm Permissions
 
@@ -265,14 +265,15 @@ Failing that the server treats the client as "other" and will only attach to
 world-readable (or world read-writable) segments.
 
 You can make a shm segment world-readable to ensure the server can read it.
-If the data for a PutImage etc already comes from a world-readable file or
-is public then it doesn't matter who else reads it too.  Remember to ask for
-read-only in the C<MitShmAttach> so the server doesn't want writable too.
+If the data for a PutImage etc is already from a world-readable file or is
+public then it doesn't matter who else reads the segment.  Remember to ask
+for read-only in the C<MitShmAttach> so the server doesn't want writable
+too.
 
-There's probably no need to worry about relaxing permissions.  Chances are
-that if client UID/GID can't be identified then it's because the connection
-is not local and the server is on a different machine so shared memory can't
-be used anyway.
+There's probably no need to risk relaxing permissions for writing.  Chances
+are that if client UID/GID can't be identified then it's because the
+connection is not local and the server is on a different machine so shared
+memory can't be used anyway.
 
 It's usual for the server to run as root, hence it's own permission checks,
 but it's also possible for the server to be an ordinary user.  In that case
@@ -281,7 +282,7 @@ it's running as.
 
 =head1 REQUESTS
 
-The following requests are available after an C<init_extension()> as per
+The following requests are available after an C<init_extension()> per
 L<X11::Protocol/EXTENSIONS>.
 
     my $bool = $X->init_extension('MIT-SHM');
@@ -306,12 +307,12 @@ ID (C<geteuid()> and C<getegid()>).  Zero means root.
 
 C<$shared_pixmaps> is non-zero if pixmaps in shared memory are supported
 (see C<MitShmCreatePixmap> below).  C<$pixmap_format> (an ImageFormat) is
-"XYPixmap" or "ZPixmap" for the layout required in a shared memory pixmap.
+"XYPixmap" or "ZPixmap" for the layout required in such a pixmap.
 
 =item C<$X-E<gt>MitShmAttach ($shmseg, $shmid, $readonly)>
 
 Attach the server to a given shared memory segment.  C<$shmseg> is a new XID
-representing the attached memory.
+to represent the attached memory.
 
     my $shmseg = $X->new_rsrc;
     $X->MitShmAttach ($shmseg, $shmid, 0); # read/write
@@ -320,7 +321,7 @@ C<$shmid> is the shared memory ID to attach, as obtained from C<shmget()>
 (see L<perlfunc/shmget>).
 
 C<$readonly> is 1 to have the server attach read-only, or 0 for read-write.
-Read-only suffices for C<MitShmPutImage>, or read-write is needed for
+Read-only suffices for C<MitShmPutImage>, but read-write is needed for
 C<MitShmGetImage> and C<MitShmCreatePixmap>.
 
 =item C<$X-E<gt>MitShmDetach ($shmseg)>
@@ -369,8 +370,8 @@ The returned C<$depth> (an integer) is the depth of C<$drawable>.
 C<$visual> (integer ID) is its visual for a window, or "None" for a pixmap.
 C<$size> is how many bytes were written.
 
-C<$shmseg> must be attached read-write in C<MitShmAttach> or an Access error
-results.
+C<$shmseg> must be attached read-write in the C<MitShmAttach> or an Access
+error results.
 
 =item C<$X-E<gt>MitShmCreatePixmap ($pixmap, $drawable, $depth, $width, $height, $shmseg, $offset)>
 
@@ -391,25 +392,25 @@ The C<MitShmQueryVersion> request above reports whether shared memory
 pixmaps are supported, and if so whether they're "XYPixmap" or "ZPixmap"
 layout.
 
-C<$drawable> is used to determine the screen for the new C<$pixmap> and can
-be any drawable on the screen.  C<$offset> is a byte offset into the shared
-memory where the pixmap data will begin.
+C<$drawable> is used to determine the screen for the new C<$pixmap>.
+C<$offset> is a byte offset into the shared memory where the pixmap data
+will begin.
 
 If damage objects from the DAMAGE extension (see
 L<X11::Protocol::Ext::DAMAGE>) are monitoring a shared C<$pixmap> then
 client writes to the shared memory generally don't produce C<DamageNotify>
-events from those objects.  The client can use C<DamageAdd> requests (in
-Damage version 1.1) to tell the server about changes made, which it will
-broadcast to interested damage objects.  Damage objects listening to a
-shared pixmap are probably unlikely though.
+events.  The client can use C<DamageAdd> requests (in Damage version 1.1) to
+tell the server about changes made, which it will broadcast to interested
+damage objects.  It's probably unusual to have damage objects listening to a
+shared pixmap though.
 
 =back
 
 =head1 EVENTS
 
 C<MitShmCompletionEvent> is sent to the client when requested in an
-C<MitShmPutImage>, to say that the server has finished reading the memory.
-The event has the usual fields
+C<MitShmPutImage>.  It says the server has finished reading the memory.  The
+event has the usual fields
 
     name             "MitShmCompletionEvent"
     synthetic        true if from a SendEvent
@@ -426,7 +427,7 @@ and event-specific fields
 
 C<major_opcode> and C<minor_opcode> are the codes of the originating
 C<MitShmPutImage>.  These fields are similar to the core C<GraphicsExposure>
-and C<NoExposure> events, though here there's only one request
+and C<NoExposure> events, but here there's only one request
 (C<MitShmPutImage>) which gives a completion event.
 
 =head1 ERRORS

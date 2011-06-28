@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               X11-Protocol-Other
-version:            10
+version:            11
 abstract:           Miscellaneous helpers for X11::Protocol connections.
 author:
     - Kevin Ryde <user42@zip.com.au>
@@ -35,6 +35,22 @@ optional_features:
             Pod::Simple::HTML:  0
             Smart::Comments:    0
             warnings::unused:   0
+    maximum_interoperation:
+        description:  All the optional things which may be used.
+        maximum_devel:
+            description:  Stuff used variously for development.
+            requires:
+                Devel::Comments:  0
+                Smart::Comments:  0
+        maximum_tests:
+            description:  Have "make test" do as much as possible.
+            requires:
+                Encode:            1
+                Encode::HanExtra:  0.06
+                Module::Util:      0
+        requires:
+            Encode:            1
+            Encode::HanExtra:  0.06
     maximum_tests:
         description:  Have "make test" do as much as possible.
         requires:

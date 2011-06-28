@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = 62;
+my $test_count = 129;
 plan tests => $test_count;
 
 require X11::Protocol::WM;
@@ -77,10 +77,17 @@ $X->CreateWindow ($window2,
                   1,1,              # width,height
                   0);               # border
 
+sub to_hex {
+  my ($str) = @_;
+  return join (' ',
+               map {sprintf("%02X", ord(substr($str,$_,1)))}
+               0 .. length($str)-1);
+}
+
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 10;
+my $want_version = 11;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');
@@ -217,6 +224,214 @@ ok (! eval { X11::Protocol::WM->VERSION($check_version); 1 },
 }
 
 
+#------------------------------------------------------------------------------
+# set_wm_class()
+
+{
+  X11::Protocol::WM::set_wm_class ($X, $window2, "foo", "Foo");
+
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('WM_CLASS'),
+                       'AnyPropertyType',
+                       0,   # offset
+                       100, # length
+                       0);  # delete
+  ok ($format, 8);
+  ok ($type, $X->atom('STRING'));
+  my $type_name = ($type ? $X->atom_name($type) : 'None');
+  ok ($type_name, 'STRING');
+  ok ($value, "foo\0Foo\0");
+  ok ($bytes_after, 0);
+}
+
+
+#------------------------------------------------------------------------------
+# set_wm_client_machine()
+
+{
+  my $hostname = "mymachine";
+  X11::Protocol::WM::set_wm_client_machine ($X, $window2, $hostname);
+
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('WM_CLIENT_MACHINE'),
+                       'AnyPropertyType',
+                       0,   # offset
+                       100, # length
+                       0);  # delete
+  ok ($format, 8);
+  ok ($type, $X->atom('STRING'));
+  my $type_name = ($type ? $X->atom_name($type) : 'None');
+  ok ($type_name, 'STRING');
+  ok ($value, $hostname);
+  ok ($bytes_after, 0);
+}
+{
+  X11::Protocol::WM::set_wm_client_machine_from_syshostname ($X, $window2);
+
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('WM_CLIENT_MACHINE'),
+                       'AnyPropertyType',
+                       0,   # offset
+                       100, # length
+                       0);  # delete
+  ok ($format, 8);
+  ok ($type, $X->atom('STRING'));
+  my $type_name = ($type ? $X->atom_name($type) : 'None');
+  ok ($type_name, 'STRING');
+  my $want_hostname = eval { Sys::Hostname::hostname() };
+  ok ($value, $want_hostname);
+  ok ($bytes_after, 0);
+}
+
+
+#------------------------------------------------------------------------------
+# set_wm_command()
+
+{
+  X11::Protocol::WM::set_wm_command ($X, $window2, "myprog", "myarg");
+
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('WM_COMMAND'),
+                       'AnyPropertyType',
+                       0,   # offset
+                       100, # length
+                       0);  # delete
+  ok ($format, 8);
+  ok ($type, $X->atom('STRING'));
+  my $type_name = ($type ? $X->atom_name($type) : 'None');
+  ok ($type_name, 'STRING');
+  ok ($value, "myprog\0myarg\0");
+  ok ($bytes_after, 0);
+}
+
+{
+  # with some latin-1 chars
+  my $command = "\xF7";
+  X11::Protocol::WM::set_wm_command ($X, $window2, $command);
+
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('WM_COMMAND'),
+                       'AnyPropertyType',
+                       0,   # offset
+                       100, # length
+                       0);  # delete
+  ok ($format, 8);
+  ok ($type, $X->atom('STRING'));
+  my $type_name = ($type ? $X->atom_name($type) : 'None');
+  ok ($type_name, 'STRING');
+  ok (to_hex($value), to_hex("$command\0"));
+  ok ($bytes_after, 0);
+}
+
+
+#------------------------------------------------------------------------------
+# set_wm_icon_name()
+
+{
+  my $icon_name = "hello world";
+  X11::Protocol::WM::set_wm_icon_name ($X, $window2, $icon_name);
+
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('WM_ICON_NAME'),
+                       'AnyPropertyType',
+                       0,   # offset
+                       100, # length
+                       0);  # delete
+  ok ($format, 8);
+  ok ($type, $X->atom('STRING'));
+  my $type_name = ($type ? $X->atom_name($type) : 'None');
+  ok ($type_name, 'STRING');
+  ok ($value, $icon_name);
+  ok ($bytes_after, 0);
+}
+
+
+#------------------------------------------------------------------------------
+# set_wm_name()
+
+{
+  my $name = "hello world";
+  X11::Protocol::WM::set_wm_name ($X, $window2, $name);
+
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('WM_NAME'),
+                       'AnyPropertyType',
+                       0,   # offset
+                       100, # length
+                       0);  # delete
+  ok ($format, 8);
+  ok ($type, $X->atom('STRING'));
+  my $type_name = ($type ? $X->atom_name($type) : 'None');
+  ok ($type_name, 'STRING');
+  ok ($value, $name);
+  ok ($bytes_after, 0);
+}
+
+
+#------------------------------------------------------------------------------
+# set_wm_protocols()
+
+X11::Protocol::WM::set_wm_protocols ($X, $window2, 'WM_DELETE_WINDOW');
+{
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('WM_PROTOCOLS'),
+                       'AnyPropertyType',
+                       0,  # offset
+                       1,  # length, 1 x CARD32
+                       0); # delete
+  ok ($format, 32);
+  ok ($type, $X->atom('ATOM'));
+  ok ($X->atom_name($type), 'ATOM');
+  ok (length($value), 4);
+  my ($value_atom) = unpack 'L', $value;
+  ok ($value_atom, $X->atom('WM_DELETE_WINDOW'));
+  ok ($X->atom_name($value_atom), 'WM_DELETE_WINDOW');
+  ok ($bytes_after, 0);
+}
+
+X11::Protocol::WM::set_wm_protocols ($X, $window2,
+                                     $X->atom('WM_DELETE_WINDOW'),
+                                     'MY_PRIVATE_SOMETHING');
+{
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('WM_PROTOCOLS'),
+                       'AnyPropertyType',
+                       0,  # offset
+                       2,  # length, 2 x CARD32
+                       0); # delete
+  ok ($format, 32);
+  ok ($type, $X->atom('ATOM'));
+  ok ($X->atom_name($type), 'ATOM');
+  ok (length($value), 8);
+  my ($value_atom1, $value_atom2) = unpack 'L*', $value;
+  ok ($value_atom1, $X->atom('WM_DELETE_WINDOW'));
+  ok ($X->atom_name($value_atom1), 'WM_DELETE_WINDOW');
+  ok ($value_atom2, $X->atom('MY_PRIVATE_SOMETHING'));
+  ok ($X->atom_name($value_atom2), 'MY_PRIVATE_SOMETHING');
+  ok ($bytes_after, 0);
+}
+
+X11::Protocol::WM::set_wm_protocols ($X, $window2);
+{
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('WM_PROTOCOLS'),
+                       'AnyPropertyType',
+                       0,  # offset
+                       2,  # length, 2 x CARD32
+                       0); # delete
+  ok ($format, 0);
+  ok ($type eq 'None' || $type == 0, 1);
+}
 
 
 #------------------------------------------------------------------------------
@@ -310,6 +525,79 @@ X11::Protocol::WM::set_wm_hints ($X, $window,
 
 
 #------------------------------------------------------------------------------
+# set_net_wm_pid()
+
+X11::Protocol::WM::set_net_wm_pid ($X, $window2);
+{
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('_NET_WM_PID'),
+                       'AnyPropertyType',
+                       0,  # offset
+                       1,  # length, 1 x CARD32
+                       0); # delete
+  ok ($format, 32);
+  ok ($type, $X->atom('CARDINAL'));
+  ok ($X->atom_name($type), 'CARDINAL');
+  ok (length($value), 4);
+  my ($pid) = unpack 'L', $value;
+  ok ($pid, $$);
+  ok ($bytes_after, 0);
+}
+
+X11::Protocol::WM::set_net_wm_pid ($X, $window2, 123);
+{
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('_NET_WM_PID'),
+                       'AnyPropertyType',
+                       0,  # offset
+                       1,  # length, 1 x CARD32
+                       0); # delete
+  ok ($format, 32);
+  ok ($type, $X->atom('CARDINAL'));
+  ok ($X->atom_name($type), 'CARDINAL');
+  ok (length($value), 4);
+  my ($pid) = unpack 'L', $value;
+  ok ($pid, 123);
+  ok ($bytes_after, 0);
+}
+
+X11::Protocol::WM::set_net_wm_pid ($X, $window2, undef);
+{
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('_NET_WM_PID'),
+                       'AnyPropertyType',
+                       0,  # offset
+                       1,  # length, 1 x CARD32
+                       0); # delete
+  ok ($format, 0);
+  ok ($type eq 'None' || $type == 0, 1);
+}
+
+#------------------------------------------------------------------------------
+# set_net_wm_user_time()
+
+X11::Protocol::WM::set_net_wm_user_time ($X, $window, 123);
+{
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window,
+                       $X->atom('_NET_WM_USER_TIME'),
+                       'AnyPropertyType',
+                       0,  # offset
+                       1,  # length, 1 x CARD32
+                       0); # delete
+  ok ($format, 32);
+  ok ($type, $X->atom('CARDINAL'));
+  ok ($X->atom_name($type), 'CARDINAL');
+  ok (length($value), 4);
+  my ($time) = unpack 'L', $value;
+  ok ($time, 123);
+  ok ($bytes_after, 0);
+}
+
+#------------------------------------------------------------------------------
 # set_net_wm_window_type()
 
 X11::Protocol::WM::set_net_wm_window_type ($X, $window, 'NORMAL');
@@ -339,27 +627,6 @@ X11::Protocol::WM::set_net_wm_window_type ($X, $window, 'NORMAL');
 # 
 #   # my $atom = X11::Protocol::WM::_get_net_wm_window_type_atom ($X, $window);
 # }
-
-#------------------------------------------------------------------------------
-# set_net_wm_user_time()
-
-X11::Protocol::WM::set_net_wm_user_time ($X, $window, 123);
-{
-  my ($value, $type, $format, $bytes_after)
-    = $X->GetProperty ($window,
-                       $X->atom('_NET_WM_USER_TIME'),
-                       'AnyPropertyType',
-                       0,  # offset
-                       1,  # length, 1 x CARD32
-                       0); # delete
-  ok ($format, 32);
-  ok ($type, $X->atom('CARDINAL'));
-  ok ($X->atom_name($type), 'CARDINAL');
-  ok (length($value), 4);
-  my ($time) = unpack 'L', $value;
-  ok ($time, 123);
-  ok ($bytes_after, 0);
-}
 
 #------------------------------------------------------------------------------
 # frame_window_to_client()

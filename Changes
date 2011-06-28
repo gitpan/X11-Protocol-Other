@@ -17,12 +17,26 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 11, June 2011
+    - new Encode::X11
+    - X11::Protocol::WM new functions
+        set_wm_class()
+	set_wm_client_machine()
+	set_wm_client_machine_from_syshostname()
+	set_wm_command()
+	set_wm_icon_name()
+	set_wm_name()
+	set_wm_protocols()
+	set_net_wm_pid()
+
 Version 10, June 2011
     - new X11::CursorFont
     - new X11::Protocol::ChooseWindow
     - new X11::Protocol::Ext::DOUBLE_BUFFER
-    - X11::Protocol::WM new get_wm_state(), set_net_wm_user_time(),
-      frame_window_to_client()
+    - X11::Protocol::WM new functions
+        frame_window_to_client()
+        get_wm_state()
+        set_net_wm_user_time()
 
 Version 9, May 2011
     - new X11::Protocol::Ext::MIT_SUNDRY_NONSTANDARD
@@ -55,14 +69,20 @@ Version 3, April 2011
 
 Version 2, March 2011
     - new X11::AtomConstants
-    - new X11::Protocol::WM with set_wm_hints(), set_wm_transient_for(),
-      set_net_wm_window_type(),
+    - new X11::Protocol::WM with functions
+        set_wm_hints()
+	set_wm_transient_for()
+        set_net_wm_window_type()
 
 Version 1, February 2011
     - the first version
     - initial X11::Protocol::GrabServer
-    - initial X11::Protocol::Other, with
-        root_to_screen(), root_to_screen_info(),
-        default_colormap_to_screen(), default_colormap_to_screen_info(),
-        visual_is_dynamic(), visual_class_is_dynamic(),
-        window_size(), window_visual()
+    - initial X11::Protocol::Other, with functions
+        root_to_screen()
+	root_to_screen_info()
+        default_colormap_to_screen()
+	default_colormap_to_screen_info()
+        visual_is_dynamic()
+	visual_class_is_dynamic()
+        window_size()
+	window_visual()

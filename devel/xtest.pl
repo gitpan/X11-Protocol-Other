@@ -52,6 +52,38 @@ $X->CreateWindow ($window,
                   event_mask => $X->pack_event_mask('ButtonPress','ButtonRelease','PointerMotion'),
                  );
 $X->MapWindow ($window);
+$X->flush;
+sleep 1;
+
+{
+  $X->WarpPointer ('None', $window, 0,0,0,0, 10,10);
+  ### ButtonPress ...
+  $X->SetPointerMapping(3, 2, 1, 4 .. 11);
+  $X->XTestFakeInput ({ name   => 'ButtonPress',
+                        detail => 1 });
+  $X->XTestFakeInput ({ name   => 'ButtonRelease',
+                        time   => 2000,
+                        detail => 1 });
+  $X->SetPointerMapping(1 .. 11);
+  for (;;) {
+    $X->handle_input;
+  }
+  exit 0;
+}
+
+{
+  ### MotionNotify ...
+  $X->XTestFakeInput ({ name   => 'MotionNotify',
+                        detail => 0,
+                        root_x => 20,
+                        root_y => 20,
+                      });
+  for (;;) {
+    $X->handle_input;
+  }
+  exit 0;
+}
+
 
 # my $window = $X->root;
 # my $status = $X->GrabPointer
@@ -104,20 +136,6 @@ $X->XTestFakeInput ($X->pack_event
                       event_y => 0,
                       state   => 0,
                       same_screen => 0));
-$X->XTestFakeInput ($X->pack_event
-                    (name   => 'MotionNotify',
-                     detail => 0,
-                     time => 0,
-                     child => 'None',
-                     root => 0,
-                     event => 0,
-                     root_x => 900,
-                     root_y => 500,
-                     event_x => 900,
-                     event_y => 500,
-                     state => 0,
-                     same_screen => 0,
-                    ));
 
 for (;;) {
   $X->handle_input;

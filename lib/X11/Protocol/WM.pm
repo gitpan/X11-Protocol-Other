@@ -22,16 +22,28 @@ use Carp;
 use X11::AtomConstants;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 10;
+$VERSION = 11;
 
 use Exporter;
 @ISA = ('Exporter');
-@EXPORT_OK = qw(frame_window_to_client
-                get_wm_state
-                set_wm_hints
-                set_wm_transient_for
-                set_net_wm_window_type
-                set_net_wm_user_time);
+@EXPORT_OK = qw(
+                 frame_window_to_client
+                 get_wm_state
+
+                 set_net_wm_pid
+                 set_net_wm_user_time
+                 set_net_wm_window_type
+
+                 set_wm_class
+                 set_wm_client_machine
+                 set_wm_client_machine_from_syshostname
+                 set_wm_command
+                 set_wm_hints
+                 set_wm_name
+                 set_wm_icon_name
+                 set_wm_protocols
+                 set_wm_transient_for
+              );
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -42,6 +54,111 @@ use Exporter;
 
 
 #------------------------------------------------------------------------------
+# shared bits
+
+BEGIN {
+  eval 'utf8->can("is_utf8") && *is_utf8 = \&utf8::is_utf8'   # 5.8.1
+    || eval 'use Encode "is_utf8"; 1'                         # 5.8.0
+      || eval 'sub is_utf8 () { 0 }; 1'                       # 5.6 fallback
+        || die 'Oops, cannot create is_utf8() subr: ',$@;
+    }
+### \&is_utf8
+
+sub _to_STRING {
+  my ($str) = @_;
+  if (is_utf8($str)) {
+    require Encode;
+    # croak in the interests of not letting bad values go through unnoticed,
+    # nor letting a mangled name be stored
+    return Encode::encode ('iso-8859-1', $str, Encode::FB_CROAK());
+  } else {
+    return $str;
+  }
+}
+
+# Maybe ...
+#
+# =item C<_set_text_property ($X, $window, $str)>
+#
+# Set the given C<$prop> (an atom) property on C<$window> (an XID) using one
+# of the text types "STRING" or "COMPOUND_TEXT" per L</Text> above.  If
+# C<$str> is C<undef> then C<$prop> is deleted.
+#
+sub _set_text_property {
+  my ($X, $window, $prop, $str) = @_;
+  if (defined $str) {
+    my $type;
+    ($type, $str) = _str_to_text ($X, $str);
+    $X->ChangeProperty ($window,
+                        $prop,  # prop name
+                        $type,  # type
+                        8,      # format
+                        'Replace',
+                        $str);
+  } else {
+    $X->DeleteProperty ($window, $prop);
+  }
+}
+
+# return ($atom, $bytes)
+sub _str_to_text {
+  my ($X, $str) = @_;
+  if (! is_utf8($str)) {
+    # bytes or pre-5.8 taken to be latin-1
+    return (X11::AtomConstants::STRING, $str);
+  }
+  require Encode;
+  {
+    my $input = $str; # don't clobber $str yet
+    my $bytes = Encode::encode ('iso-8859-1', $input, Encode::FB_QUIET());
+    if (length($input) == 0) {
+      # latin-1 suffices
+      return (X11::AtomConstants::STRING, $bytes);
+    }
+  }
+  require Encode::X11;
+  return ($X->atom('COMPOUND_TEXT'),
+          Encode::encode ('x11-compound-text', $str, Encode::FB_WARN()));
+}
+
+sub _set_single_property {
+  my ($X, $window, $prop, $type, $value) = @_;
+  if (defined $value) {
+    $X->ChangeProperty ($window,
+                        $prop,  # prop name
+                        $type,  # type
+                        32,     # format
+                        'Replace',
+                        pack ('L', $value));
+  } else {
+    $X->DeleteProperty ($window, $prop);
+  }
+}
+
+# or maybe $X->num('IDorNone',$xid)
+#          $X->num('XID',$xid)
+sub _num_none {
+  my ($xid) = @_;
+  if (defined $xid && $xid eq "None") {
+    return 0;
+  } else {
+    return $xid;
+  }
+}
+
+# or maybe $X->interp('IDorNone',$xid) or 'XIDorNone'
+sub _none_interp {
+  my ($X, $xid) = @_;
+  if ($X->{'do_interp'} && $xid == 0) {
+    return 'None';
+  } else {
+    return $xid;
+  }
+}
+
+
+#------------------------------------------------------------------------------
+# frame_window_to_client()
 
 # /usr/share/doc/libxmu-headers/Xmu.txt.gz for XmuClientWindow()
 # https://bugs.freedesktop.org/show_bug.cgi?id=7474
@@ -112,139 +229,75 @@ sub frame_window_to_client {
 }
 
 #------------------------------------------------------------------------------
-# WM_TRANSIENT
+# WM_CLASS
 
-# $transient_for eq 'None' supported for generality, but not yet documented
-# since not sure such a property value would be ICCCM compliant
-sub set_wm_transient_for {
-  my ($X, $window, $transient_for) = @_;
-  _set_single_property ($X, $window,
-                        X11::AtomConstants::WM_TRANSIENT_FOR,  # prop name
-                        X11::AtomConstants::WINDOW,            # type
-                        _num_none ($transient_for));
-}
-
-# =item C<$transient_for = X11::Protocol::WM::get_wm_transient_for ($X, $window)>
-# not sure about this yet
-# sub get_wm_transient_for {
-#   my ($X, $window) = @_;
-#   _get_single_property ($X, $window,
-#                         X11::AtomConstants::WM_TRANSIENT_FOR, X11::AtomConstants::WINDOW);
-# }
-
-
-#------------------------------------------------------------------------------
-# wmstate enum
-
-{
-  my %wmstate = (WithdrawnState => 0,
-                 DontCareState  => 0, # no longer in ICCCM
-                 NormalState    => 1,
-                 ZoomState      => 2, # no longer in ICCCM
-                 IconicState    => 3,
-                 InactiveState  => 4, # no longer in ICCCM
-                );
-  sub _wmstate_num {
-    my ($wmstate) = @_;
-    if (defined $wmstate && defined (my $num = $wmstate{$wmstate})) {
-      return $num;
-    }
-    return $wmstate;
-  }
-}
-
-{
-  # DontCareState==0 no longer ICCCM
-  my @wmstate = ('WithdrawnState', # 0
-                 'NormalState',    # 1
-                 'ZoomState',      # 2, no longer ICCCM
-                 'IconicState',    # 3
-                 'InactiveState',  # 4, no longer in ICCCM
-                );
-  sub _wmstate_interp {
-    my ($X, $num) = @_;
-    if ($X->{'do_interp'} && defined (my $str = $wmstate[$num])) {
-      return $str;
-    }
-    return $num;
-  }
-}
-
-
-# Maybe through $X->interp() with ...
-#
-# {
-#   # $X->interp('WmState',$num);
-#   # $X->num('WmState',$str);
-#   my %const_arrays
-#     = (
-#        WmState => ['WithdrawnState', # 0
-#                    'NormalState',    # 1
-#                    'ZoomState',      # 2, no longer ICCCM
-#                    'IconicState',    # 3
-#                    'InactiveState',  # 4, no longer in ICCCM
-#                   ],
-#        # motif has the name "MWM_INPUT_APPLICATION_MODAL" as an alias for
-#        # "MWM_INPUT_PRIMARY_APPLICATION_MODAL", but says prefer the latter
-#        MwmModal => ['modeless',                  # 0
-#                     'primary_application_modal', # 1
-#                     'system_modal',              # 2
-#                     'full_application_modal',    # 3
-#                    ],
-#        MwmStatus => ['tearoff_window',           # 0
-#                    ],
-#       );
-# 
-#   my %const_hashes
-#     = (map { $_ => { X11::Protocol::make_num_hash($const_arrays{$_}) } }
-#        keys %const_arrays);
-# 
-# 
-#   sub ext_const_init {
-#     my ($X) = @_;
-#     unless ($X->{'ext_const'}->{'WmState'}) {
-#       %{$X->{'ext_const'}} = (%{$X->{'ext_const'}}, %const_arrays);
-#       $X->{'ext_const_num'} ||= {};
-#       %{$X->{'ext_const_num'}} = (%{$X->{'ext_const_num'}}, %const_hashes);
-#     }
-#   }
-# }
-
-
-#------------------------------------------------------------------------------
-# WM_STATE
-
-sub get_wm_state {
-  my ($X, $window) = @_;
-  my $xa_wm_state = $X->atom('WM_STATE');
-  my ($value, $type, $format, $bytes_after)
-    = $X->GetProperty ($window,
-                       $xa_wm_state,  # property
-                       $xa_wm_state,  # type
-                       0,             # offset
-                       2,             # length, 2 x CARD32
-                       0);            # delete
-  if ($format == 32) {
-    return _unpack_wm_state($X,$value);
+sub set_wm_class {
+  my ($X, $window, $instance, $class) = @_;
+  if (defined $instance) {
+    my $str = _to_STRING($instance)."\0"._to_STRING($class)."\0";
+    $X->ChangeProperty($window,
+                       X11::AtomConstants::WM_CLASS, # prop
+                       X11::AtomConstants::STRING,   # type
+                       8,                            # byte format
+                       'Replace',
+                       $str);
   } else {
+    $X->DeleteProperty ($window, X11::AtomConstants::WM_CLASS);
+  }
+}
+
+
+#------------------------------------------------------------------------------
+# WM_CLIENT_MACHINE
+
+sub set_wm_client_machine {
+  my ($X, $window, $hostname) = @_;
+  _set_text_property ($X, $window,
+                      X11::AtomConstants::WM_CLIENT_MACHINE, $hostname);
+}
+
+sub set_wm_client_machine_from_syshostname {
+  my ($X, $window) = @_;
+  require Sys::Hostname;
+  set_wm_client_machine ($X, $window, eval { Sys::Hostname::hostname() });
+}
+
+
+#------------------------------------------------------------------------------
+# WM_COMMAND
+
+sub set_wm_command {
+  my $X = shift;
+  my $window = shift;
+  # join() gives a wide-char result if any parts wide, upgrading byte
+  # strings as if they were latin-1
+
+  if (@_ && ! defined $_[0]) {
+    # this not documented ...
+    $X->DeleteProperty ($window, X11::AtomConstants::WM_COMMAND);
     return;
   }
-}
-
-# or maybe $X->interp('IDorNone',$xid) or 'XIDorNone'
-sub _none_interp {
-  my ($X, $xid) = @_;
-  if ($X->{'do_interp'} && $xid == 0) {
-    return 'None';
-  } else {
-    return $xid;
+  my $value = '';
+  my $type = X11::AtomConstants::STRING;
+  my $str;
+  foreach $str (@_) {
+    my ($atom, $bytes) = _str_to_text($X,$str);
+    if ($atom != X11::AtomConstants::STRING) {
+      $type = $atom;  # COMPOUND_TEXT if any part needs COMPOUND_TEXT
+    }
+    $value .= "$bytes\0";
   }
-}
-
-sub _unpack_wm_state {
-  my ($X, $data) = @_;
-  my ($state, $icon_window) = unpack 'L*', $data;
-  return (_wmstate_interp($X,$state), _none_interp($X,$icon_window));
+  if ($value eq "\0") {
+    $value = "";  # this not documented ...
+    # C<$command> can be an empty string "" to mean no known command as a
+    # reply to C<WM_SAVE_YOURSELF> ... maybe
+  }
+  $X->ChangeProperty ($window,
+                      X11::AtomConstants::WM_COMMAND, # prop name
+                      $type,  # type
+                      8,      # format
+                      'Replace',
+                      $value);
 }
 
 
@@ -319,6 +372,187 @@ sub set_wm_hints {
   }
 }
 
+
+#------------------------------------------------------------------------------
+# WM_ICON_NAME
+
+sub set_wm_icon_name {
+  my ($X, $window, $name) = @_;
+  _set_text_property ($X, $window, X11::AtomConstants::WM_ICON_NAME, $name);
+}
+
+
+#------------------------------------------------------------------------------
+# WM_NAME
+
+sub set_wm_name {
+  my ($X, $window, $name) = @_;
+  _set_text_property ($X, $window, X11::AtomConstants::WM_NAME, $name);
+}
+
+#------------------------------------------------------------------------------
+# WM_PROTOCOLS
+
+sub set_wm_protocols {
+  my $X = shift;
+  my $window = shift;
+
+  # ENHANCE-ME: intern all atoms in one round-trip
+  my $prop = $X->atom('WM_PROTOCOLS');
+  if (@_) {
+    $X->ChangeProperty($window,
+                       $prop,                     # property
+                       X11::AtomConstants::ATOM,  # type
+                       32,                        # format
+                       'Replace',
+                       pack('L*',_to_atom_nums($X,@_)));
+  } else {
+    $X->DeleteProperty ($window, $prop);
+  }
+}
+sub _to_atom_nums {
+  my $X = shift;
+  return map { ($_ =~ /^\d+$/ ? $_ : $X->atom($_)) } @_;
+}
+
+
+#------------------------------------------------------------------------------
+# WM_STATE enum
+
+{
+  my %wmstate = (WithdrawnState => 0,
+                 DontCareState  => 0, # no longer in ICCCM
+                 NormalState    => 1,
+                 ZoomState      => 2, # no longer in ICCCM
+                 IconicState    => 3,
+                 InactiveState  => 4, # no longer in ICCCM
+                );
+  sub _wmstate_num {
+    my ($wmstate) = @_;
+    if (defined $wmstate && defined (my $num = $wmstate{$wmstate})) {
+      return $num;
+    }
+    return $wmstate;
+  }
+}
+
+{
+  # DontCareState==0 no longer ICCCM
+  my @wmstate = ('WithdrawnState', # 0
+                 'NormalState',    # 1
+                 'ZoomState',      # 2, no longer ICCCM
+                 'IconicState',    # 3
+                 'InactiveState',  # 4, no longer in ICCCM
+                );
+  sub _wmstate_interp {
+    my ($X, $num) = @_;
+    if ($X->{'do_interp'} && defined (my $str = $wmstate[$num])) {
+      return $str;
+    }
+    return $num;
+  }
+}
+
+
+# Maybe through $X->interp() with ...
+#
+# {
+#   # $X->interp('WmState',$num);
+#   # $X->num('WmState',$str);
+#   my %const_arrays
+#     = (
+#        WmState => ['WithdrawnState', # 0
+#                    'NormalState',    # 1
+#                    'ZoomState',      # 2, no longer ICCCM
+#                    'IconicState',    # 3
+#                    'InactiveState',  # 4, no longer in ICCCM
+#                   ],
+#        # motif has the name "MWM_INPUT_APPLICATION_MODAL" as an alias for
+#        # "MWM_INPUT_PRIMARY_APPLICATION_MODAL", but says prefer the latter
+#        MwmModal => ['modeless',                  # 0
+#                     'primary_application_modal', # 1
+#                     'system_modal',              # 2
+#                     'full_application_modal',    # 3
+#                    ],
+#        MwmStatus => ['tearoff_window',           # 0
+#                    ],
+#       );
+#
+#   my %const_hashes
+#     = (map { $_ => { X11::Protocol::make_num_hash($const_arrays{$_}) } }
+#        keys %const_arrays);
+#
+#
+#   sub ext_const_init {
+#     my ($X) = @_;
+#     unless ($X->{'ext_const'}->{'WmState'}) {
+#       %{$X->{'ext_const'}} = (%{$X->{'ext_const'}}, %const_arrays);
+#       $X->{'ext_const_num'} ||= {};
+#       %{$X->{'ext_const_num'}} = (%{$X->{'ext_const_num'}}, %const_hashes);
+#     }
+#   }
+# }
+
+
+#------------------------------------------------------------------------------
+# WM_STATE
+
+sub get_wm_state {
+  my ($X, $window) = @_;
+  my $xa_wm_state = $X->atom('WM_STATE');
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window,
+                       $xa_wm_state,  # property
+                       $xa_wm_state,  # type
+                       0,             # offset
+                       2,             # length, 2 x CARD32
+                       0);            # delete
+  if ($format == 32) {
+    return _unpack_wm_state($X,$value);
+  } else {
+    return;
+  }
+}
+
+sub _unpack_wm_state {
+  my ($X, $data) = @_;
+  my ($state, $icon_window) = unpack 'L*', $data;
+  return (_wmstate_interp($X,$state), _none_interp($X,$icon_window));
+}
+
+
+#------------------------------------------------------------------------------
+# WM_TRANSIENT
+
+# $transient_for eq 'None' supported for generality, but not yet documented
+# since not sure such a property value would be ICCCM compliant
+sub set_wm_transient_for {
+  my ($X, $window, $transient_for) = @_;
+  _set_single_property ($X, $window,
+                        X11::AtomConstants::WM_TRANSIENT_FOR,  # prop name
+                        X11::AtomConstants::WINDOW,            # type
+                        _num_none ($transient_for));
+}
+
+# =item C<$transient_for = X11::Protocol::WM::get_wm_transient_for ($X, $window)>
+# not sure about this yet
+# sub get_wm_transient_for {
+#   my ($X, $window) = @_;
+#   _get_single_property ($X, $window,
+#                         X11::AtomConstants::WM_TRANSIENT_FOR, X11::AtomConstants::WINDOW);
+# }
+
+
+#------------------------------------------------------------------------------
+# _NET_WM_PID
+
+sub set_net_wm_pid {
+  my ($X, $window, $pid) = @_;
+  if (@_ < 3) { $pid = $$; }
+  _set_single_property ($X, $window, $X->atom('_NET_WM_PID'),
+                        X11::AtomConstants::CARDINAL, $pid);
+}
+
 #------------------------------------------------------------------------------
 # _NET_WM_WINDOW_TYPE
 
@@ -357,34 +591,6 @@ sub set_net_wm_user_time {
   my ($X, $window, $time) = @_;
   _set_single_property ($X, $window, $X->atom('_NET_WM_USER_TIME'),
                         X11::AtomConstants::CARDINAL, $time);
-}
-
-#------------------------------------------------------------------------------
-# helpers
-
-sub _set_single_property {
-  my ($X, $window, $prop, $type, $value) = @_;
-  if (defined $value) {
-    $X->ChangeProperty ($window,
-                        $prop,  # prop name
-                        $type,  # type
-                        32,     # format
-                        'Replace',
-                        pack ('L', $value));
-  } else {
-    $X->DeleteProperty ($window, $prop);
-  }
-}
-
-# or maybe $X->num('IDorNone',$xid)
-#          $X->num('XID',$xid)
-sub _num_none {
-  my ($xid) = @_;
-  if (defined $xid && $xid eq "None") {
-    return 0;
-  } else {
-    return $xid;
-  }
 }
 
 1;
@@ -428,7 +634,7 @@ __END__
 
 
 
-=for stopwords Ryde XID NETWM enum NormalState IconicState ICCCM ClientMessage iconify EWMH multi-colour ie pixmap iconified toplevel WithdrawnState keypress KeyRelease ButtonRelease popup Xlib
+=for stopwords Ryde XID NETWM enum NormalState IconicState ICCCM ClientMessage iconify EWMH multi-colour ie pixmap iconified toplevel WithdrawnState keypress KeyRelease ButtonRelease popup Xlib OOP encodings lookup XTerm hostname localhost filename latin POSIX EBCDIC ebcdic
 
 =head1 NAME
 
@@ -443,9 +649,94 @@ X11::Protocol::WM -- window manager things for client programs
 This is some window manager related functions for use by client programs.
 There's a lot a client can get or set, but only a few here yet.
 
+=head2 Text
+
+Property functions such as C<set_wm_name()> below accept Perl 5.8 wide char
+strings and encode to either "STRING" or "COMPOUND_TEXT" as necessary.  Byte
+strings and Perl 5.6 and earlier strings are presumed to be Latin-1 already
+and set as "STRING" type.
+
+In the future for general COMPOUND_TEXT manipulations perhaps some sort of
+OOP representing segments of the various encodings could be accepted.
+
 =head1 FUNCTIONS
 
-=head2 WM Hints
+=head2 WM_CLASS
+
+=over 4
+
+=item C<X11::Protocol::WM::set_wm_class ($X, $window, $instance, $class)>
+
+Set the C<WM_CLASS> property on C<$window> (an XID).  This might be used by
+the window manager to lookup settings and preferences for the program in the
+style of the X Resources (see "RESOURCES" in L<X(7)>), but perhaps not
+necessarily using that system.
+
+Usually the instance name is the program command such as "xterm" and the
+class name something like "XTerm".  Some programs have command line options
+to control what they set, so the user can get different preferences.
+
+    X11::Protocol::WM::set_wm_class ($X, $window, "myprog", "MyProg");
+
+C<$instance> and C<$class> must be ASCII or Latin-1 characters only.  Perl
+5.8 wide-char strings are converted as necessary.
+
+=back
+
+=head2 WM_CLIENT_MACHINE
+
+=over 4
+
+=item C<X11::Protocol::WM::set_wm_client_machine ($X, $window, $hostname)>
+
+Set the C<WM_CLIENT_MACHINE> property on C<$window> to C<$hostname> (a
+string).  C<$hostname> should be the name of the client machine as seen from
+the server.  If C<$hostname> is C<undef> then the property is deleted.
+
+Usually a machine name is ASCII-only, but anything per L</Text> above is
+accepted.
+
+=item C<X11::Protocol::WM::set_wm_client_machine_from_syshostname ($X, $window)>
+
+Set the C<WM_CLIENT_MACHINE> property on C<$window> using the
+C<Sys::Hostname> module.
+
+If that module can't determine a hostname by its various gambits then
+currently the property is deleted.  Should it leave it unchanged, or return
+a flag to say if set?
+
+Some of the C<Sys::Hostname> cases might end up returning "localhost".
+That's put through unchanged, on the assumption that it would be when
+there's no networking beyond the local host, so client and server are always
+on the same machine and "localhost" is thus a good enough name.
+
+=back
+
+=head2 WM_COMMAND
+
+=over 4
+
+=item C<X11::Protocol::WM::set_wm_command ($X, $window, $command, $arg...)>
+
+Set the C<WM_COMMAND> property on C<$window> (an XID).  This should be a
+program name and argument strings which can restart the client.  C<$command>
+is the program name, followed by any argument strings.
+
+A client can set this at any time, or if participating in the
+C<WM_SAVE_YOURSELF> session manager protocol then it should set it in
+response to a C<WM_SAVE_YOURSELF> ClientMessage.
+
+The command should start the client in its current state as far as possible,
+so it might include a current document filename, command line options for
+current settings, etc.
+
+Non-ASCII is allowed in the command and arguments per L</Text> above.  The
+ICCCM spec is for latin-1 to work on a POSIX latin-1 system, but how well
+anything else survives the session manager etc is another matter.
+
+=back
+
+=head2 WM_HINTS
 
 =over 4
 
@@ -504,7 +795,51 @@ the hints at any time to change the current importance.
 
 =back
 
-=head2 WM State
+=head2 WM_NAME, WM_ICON_NAME
+
+=over
+
+=item C<X11::Protocol::WM::set_wm_name ($X, $window, $name)>
+
+Set the C<WM_NAME> property on C<$window> (an XID) to C<$name> (a string).
+
+The window manager might display this as a title above the window, in a menu
+of windows, etc.  C<$name> can be a Perl 5.8 wide-char string per L</Text>
+above.
+
+=item C<X11::Protocol::WM::set_wm_icon_name ($X, $window, $name)>
+
+Set the C<WM_ICON_NAME> property on C<$window> (an XID) to C<$name> (a
+string).
+
+The window manager might display this string when C<$window> is iconified.
+If C<$window> doesn't have an icon image (per L<WM_HINTS> or from the window
+manager itself) then this text may be all that's shown.  Either way it
+should be something short.  It can be a Perl 5.8 wide-char string per
+L</Text> above.
+
+=back
+
+=head2 WM_PROTOCOLS
+
+=over
+
+=item C<X11::Protocol::WM::set_wm_protocols ($X, $window, $protocol,...)>
+
+Set the C<WM_PROTOCOLS> property on C<$window> (an XID).  Each C<$protocol>
+argument is a string protocol name or an integer atom ID.  For example,
+
+    X11::Protocol::WM::set_wm_protocols
+      ($X, $window, 'WM_DELETE_WINDOW', '_NET_WM_PING')
+
+For example C<WM_DELETE_WINDOW> means when the user clicks the close button
+the window manager sends a C<ClientMessage> event, rather than doing a
+C<KillClient>.  The C<ClientMessage> event allows a program to clean-up, or
+ask the user to save a document exiting, etc.
+
+=back
+
+=head2 WM_STATE
 
 =over
 
@@ -539,7 +874,7 @@ not (or not yet) managing the window.
 
 =back
 
-=head2 WM Transient For
+=head2 WM_TRANSIENT_FOR
 
 =over
 
@@ -550,12 +885,57 @@ C<$transient_for> is another window XID, or C<undef> if C<$window> is not
 transient for anything.
 
 "Transient for" means C<$window> is some sort of dialog or menu related to
-the C<$transient_for> window.  The window manager will generally iconify
-C<$window> together with its C<$transient_for>, etc.
+the given C<$transient_for> window.  The window manager will generally
+iconify C<$window> together with its C<$transient_for>, etc.
 
 =back
 
-=head2 Net WM Window Type
+=head2 _NET_WM_PID
+
+=over
+
+=item C<X11::Protocol::WM::set_net_wm_pid ($X, $window)>
+
+=item C<X11::Protocol::WM::set_net_wm_pid ($X, $window, $pid)>
+
+=item C<X11::Protocol::WM::set_net_wm_pid ($X, $window, undef)>
+
+Set the C<_NET_WM_PID> property on C<$window> to the given C<$pid> process
+ID, or to the C<$$> current process ID if omitted (see L<perlvar>).  If
+C<$pid> is C<undef> then the property is deleted.
+
+A window manager or similar might use this to forcibly kill an unresponsive
+client.  But it's only useful if C<WM_CLIENT_MACHINE> (above) is set too, to
+know where the client is running.
+
+=back
+
+=head2 _NET_WM_USER_TIME
+
+=over
+
+=item C<set_net_wm_user_time ($X, $window, $time)>
+
+Set the C<_NET_WM_USER_TIME> property on C<$window>.  C<$time> should be a
+server C<time> value (an integer) from the last user keypress etc in
+C<$window>, or at C<$window> creation then from the event which caused it to
+be opened.
+
+On a newly created window a special C<$time> value 0 means the window should
+not receive the focus when mapped.  (If the window manager recognises
+C<_NET_WM_USER_TIME>.)
+
+If the client has the active window it should update C<_NET_WM_USER_TIME>
+for every user input, though generally it can ignore KeyRelease and
+ButtonRelease since it's Press events which are the user doing something.
+
+The window manager might use C<_NET_WM_USER_TIME> to control focus and/or
+stacking order so for example a popup which is slow to start doesn't steal
+the focus if you've switched to another window in the interim.
+
+=back
+
+=head2 _NET_WM_WINDOW_TYPE
 
 =over
 
@@ -578,31 +958,6 @@ C<$X-E<gt>atom('_NET_WM_WINDOW_TYPE_DIALOG')>.
 
 =back
 
-=head2 Net WM User Time
-
-=over
-
-=item C<set_net_wm_user_time ($X, $window, $time)>
-
-Set the C<_NET_WM_USER_TIME> property on C<$window>.  C<$time> should be a
-server C<time> value (an integer) from the last user keypress etc in
-C<$window>, or at C<$window> creation then from the event which caused it to
-be opened.
-
-On a newly created window special C<$time> value 0 means the window should
-not receive the focus when mapped.  (For window managers which recognise
-C<_NET_WM_USER_TIME>.)
-
-If the client has the active window it should update C<_NET_WM_USER_TIME>
-for every user input.  Generally it can ignore KeyRelease and
-ButtonRelease since it's Press events which begin something.
-
-The window manager can use C<_NET_WM_USER_TIME> to control focus and/or
-stacking order so for example a popup which is slow to start doesn't steal
-the focus if you've gone on to do other work in another window.
-
-=back
-
 =head2 Other Operations
 
 =over
@@ -614,23 +969,36 @@ window (an XID).  C<$frame> is usually an immediate child of the root
 window.
 
 If no client window can be found in C<$frame> then return C<undef>.  This
-could be if C<$frame> is an icon window or similar created by the window
+might happen if C<$frame> is an icon window or similar created by the window
 manager itself, or an override-redirect client without a frame, or if
-there's no window manager running.  In the latter two cases C<$frame> would
-be the client already.
+there's no window manager running at all.  In the latter two cases C<$frame>
+would be the client already.
 
 The current strategy is to look at C<$frame> and down the window tree
-seeking a C<WM_STATE> property which the window manager sets on a client's
-toplevel (once mapped).  The search depth and total windows are limited, in
+seeking a C<WM_STATE> property which the window manager puts on a client's
+toplevel, once mapped.  The search depth and total windows are limited, in
 case the window manager does its decoration in some ridiculous way, or the
 client uses excessive windows (traversed when there's no window manager).
 
+
+    +-rootwin--------------------------+
+    |                                  |
+    |                                  |
+    |    +-frame-win--------+          |
+    |    | +-client-win---+ |          |
+    |    | | WM_STATE ... | |          |
+    |    | |              | |          |
+    |    | +--------------+ |          |
+    |    +------------------+          |
+    |                                  |
+    +----------------------------------+
+
 Care is taken not to error out if some windows are destroyed during the
-search.  They belong to other clients, so could be destroyed at any time.
+search.  They belong to other clients and could be destroyed at any time.
 If C<$frame> itself doesn't exist then the return is C<undef>.
 
 This code is similar to what C<xwininfo> and similar programs do to go from
-a toplevel root window child down to the client window, per F<dmsimple.c>
+a toplevel root window child down to the client window, as per F<dmsimple.c>
 C<Select_Window()> or Xlib C<XmuClientWindow()>.
 
 =back
@@ -651,10 +1019,19 @@ Or just called with full package name
 There's no C<:all> tag since this module is meant as a grab-bag of functions
 and to import as-yet unknown things would be asking for name clashes.
 
+=head1 BUGS
+
+Not much attention has been paid to text on an EBCDIC system.  Wide char
+strings probably work, but byte strings may go straight through where they
+ought to be re-coded to latin-1.  But the same might apply to some of the
+core C<X11::Protocol> things such as C<$X-E<gt>atom_name()> where you'd want
+to convert the latin-1 from the server to native ebcdic.
+
 =head1 SEE ALSO
 
 L<X11::Protocol>,
-L<X11::Protocol::Other>
+L<X11::Protocol::Other>,
+L<X11::Protocol::ChooseWindow>
 
 =head1 HOME PAGE
 

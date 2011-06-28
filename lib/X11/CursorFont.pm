@@ -27,7 +27,7 @@ use Exporter;
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-$VERSION = 10;
+$VERSION = 11;
 
 %CURSOR_GLYPH
   = (
@@ -142,23 +142,24 @@ X11::CursorFont - cursor font glyph names and numbers
 
 =head1 DESCRIPTION
 
-This is the names and numbers of the glyphs in the X11 cursor font which has
-various standard mouse pointer cursors.
+This is the names and numbers of the glyphs in the X11 cursor font which is
+used for various standard mouse pointer cursors.
 
-C<%CURSOR_GLYPH> maps a glyph name to its character number in the font.
+C<%CURSOR_GLYPH> maps a glyph name to its character number in the font,
 
     $CURSOR_GLYPH{'fleur'}     # is 52
 
 C<@CURSOR_NAME> conversely is indexed by character number and gives the
-glyph name.
+glyph name,
 
     $CURSOR_NAME[52]           # is "fleur"
 
 Each glyph has an associated mask at character number glyph+1 which is the
-shape of the cursor (displayed vs transparent pixels).  So in
-C<@CURSOR_NAME> only every second character position has a name.
+shape of the cursor (the displayed vs transparent pixels).  So the character
+numbers are always even and in C<@CURSOR_NAME> only every second character
+position has a name.
 
-The cursor font images can be viewed with the C<xfd> font display program,
+The cursor images can be viewed with the C<xfd> font display program,
 
      xfd -fn cursor
 
@@ -273,7 +274,7 @@ be selected in usual C<Exporter> style (see L<Exporter>),
 
     use X11::CursorFont '%CURSOR_GLYPH', '@CURSOR_NAME';
 
-=head1 CURSOR CREATION
+=head1 EXAMPLE
 
 For reference, here's how to create a cursor from a desired glyph,
 
@@ -295,22 +296,22 @@ For reference, here's how to create a cursor from a desired glyph,
 
     $X->CloseFont ($cursor_font);
 
-    # then apply it with CreateWindow or ChangeWindowAttributes
+    # then use it with CreateWindow or ChangeWindowAttributes
     #       cursor => $cursor
 
 The cursor font can be kept open if used repeatedly.  Opening and closing
-isn't a round-trip, so opening when needed may be enough.
+isn't a round-trip, so an open when needed may be enough.
 
-Any RGB colours can be used, but the actual appearance on screen is limited
-by the hardware.  All cursors in the core protocol are just two-colour and
-pixels fully opaque or fully transparent.  The RENDER extension (when
-available) can do multi-colour and partial transparency if desired (see
-L<X11::Protocol::Ext::RENDER>).
+Any RGB colours can be given, but actual appearance on screen is limited by
+the hardware.  All cursors in the core protocol are just two-colour and
+pixels fully opaque or fully transparent like this create.  The RENDER
+extension (when available) can do multi-colour and partial transparency if
+desired (see L<X11::Protocol::Ext::RENDER>).
 
 =head1 SEE ALSO
 
-L<X11::KeySyms>,
 L<X11::Protocol>,
+L<X11::KeySyms>,
 L<xfd(1)>
 
 F</usr/include/X11/cursorfont.h> and listed in the Xlib manual appendix B

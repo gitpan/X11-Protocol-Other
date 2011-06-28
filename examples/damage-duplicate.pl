@@ -166,12 +166,11 @@ $X->CreateWindow ($window,
                   background_pixel => $X->black_pixel,
                   event_mask       => $X->pack_event_mask('Exposure'),
                  );
-$X->ChangeProperty($window,
-                   X11::AtomConstants::WM_NAME,  # property
-                   X11::AtomConstants::STRING,   # type
-                   8,                            # byte format
-                   'Replace',
-                   'Duplicate Window'); # window title
+X11::Protocol::WM::set_wm_class ($X, $window,
+                                 'damage-duplicate', 'DamageDuplicate');
+X11::Protocol::WM::set_wm_name ($X, $window, 'Duplicate Window'); # title
+X11::Protocol::WM::set_wm_icon_name ($X, $window, 'Duplicate');
+X11::Protocol::WM::set_wm_client_machine_from_syshostname ($X, $window);
 X11::Protocol::WM::set_net_wm_user_time($X, $window, $popup_time);
 $X->MapWindow ($window);
 

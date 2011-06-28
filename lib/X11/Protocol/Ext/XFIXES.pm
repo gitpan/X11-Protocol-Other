@@ -22,7 +22,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 10;
+$VERSION = 11;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -466,7 +466,7 @@ sub _ext_requests_install {
   }
 }
 sub _ext_const_error_install {
-  my $X = shift;
+  my $X = shift;  # ($X, $errname1,$errname2,...)
   ### _ext_const_error_install: @_
   my $error_num = shift;
   my $aref = $X->{'ext_const'}{'Error'}  # copy
@@ -498,7 +498,7 @@ X11::Protocol::Ext::XFIXES - miscellaneous "fixes" extension
 
 =head1 DESCRIPTION
 
-The XFIXES extension adds some extra features conceived as "fixing"
+The XFIXES extension adds some features which are conceived as "fixing"
 omissions in the core X11 protocol, including
 
 =over
@@ -509,8 +509,8 @@ Events for changes to the selection (the cut and paste between clients).
 
 =item *
 
-Current cursor image fetching, events for cursor change, and cursor naming
-and hiding.
+Current cursor image fetching, cursor change events, and cursor naming and
+hiding.
 
 =item *
 
@@ -611,17 +611,17 @@ the "hotspot" position within that, which is the pixel that follows the
 pointer location.
 
 C<$pixels> is a byte string of packed "ARGB" pixel values.  Each is 32-bits
-in client byte order, with C<$width> many for each row and C<$height> such
-rows, no padding in between, for a total C<4*$width*$height> bytes.  This
-can be unpacked with for instance
+in client byte order, with C<$width> many in each row and C<$height> such
+rows, with no padding in between, so a total C<4*$width*$height> bytes.
+This can be unpacked with for instance
 
     my @argb = unpack 'L*', $pixels; # each 0xAARRGGBB
 
     # top left pixel is in $argb[0]
-    my $blue  =  $argb[0]        & 0xFF;  # 0 to 255
-    my $green = ($argb[0] >> 8)  & 0xFF;  # components
-    my $red   = ($argb[0] >> 16) & 0xFF;
-    my $alpha = ($argb[0] >> 24) & 0xFF;
+    my $alpha = ($argb[0] >> 24) & 0xFF;  # each value
+    my $red   = ($argb[0] >> 16) & 0xFF;  # 0 to 255
+    my $green = ($argb[0] >> 8)  & 0xFF;
+    my $blue  =  $argb[0]        & 0xFF;
 
 The alpha transparency is pre-multiplied into the RGB components, so if the
 alpha is zero (transparent) then the components are zero too.
@@ -633,12 +633,11 @@ L<X11::Protocol::Ext::RENDER>) can make partially transparent cursors.
 There's no direct way to get the image of a cursor by its XID (except
 something dodgy like a C<GrabPointer> to make it the displayed cursor).
 Usually cursor XIDs are only ever created by a client itself so no need to
-read back (and they can't be read back out of an arbitrary window, though
-the XTEST extension can do some comparing, see
-L<X11::Protocol::Ext::XTEST>).
+read back (and the ID can't be read out of an arbitrary window -- though the
+XTEST extension can do some comparing, see L<X11::Protocol::Ext::XTEST>).
 
-See F<examples/xfixes-cursor-image.pl> for a sample program getting the
-cursor image with this request.
+See F<examples/xfixes-cursor-image.pl> in the X11-Protocol-Other sources for
+a sample program getting the cursor image with this request.
 
 =back
 
@@ -646,9 +645,12 @@ cursor image with this request.
 
 A region object on the server represents a set of rectangles, each
 x,y,width,height, with positive or negative x,y, and the set possibly made
-of disconnected sections, etc.  Since each rectangle might be simply 1x1 a
-region can represent any bitmap, but is geared towards the sort of rectangle
-sets arising from overlapping rectangular window areas etc.
+of disconnected sections, etc.  (Basically a server-side copy of the Xlib
+region code, see L<XCreateRegion(3)>.)
+
+Each rectangle might be just 1x1 for a single pixel, so a region can
+represent any bitmap, but it's geared towards the sort of rectangle
+arithmetic which arises from overlapping rectangular windows etc.
 
 =over
 
@@ -677,9 +679,9 @@ L<X11::Protocol::Ext::SHAPE>).
     my $region = $X->new_rsrc;
     $X->XFixesCreateRegionFromBitmap ($region, $window, 'Clip');
 
-It's not necessary to C<$X-E<gt>init_extension('SHAPE')> before using this
-request, the shape as such is just on the server and results in whatever
-rectangular or non-rectangular C<$region>.
+There's no need to C<$X-E<gt>init_extension('SHAPE')> before using this
+request.  Any shape is just on the server and results in a C<$region> of
+either a single rectangle or set of rectangles for a shape.
 
 =item C<$X-E<gt>XFixesCreateRegionFromGC ($region, $gc)>
 
@@ -786,8 +788,8 @@ This is similar to C<ShapeMask()> (see L<X11::Protocol::Ext::SHAPE>) with
 operation "Set" and a a region instead of a bitmap.
 
 It's not necessary to C<$X-E<gt>init_extension('SHAPE')> before using this
-request.  If SHAPE is not available at all on the server then presumably
-this request gives an error reply.
+request.  If SHAPE is not available on the server then presumably this
+request gives an error reply.
 
 =item C<$X-E<gt>XFixesSetPictureClipRegion ($picture, $clip_x_origin, $clip_y_origin, $region)>
 
@@ -804,9 +806,9 @@ without RENDER.
 =item C<$X-E<gt>XFixesSetCursorName ($cursor, $str)>
 
 Set a name for cursor object C<$cursor> (an XID).  The name string C<$str>
-is interned as an atom within the server and therefore should consist only
-of latin-1 characters.  (Perhaps in the future that might be enforced here,
-or wide chars converted.)
+is interned as an atom in the server and therefore should consist only of
+latin-1 characters.  (Perhaps in the future that might be enforced here, or
+wide chars converted.)
 
 =item C<($atom, $str) = $X-E<gt>XFixesGetCursorName ($cursor)>
 
@@ -846,8 +848,8 @@ Set region C<$dst> (an XID) to the rectangles of region C<$src>, with each
 rectangle expanded by C<$left>, C<$right>, C<$top>, C<$bottom> many pixels
 in those respective directions.
 
-It doesn't matter how C<$src> is expressed as rectangles, the effect is as
-if each pixel in C<$src> was individually expanded and the union of the
+Notice it doesn't matter how C<$src> is expressed as rectangles, the effect
+is as if each individual pixel in C<$src> was expanded and the union of the
 result taken.
 
 =back
@@ -863,10 +865,10 @@ result taken.
 Hide or show the mouse pointer cursor while it's in C<$window> (an XID) or
 any subwindow of C<$window>.
 
-This hide/show for each window is a per-client setting.  If more than one
+This hiding for each window is a per-client setting.  If more than one
 client requests hiding then the cursor remains hidden until all of them
-"show" again.  If a client disconnects or is killed then any hides it has
-are undone.
+"show" again.  If a client disconnects or is killed then its hides are
+automatically undone.
 
 =back
 
@@ -916,22 +918,27 @@ changed.  It has the following event-specific fields,
     window          XID
     cursor_serial   integer
     time            integer, server timestamp
-    cursor_name     atom or "None", in XFIXES 2.0 up
+    cursor_name     atom or "None" (XFIXES 2.0 up)
 
 C<subtype> is "DisplayCursor" when the displayed cursor has changed.  This
 is the only subtype currently.
 
 C<cursor_serial> is a serial number as per C<XFixesGetCursorImage>.
-A client can use this to notice when the cursor changes to something it has
-already fetched with C<XFixesGetCursorImage>.
+A client can use this to notice when the displayed cursor is something it
+has already fetched with C<XFixesGetCursorImage>.
 
 C<cursor_name> is the atom of the name given to the cursor by
 C<XFixesSetCursorName>, or string "None" if no name.  This field is new in
 XFIXES 2.0 and is present in the event unpack only if the server does XFIXES
-2.0 or higher.  In an C<$X-E<gt>pack_event()>, C<cursor_name> is optional
-and the field is set if given.
+2.0 or higher.  For C<$X-E<gt>pack_event()>, C<cursor_name> is optional and
+the field is set if given.
 
 =back
+
+=head1 ERRORS
+
+Error type "Region" is a bad C<$region> resource XID in a request (XFIXES
+2.0 up).
 
 =head1 SEE ALSO
 

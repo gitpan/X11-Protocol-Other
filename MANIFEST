@@ -19,16 +19,31 @@ devel/cursor-transparent.pl
 devel/damage.pl
 devel/dbe.pl
 devel/dpms.pl
+devel/encode-all.el
+devel/encode-all.pl
+devel/encode-dump.c
+devel/encode-run.el
+devel/encode-run.pl
+devel/Encode-X11-xlib.c
+devel/Encode-X11-xlib.t
+devel/Encode-X11-xlib2.c
+devel/encode-xlib-out.pl
+devel/encode-xlib.c
+devel/frame-to-client.pl
 devel/grab.pl
 devel/icon-window.pl
 devel/kill-client.pl
+devel/lib/X11/Protocol/Ext/DRI2.pm
+devel/lib/X11/Protocol/Ext/SYNC.pm
 devel/lib/X11/Protocol/Ext/TOG_CUP.pm
+devel/lib/X11/Protocol/Ext/XFree86_DGA.pm
 devel/lib/X11/Protocol/Ext/XTEST.pm
 devel/magnifier.pl
 devel/Makefile
 devel/maybe/CursorConstants.pm
 devel/mwm-hints-tearoff.pl
 devel/mydmx
+devel/pointer-mapping.pl
 devel/saver.pl
 devel/screensaver-info.c
 devel/setroot.pl
@@ -36,6 +51,7 @@ devel/shm-id.pl
 devel/shm-without.pl
 devel/shm.pl
 devel/wm-icon-size.pl
+devel/WM-maybe.pl
 devel/wm-user-time.pl
 devel/wm.pl
 devel/XFIXES-5.t
@@ -54,6 +70,8 @@ examples/xresource-pairwise.pl
 examples/xresource-print.pl
 inc/my_pod2html
 inc/MyMakeMakerExtras.pm
+inc/MyModuleUtils_without.pm
+lib/Encode/X11.pm
 lib/X11/AtomConstants.pm
 lib/X11/CursorFont.pm
 lib/X11/Protocol/ChooseWindow.pm
@@ -85,6 +103,8 @@ t/DAMAGE-load.t
 t/DAMAGE.t
 t/DOUBLE_BUFFER-load.t
 t/DOUBLE_BUFFER.t
+t/Encode-X11-cns.t
+t/Encode-X11.t
 t/GrabServer-load.t
 t/GrabServer.t
 t/lib/Test/Without/Shm.pm
@@ -102,6 +122,7 @@ t/Other-import.t
 t/Other-load.t
 t/Other.t
 t/WM-import.t
+t/WM-wide.t
 t/WM.t
 t/X_Resource-load.t
 t/X_Resource.t
@@ -116,6 +137,7 @@ t/XINERAMA-11.t
 t/XINERAMA-load.t
 t/XSetRoot.t
 xt/0-examples-xrefs.t
+xt/0-file-is-part-of.t
 xt/0-META-read.t
 xt/0-no-debug-left-on.t
 xt/0-Test-ConsistentVersion.t
@@ -123,4 +145,7 @@ xt/0-Test-DistManifest.t
 xt/0-Test-Pod.t
 xt/0-Test-Synopsis.t
 xt/0-Test-YAML-Meta.t
+xt/Encode-round.t
+xt/Encode-X11-emacs.el
+xt/Encode-X11-emacs.t
 META.yml                                 Module meta-data (added by MakeMaker)

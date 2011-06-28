@@ -32,24 +32,29 @@ use Smart::Comments;
   #------------------------------------------------------------------------------
   # MOTIF_WM_HINTS
 
-  # set_MOTIF_WM_HINTS
-  # what's in "status" ?
-  # just "application_modal" ?
+  # arrayref packing ... ?
 
-  # =item C<_set_motif_wm_hints ($X, $window, key=E<gt>value...)>
+  # =item C<X11::Protocol::WM::set_motif_wm_hints ($X, $window, key=E<gt>value...)>
   #
-  # Set the C<MOTIF_WM_HINTS> property on C<$window> (an XID).  These hints
-  # are used by the Motif window manager and by many other compatible window
-  # managers.  The key/value arguments are
+  # Set the C<MOTIF_WM_HINTS> property on C<$window> (an XID).  This
+  # controls decorations around the window.  It originated in the Motif
+  # window manager but is recognised by many other window managers too.  For
+  # example
   #
-  #     functions       arrayref
-  #     decorations     arrayref
+  #     X11::Protocol::WM::set_motif_wm_hints
+  #       ($X, $window,
+  #        functions => ['move','close'],
+  #        decorations => ['border','title','menu']);
+  #
+  # The key/value arguments are
+  #
+  #     functions       arrayref, or integer bits
+  #     decorations     arrayref, or integer bits
   #     input_mode      enum string or integer
-  #     status
+  #     status          arrayref, or integer bits
   #
-  # C<functions> is an arrayref of strings for what operations the window
-  # manager should offer on the window in a drop-down menu or similar.  The
-  # default is "all".
+  # C<functions> is what operations the window manager should offer on the
+  # window in a drop-down menu or similar.  The default is "all".
   #
   #     "all"         all functions
   #     "resize"      to resize the window
@@ -58,41 +63,47 @@ use Smart::Comments;
   #     "maximize"    to make full-screen (but still with a frame)
   #     "close"       to close the window
   #
-  # C<decorations> is an arrayref of some of the following strings for what
-  # visual decorations the window manager should draw around the window.  The
-  # default is "all".
+  # C<decorations> is what visual decorations the window manager should show
+  # around the window.  The default is "all".
   #
-  #     "all"          draw all decorations
+  #     "all"          show all decorations
   #     "border"       a border around the window
   #     "resizeh"      handles to resize by dragging
-  #     "title"        show WM_NAME across the top etc
-  #     "menu"         drop-down menu of "functions" above
-  #     "minimize"     button minimize, ie. iconify, button
-  #     "maximize"     button to maximize, ie full-screen
+  #     "title"        title bar showing WM_NAME
+  #     "menu"         drop-down menu of the "functions" above
+  #     "minimize"     button to minimize, ie. iconify
+  #     "maximize"     button to maximize, ie. full-screen
   #
   # C<input_mode> allows a window to be "modal", meaning the user should
-  # interact only with that window.  For this the window manager will
-  # generally keep it on top, not set the focus to other windows, etc.  The
-  # value is one of the following strings,
+  # interact only with that window.  The window manager will generally keep
+  # it on top, not set the focus to other windows, etc.  The value is one of
+  # the following strings,
   #
-  #     "modeless"                         not modal (the default)
-  #     "primary_application_modal"      \ modal to its "transient for" parent,
-  #     "application_modal"              /  but not other toplevels
-  #     "system_modal"                     modal to the whole display
-  #     "full_application_modal"           modal to the current client
+  #     "modeless"                    0    not modal (the default)
+  #     "primary_application_modal"   1    modal to its "transient for"
+  #     "system_modal"                2    modal to the whole display
+  #     "full_application_modal"      3    modal to the current client
   #
-  # C<primary_application_modal> and C<application_modal> are two names for
-  # the same thing.
-  #
-  # C<status> field is an arrayref of some of the following strings (but
-  # currently just one choice).
+  # C<status> field is an arrayref of some of the following strings, though
+  # currently there's just one,
   #
   #     "tearoff_window"     is a tearoff menu
   #
-  # In Motif C<mwm>, C<tearoff_window> means a title (C<WM_NAME>) shown in the
-  # title bar is not truncated, but instead the window expanded as necessary.
+  # In Motif C<mwm>, C<tearoff_window> means the C<WM_NAME> in window's
+  # title bar is not truncated to the window size but instead the window
+  # expanded as necessary to show it in full.  This might be good for
+  # tearoff menus.  (Don't be surprised if other window managers ignore this
+  # flag though.)
   #
-
+  #     X11::Protocol::WM::set_motif_wm_hints
+  #       ($X, $my_tearoff_win,
+  #        status => ['tearoff_window']);
+  #
+  # SEE ALSO
+  #
+  # F</usr/include/Xm/MwmUtil.h>, and C<mwm> sources F<WmWinInfo.c>
+  # C<ProcessWmWindowTitle()> on C<tearoff_window> flag handling.
+  #
   sub _set_motif_wm_hints {
     my $X = shift;
     my $window = shift;
@@ -167,7 +178,7 @@ use Smart::Comments;
   {
     my %input_mode_num = (modeless                  => 0,
                           primary_application_modal => 1,
-                          application_modal         => 1,
+                          # application_modal         => 1,
                           system_modal              => 2,
                           full_application_modal    => 3,
                          );
