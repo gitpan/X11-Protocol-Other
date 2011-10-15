@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = 148;
+my $test_count = (tests => 148)[1];
 plan tests => $test_count;
 
 require X11::AtomConstants;
@@ -55,7 +55,7 @@ $X->QueryPointer($X->{'root'});  # sync
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 11;
+my $want_version = 12;
 ok ($X11::AtomConstants::VERSION,
     $want_version,
     'VERSION variable');

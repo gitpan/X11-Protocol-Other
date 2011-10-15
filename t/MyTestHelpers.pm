@@ -70,7 +70,7 @@ sub DEBUG { 0 }
 }
 
 sub diag {
-  if (Test::More->can('diag')) {
+  if (eval { Test::More->can('diag') }) {
     Test::More::diag (@_);
   } else {
     my $msg = join('', map {defined($_)?$_:'[undef]'} @_)."\n";
@@ -257,7 +257,7 @@ sub wait_for_event {
 sub X11_chosen_screen_number {
   my ($X) = @_;
   my $i;
-  foreach (0 .. $#{$X->{'screens'}}) {
+  foreach $i (0 .. $#{$X->{'screens'}}) {
     if ($X->{'screens'}->[$i]->{'root'} == $X->{'root'}) {
       return $i;
     }

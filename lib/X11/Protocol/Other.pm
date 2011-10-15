@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 11;
+$VERSION = 12;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -138,9 +138,9 @@ sub hexstr_to_rgb {
   ### hexstr_to_rgb(): $str
   # Crib: [:xdigit:] is new in 5.6, so only 0-9A-F
   $str =~ /^#(([0-9A-F]{3}){1,4})$/i or return;
-  my $len = length($1)/3;
-  return (map {hex(substr($_ x 4, 0, 4))}
-          substr ($str, 1, $len),
+  my $len = length($1)/3; # of each group, so 1,2,3 or 4
+  return (map {hex(substr($_ x 4, 0, 4))}  # first 4 chars of replicated
+          substr ($str, 1, $len),      # full groups
           substr ($str, 1+$len, $len),
           substr ($str, -$len));
 }

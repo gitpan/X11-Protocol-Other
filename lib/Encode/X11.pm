@@ -31,7 +31,7 @@ use Carp;
 use Encode ();
 use Encode::Encoding;
 
-our $VERSION = 11;
+our $VERSION = 12;
 our @ISA = ('Encode::Encoding');
 
 # uncomment this to run the ### lines
@@ -62,21 +62,21 @@ my @coding = ('iso-8859-1',
 # $esc[$i] corresponding to $coding[$i]
 my @esc = (
            # Esc 0x2D switch GR 0x80-0xFF
-           "\x1B\x2D\x41", # iso-8859-1 GR
-           "\x1B\x2D\x42", # iso-8859-2 GR
-           "\x1B\x2D\x43", # iso-8859-3 GR
-           "\x1B\x2D\x44", # iso-8859-4 GR
-           "\x1B\x2D\x46", # iso-8859-7 GR
+           "\x1B\x2D\x41", # iso-8859-1 GR    Esc-A
+           "\x1B\x2D\x42", # iso-8859-2 GR    Esc-B
+           "\x1B\x2D\x43", # iso-8859-3 GR    Esc-C
+           "\x1B\x2D\x44", # iso-8859-4 GR    Esc-D
+           "\x1B\x2D\x46", # iso-8859-7 GR    Esc-F
            "\x1B\x2D\x47", # iso-8859-6 GR
            "\x1B\x2D\x48", # iso-8859-8 GR
            "\x1B\x2D\x4C", # iso-8859-5 GR
            "\x1B\x2D\x4D", # iso-8859-9 GR
            "\x1B\x29\x49", # jis 201 right half  GR
 
-           "\x1B\x24\x28\x42", # jis 208  GL
-           "\x1B\x24\x28\x43", # ksc 5601 GL
-           "\x1B\x24\x28\x44", # jis 212  GL
-           "\x1B\x24\x28\x41", # gb 2312  GL
+           "\x1B\x24\x28\x42", # jis 208  GL    Esc$(B
+           "\x1B\x24\x28\x43", # ksc 5601 GL    Esc$(C
+           "\x1B\x24\x28\x44", # jis 212  GL    Esc$(D
+           "\x1B\x24\x28\x41", # gb 2312  GL    Esc$(A
 
            # FIXME: any merit generating these, when available?
            # "\x1B\x24\x28\x47" => 'cns11643-1', # Encode::HanExtra
@@ -268,7 +268,7 @@ my %esc_to_coding =
   # "\x1B\x24\x28\x30" => 'big5-eten', # E0
   # Emacs chinese-big5-2, C940-FEFE
   # "\x1B\x24\x28\x31" => 'big5-hkscs',
-  
+
   # Emacs mule ipa or chinese-sisheng ?
   # "\x1B\x2D\x30" => 'ipa',
   # Emacs mule viscii ?

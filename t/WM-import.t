@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = 4;
+my $test_count = (tests => 4)[1];
 plan tests => $test_count;
 
 use X11::Protocol::WM
@@ -36,7 +36,8 @@ use X11::Protocol::WM
   'set_wm_client_machine_from_syshostname',
   'set_wm_command',
   'set_wm_hints',
-  'set_wm_name', 'set_wm_icon_name',
+  'set_wm_icon_name',
+  'set_wm_name',
   'set_wm_protocols',
   'set_wm_transient_for',
   'set_net_wm_pid',

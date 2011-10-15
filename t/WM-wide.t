@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = 5;
+my $test_count = (tests => 5)[1];
 plan tests => $test_count;
 
 require X11::Protocol::WM;
@@ -33,14 +33,12 @@ require X11::Protocol::WM;
 require X11::Protocol;
 MyTestHelpers::diag ("X11::Protocol version ", X11::Protocol->VERSION);
 
-BEGIN {
-  if ($] < 5.008) {
-    MyTestHelpers::diag ("This not applicable in perl < 5.8.0, have perl $]");
-    foreach (1 .. $test_count) {
-      skip ("not perl 5.8", 1, 1);
-    }
-    exit 0;
+if ($] < 5.008) {
+  MyTestHelpers::diag ("This not applicable in perl < 5.8.0, have perl $]");
+  foreach (1 .. $test_count) {
+    skip ("not perl 5.8", 1, 1);
   }
+  exit 0;
 }
 
 my $display = $ENV{'DISPLAY'};

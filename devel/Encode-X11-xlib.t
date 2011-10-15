@@ -31,7 +31,7 @@ use lib 't';
 use MyTestHelpers;
 MyTestHelpers::nowarnings();
 
-my $test_count = 3;
+my $test_count = (tests => 3)[1];
 plan tests => $test_count;
 
 if (! eval { require Encode }) {

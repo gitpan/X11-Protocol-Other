@@ -22,7 +22,7 @@ use Carp;
 use X11::AtomConstants;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 11;
+$VERSION = 12;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -59,7 +59,7 @@ use Exporter;
 BEGIN {
   eval 'utf8->can("is_utf8") && *is_utf8 = \&utf8::is_utf8'   # 5.8.1
     || eval 'use Encode "is_utf8"; 1'                         # 5.8.0
-      || eval 'sub is_utf8 () { 0 }; 1'                       # 5.6 fallback
+      || eval 'sub is_utf8 { 0 }; 1'                          # 5.6 fallback
         || die 'Oops, cannot create is_utf8() subr: ',$@;
     }
 ### \&is_utf8
@@ -805,7 +805,8 @@ Set the C<WM_NAME> property on C<$window> (an XID) to C<$name> (a string).
 
 The window manager might display this as a title above the window, in a menu
 of windows, etc.  C<$name> can be a Perl 5.8 wide-char string per L</Text>
-above.
+above (though support for non-ascii titles tends to be a bit variable among
+different window managers).
 
 =item C<X11::Protocol::WM::set_wm_icon_name ($X, $window, $name)>
 

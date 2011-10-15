@@ -26,7 +26,7 @@ use lib 't';
 use MyTestHelpers;
 MyTestHelpers::nowarnings();
 
-my $test_count = 30;
+my $test_count = (tests => 30)[1];
 plan tests => $test_count;
 
 if (! eval { require Encode }) {
@@ -43,7 +43,7 @@ require Encode::X11;
 # VERSION
 
 {
-  my $want_version = 11;
+  my $want_version = 12;
   ok ($Encode::X11::VERSION, $want_version, 'VERSION variable');
   ok (Encode::X11->VERSION,  $want_version, 'VERSION class method');
 

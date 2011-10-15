@@ -1,5 +1,5 @@
-# mem address as 64-bit
-# OperationNotSupported error name too generic?
+# ...
+
 
 
 # Copyright 2011 Kevin Ryde
@@ -20,7 +20,7 @@
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
 BEGIN { require 5 }
-package X11::Protocol::Ext::XFree86_DGA;
+package X11::Protocol::Ext::XFree86_VidModeExtension;
 use strict;
 use X11::Protocol;
 
@@ -32,35 +32,21 @@ $VERSION = 12;
 use Smart::Comments;
 
 
-# /usr/include/X11/extensions/xf86dga1const.h
-# /usr/include/X11/extensions/xf86dga1proto.h
-#
-# /usr/include/X11/extensions/xf86dgaconst.h
-# /usr/include/X11/extensions/xf86dgaproto.h
+# /usr/include/X11/extensions/xf86vm.h
+# /usr/include/X11/extensions/xf86vmproto.h
 #
 # /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
 
-### XFree86_DGA.pm loads
+### XFree86_VidModeExtension.pm loads
 
 # these not documented yet ...
 use constant CLIENT_MAJOR_VERSION => 2;
 use constant CLIENT_MINOR_VERSION => 1;
 
 #------------------------------------------------------------------------------
-# symbolic constants
-
-my %const_arrays
-  = (XDGAPixmapMode =>  ['Large','Small'],
-    );
-my %const_hashes
-  = (map { $_ => { X11::Protocol::make_num_hash($const_arrays{$_}) } }
-     keys %const_arrays);
-
-
-#------------------------------------------------------------------------------
 # events
 
-my $XF86GA_event
+my $XF86VidModeNotify_event
   = [ 'xCxxLsssSx16',
       'detail',
       'time',
@@ -70,13 +56,12 @@ my $XF86GA_event
       'state',
     ];
 
-
 #------------------------------------------------------------------------------
 # requests
 
 my $reqs =
   [
-   ['XF86DGAQueryVersion',  # 0
+   ['XF86VidModeQueryVersion',  # 0
     &_request_empty,
     sub {
       my ($X, $data) = @_;
@@ -87,72 +72,74 @@ my $reqs =
       # ### $server_major
       # ### $server_minor
       # my $self;
-      # if ($self = $self->{'ext'}{'XFree86_DGA'}->[3]) {
+      # if ($self = $self->{'ext'}{'XFree86_VidModeExtension'}->[3]) {
       #   $self->{'major'} = $server_major;
       #   $self->{'minor'} = $server_minor;
       # }
       # return ($server_major, $server_minor);
     }],
 
-   ['XF86DGAGetVideoLL',  # 1
-    \&_request_screen16,
+   ['XF86VidModeGetModeLine',  # 1
+    \&_request_screen,
     sub {
       my ($X, $data) = @_;
-      return unpack 'x8L4', $data; # (offset,width,bank_size,ram_size)
+      die;
     },
    ],
 
-   ['XF86DGADirectVideo',  # 2
+   ['XF86VidModeModModeLine',  # 2
     sub {
-      my ($X, $screen, $enable) = @_;
-      return pack 'SS', $screen, $enable;
+      shift;
+      # ($X, $screen, 
+      #  $hdisplay,
+      #  $hsyncstart,
+      #  $hsyncend,
+      #  $htotal,
+      #  $hskew,
+      #  $vdisplay,
+      #  $vsyncstart,
+      #  $vsyncend,
+      #  $vtotal,
+      # $flags,
+      # or 'LS9xxLx4' in 0.x protocol ...
+      return pack 'LS9xxLx12x4', $screen, $enable;
     }],
 
-   ['XF86DGAGetViewPortSize',  # 3
-    \&_request_screen16,
+   ['XF86VidModeSwitchMode',  # 3
+    \&_request_screen,
     sub {
       my ($X, $data) = @_;
-      return unpack 'x8LL', $data; # (width,height)
+      die;
     },
    ],
 
-   ['XF86DGASetViewPort',  # 4
-    sub {
-      shift;  # ($X, $screen, $x, $y)
-      return pack 'SxxLL', @_;
-    },
-   ],
-
-   ['XF86DGAGetVidPage',  # 5
-    \&_request_screen16,
+   ['XF86VidModeGetMonitor',  # 4
+    \&_request_screen,
     sub {
       my ($X, $data) = @_;
-      return unpack 'x8L', $data; # (vidpage)
+      die;
     },
    ],
 
-   ['XF86DGASetVidPage',  # 6
-    sub {
-      shift;  # ($X, $screen, $vidpage)
-      return pack 'SS', @_;
-    },
+   ['XF86VidModeLockModeSwitch',  # 5
+    \&_request_screen,
    ],
 
-   ['XF86DGAInstallColormap',  # 7
+   ['XF86VidModeGetAllModeLines',  # 6
+    \&_request_screen,
+   ],
+
+   ['XF86VidModeAddModeLine',  # 7
     sub {
-      my ($X, $screen, $colormap) = @_;
-      return pack 'SxxL', $screen, $colormap;
+      my ($X, $screen) = @_;
+      die;
     }],
 
-   ['XF86DGAQueryDirectVideo',  # 8
-    \&_request_screen16,
-    sub {
-      my ($X, $data) = @_;
-      return unpack 'x8L', $data; # (flags)
-    },
+   ['XF86VidModeDeleteModeLine',  # 8
+    \&_request_screen,
    ],
 
-   ['XF86DGAViewPortChanged',  # 9
+   ['XF86VidModeValidateModeLine',  # 9
     sub {
       shift;  # ($X, $screen, $n)
       return pack 'SS', @_;
@@ -162,99 +149,63 @@ my $reqs =
       return unpack 'x8L', $data; # (result)
     } ],
 
+   ['XF86VidModeSwitchToMode',   # 10
+    \&_request_screen,
+   ],
+
+   ['XF86VidModeGetViewPort',   # 11
+    \&_request_screen,
+   ],
+
+   ['XF86VidModeSetViewPort',   # 12
+    \&_request_screen,
+   ],
+
    #---------------------------------------------------------------------------
-   # version ...
+   # protocol 2.0
 
-   undef,  # 10
-   undef,  # 11
-
-   ['XDGAQueryModes',   # 12
-    \&_request_screen16,
-   ],
-   ['XDGASetMode',  # 13
-    sub {
-      shift;  # ($X, $screen, $mode, $pid)
-      return pack 'L3', @_;
-    },
+   ['XF86VidModeGetDotClocks',  # 13
+    \&_request_screen,
    ],
 
-   [ 'XDGASetViewport',  # 14
+   [ 'XF86VidModeSetClientVersion',  # 14
      sub {
        shift;  # ($X, $screen, $x, $y, $flags)
        return pack 'LSSL', @_;
      },
    ],
 
-   [ 'XDGAInstallColormap', # 15
+   [ 'XF86VidModeSetGamma', # 15
      \&_request_card32s ],  # ($X, $screen, $colormap)
 
-   [ 'XDGASelectInput', # 16
+   [ 'XF86VidModeGetGamma', # 16
      \&_request_card32s ],  # ($X, $screen, $mask)
 
-   [ 'XDGAFillRectangle', # 17
+   [ 'XF86VidModeGetGammaRamp', # 17
      sub {
        shift;  # ($X, $screen, $x, $y, $width, $height, $color)
        return pack 'LSSSSL', @_;
      } ],
 
-   [ 'XDGACopyArea',  # 18
+   [ 'XF86VidModeSetGammaRamp',  # 18
      sub {
        shift;  # ($X, $screen, $src_x,$src_y, $width,$height, $dst_x,$dst_y)
-       return pack 'LS*', @_;  # x,y's are CARD16s, so unsigned
+       return pack 'LS*', @_;
      } ],
 
-   [ 'XDGACopyTransparentArea',  # 19
+   [ 'XF86VidModeGetGammaRampSize',  # 19
      sub {
        shift;
        # ($X, $screen, $src_x,$src_y, $width,$height, $dst_x,$dst_y, $key)
-       return pack 'LS6L', @_;  # x,y's are CARD16s, so unsigned
+       return pack 'LS6L', @_;
      } ],
 
-   [ 'XDGAGetViewportStatus',  # 20
-     \&_request_screen16 ],
-
-   [ 'XDGASync',  # 21
-     \&_request_screen16,
-     sub {  # ($X, $data)  empty
-       return;
-     } ],
-
-   [ 'XDGAOpenFramebuffer',  # 22
-     \&_request_screen16,
-     sub {
-       my ($X, $data) = @_;
-       return unpack 'x8L6', $data; # (mem1,mem2,size,offset,extra)
-     } ],
-
-   [ 'XDGACloseFramebuffer', # 23
-     \&_request_screen16 ],
-
-   [ 'XDGASetClientVersion', # 24
-     sub {
-       shift;
-       # ($X, $client_major, $client_minor)
-       return pack 'SS', @_;
-     } ],
-
-   [ 'XDGAChangePixmapMode',  # 25
-     sub {
-       shift;  # ($X, $screen, $x, $y, $flags)
-       return pack 'LSSL', @_;
-     },
-     sub {
-       my ($X, $data) = @_;
-       return unpack 'x8SS', $data; # (x,y)
-     },
+   [ 'XF86VidModeGetPermissions',  # 20
+     \&_request_screen,
    ],
-
-   [ 'XDGACreateColormap',  # 26
-     sub {
-       shift;  # ($X, $screen, $id, $mode, $alloc)
-       return pack 'LLLCxxx', @_;
-     } ],
   ];
 
-sub _request_screen16 {
+sub _request_screen {
   shift;  # ($X, $screen)
   return pack 'Sxx', @_;
 },
@@ -270,20 +221,21 @@ sub _num_none {
 
 sub new {
   my ($class, $X, $request_num, $event_num, $error_num) = @_;
-  ### XF86DGA new()
+  ### XF86VidMode new()
 
   # Requests
   _ext_requests_install ($X, $request_num, $reqs);
 
   # Errors
   _ext_const_error_install ($X, $error_num,
-                            'ClientNotLocal',        # 0
-                            'NoDirectVideoMode',     # 1
-                            'ScreenNotActive',       # 2
-                            'DirectNotActivated',    # 3
-                            'OperationNotSupported', # 4
+                            'XF86VidModeBadClock',           # 0
+                            'XF86VidModeBadHTimings',        # 1
+                            'XF86VidModeBadVTimings',        # 2
+                            'XF86VidModeModeUnsuitable',     # 3
+                            'XF86VidModeExtensionDisabled',  # 4
+                            'XF86VidModeClientNotLocal',     # 5
+                            'XF86VidModeZoomLocked',         # 6
                            );
-  # ($server_major >= 2 ? (...) : ()));
 
   return bless { }, $class;
 }
@@ -320,31 +272,31 @@ __END__
 
 =head1 NAME
 
-X11::Protocol::Ext::XFree86_DGA - direct video memory access
+X11::Protocol::Ext::XFree86_VidModeExtension - video modes
 
 =head1 SYNOPSIS
 
  use X11::Protocol;
  my $X = X11::Protocol->new;
- $X->init_extension('XFree86-DGA')
-   or print "XFree86-DGA extension not available";
+ $X->init_extension('XFree86-VidModeExtension')
+   or print "XFree86-VidModeExtension extension not available";
 
 =head1 DESCRIPTION
 
-The XFree86-DGA extension ...
+The XFree86-VidModeExtension extension ...
 
 =head1 REQUESTS
 
 The following requests are made available with an C<init_extension()>, as
 per L<X11::Protocol/EXTENSIONS>.
 
-    my $is_available = $X->init_extension('XFree86-DGA');
+    my $is_available = $X->init_extension('XFree86-VidModeExtension');
 
-=head2 XFree86-DGA 1.0
+=head2 XFree86-VidModeExtension 1.0
 
 =over
 
-=item C<($server_major, $server_minor) = $X-E<gt>XF86DGAQueryVersion ()>
+=item C<($server_major, $server_minor) = $X-E<gt>XF86VidModeQueryVersion ()>
 
 Return the DGA protocol version implemented by the server.
 

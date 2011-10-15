@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = 129;
+my $test_count = (tests => 129)[1];
 plan tests => $test_count;
 
 require X11::Protocol::WM;
@@ -87,7 +87,7 @@ sub to_hex {
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 11;
+my $want_version = 12;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');

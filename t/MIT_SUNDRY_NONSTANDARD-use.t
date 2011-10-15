@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2010, 2011 Kevin Ryde
+# Copyright 2011 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -18,29 +18,29 @@
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
 ## no critic (RequireUseStrict, RequireUseWarnings)
-use X11::Protocol::Ext::MIT_SHM;
+use X11::Protocol::Ext::MIT_SUNDRY_NONSTANDARD;
 
 use Test;
-BEGIN { plan tests => 5 }
-ok (1, 1, 'X11::Protocol::Ext::MIT_SHM load as first thing');
+plan tests => 5;
+ok (1, 1, 'X11::Protocol::Ext::MIT_SUNDRY_NONSTANDARD load as first thing');
 
 
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 11;
-ok ($X11::Protocol::Ext::MIT_SHM::VERSION,
+my $want_version = 12;
+ok ($X11::Protocol::Ext::MIT_SUNDRY_NONSTANDARD::VERSION,
     $want_version,
     'VERSION variable');
-ok (X11::Protocol::Ext::MIT_SHM->VERSION,
+ok (X11::Protocol::Ext::MIT_SUNDRY_NONSTANDARD->VERSION,
     $want_version,
     'VERSION class method');
 
-ok (eval { X11::Protocol::Ext::MIT_SHM->VERSION($want_version); 1 },
+ok (eval { X11::Protocol::Ext::MIT_SUNDRY_NONSTANDARD->VERSION($want_version); 1 },
     1,
     "VERSION class check $want_version");
 my $check_version = $want_version + 1000;
-ok (! eval { X11::Protocol::Ext::MIT_SHM->VERSION($check_version); 1 },
+ok (! eval { X11::Protocol::Ext::MIT_SUNDRY_NONSTANDARD->VERSION($check_version); 1 },
     1,
     "VERSION class check $check_version");
 

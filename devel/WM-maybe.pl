@@ -485,8 +485,51 @@ sub _net_wm_state_atom_interp {
 #------------------------------------------------------------------------------
 # _NET_WM_NAME
 
+# =item C<set_wm_name_and_net_wm_name ($X, $window, $name)>
+#
+sub set_wm_name_and_net_wm_name {
+  my ($X, $window, $name) = @_;
+  set_wm_name($X,$window,$name);
+
+  my $prop = $X->atom('_NET_WM_NAME');
+  if (defined $name) {
+    if (is_utf8($name)) {
+      require Encode;
+      $name = Encode::encode('utf-8', $name); # default with substitution chars
+    } else {
+      $name = _latin1_to_utf8($name);
+    }
+    $X->ChangeProperty ($window,
+                        $prop,                    # prop name
+                        $X->atom('UTF8_STRING'),  # type
+                        8,                        # format
+                        'Replace',
+                        $name);
+  } else {
+    $X->DeleteProperty ($window, $prop);
+  }
+}
+
+sub _latin1_to_utf8 {
+  my ($str) = @_;
+  $str =~ s{([0x80-0xFF])}
+           {my $ord = ord($1);
+            $ord < 0xC0 ? "\xC2".$1 : "\xC3".chr($ord-0x40)
+          }xe;
+  return $str;
+}
+
 # =item C<_set_net_wm_name ($X, $window, $name)>
 #
+# Set the C<_NET_WM_NAME> property to C<$name>.  The name is per L</Text>
+# above, and is converted to a utf-8 for the property as necessary.
+#
+# Generally speaking C<_NET_WM_NAME> is superfluous.  It does nothing that
+# C<WM_NAME> doesn't already do.  But a few slack window managers might work
+# better on non-ascii/non-latin1 names as utf8 in C<_NET_WM_NAME> than
+# compound text in C<WM_NAME>.
+
+
 # Set the C<_NET_WM_NAME> property on C<$window>.  This has the same purpose
 # as C<WM_NAME> above, but is encoded as "UTF8_STRING".
 #

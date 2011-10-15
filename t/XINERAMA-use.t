@@ -17,41 +17,39 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-
 ## no critic (RequireUseStrict, RequireUseWarnings)
-use X11::Protocol::Ext::DAMAGE;
+use X11::Protocol::Ext::XINERAMA;
 
 use Test;
 BEGIN { plan tests => 7 }
-ok (1, 1, 'X11::Protocol::Ext::DAMAGE load as first thing');
+ok (1, 1, 'X11::Protocol::Ext::XINERAMA load as first thing');
 
 
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 11;
-ok ($X11::Protocol::Ext::DAMAGE::VERSION,
+my $want_version = 12;
+ok ($X11::Protocol::Ext::XINERAMA::VERSION,
     $want_version,
     'VERSION variable');
-ok (X11::Protocol::Ext::DAMAGE->VERSION,
+ok (X11::Protocol::Ext::XINERAMA->VERSION,
     $want_version,
     'VERSION class method');
 
-ok (eval { X11::Protocol::Ext::DAMAGE->VERSION($want_version); 1 },
+ok (eval { X11::Protocol::Ext::XINERAMA->VERSION($want_version); 1 },
     1,
     "VERSION class check $want_version");
 my $check_version = $want_version + 1000;
-ok (! eval { X11::Protocol::Ext::DAMAGE->VERSION($check_version); 1 },
+ok (! eval { X11::Protocol::Ext::XINERAMA->VERSION($check_version); 1 },
     1,
     "VERSION class check $check_version");
 
 #------------------------------------------------------------------------------
 # CLIENT_MAJOR_VERSION / CLIENT_MINOR_VERSION
 
-ok (X11::Protocol::Ext::DAMAGE::CLIENT_MAJOR_VERSION(), 1,
+ok (X11::Protocol::Ext::XINERAMA::CLIENT_MAJOR_VERSION(), 1,
     'CLIENT_MAJOR_VERSION');
-ok (X11::Protocol::Ext::DAMAGE::CLIENT_MINOR_VERSION(), 1,
+ok (X11::Protocol::Ext::XINERAMA::CLIENT_MINOR_VERSION(), 1,
     'CLIENT_MINOR_VERSION');
-
 
 exit 0;

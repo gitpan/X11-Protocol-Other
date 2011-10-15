@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = 4;
+my $test_count = (tests => 4)[1];
 plan tests => $test_count;
 
 use X11::Protocol::Other qw(root_to_screen

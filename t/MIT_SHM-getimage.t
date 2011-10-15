@@ -30,7 +30,7 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-my $test_count = 8;
+my $test_count = (tests => 8)[1];
 plan tests => $test_count;
 
 # supplied with perl 5.005, might not be available earlier

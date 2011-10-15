@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = 106;
+my $test_count = (tests => 106)[1];
 plan tests => $test_count;
 
 require X11::Protocol::Other;
@@ -59,7 +59,7 @@ $X->QueryPointer($X->{'root'});  # sync
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 11;
+my $want_version = 12;
 ok ($X11::Protocol::Other::VERSION,
     $want_version,
     'VERSION variable');

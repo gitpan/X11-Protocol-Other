@@ -24,7 +24,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '$_instance';
-$VERSION = 11;
+$VERSION = 12;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -47,12 +47,11 @@ sub _X {
 }
 
 sub choose {
-  my $self = shift;
-  if (ref $self) {
-    %$self = (%$self, @_);    # instance $self->choose()
-  } else {
-    $self = $self->new (@_);  # class X11::Protocol::ChooseWindow->choose()
+  my ($self, %options) = @_;
+  unless (ref $self) {
+    $self = $self->new;  # X11::Protocol::ChooseWindow->choose()
   }
+  local @{$self}{keys %options} = values %options;  # hash slice
   local $_instance = $self;
 
   my $X = _X($self);
@@ -362,7 +361,7 @@ X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 =cut
 
 
-# =head2 Object
+# =head2 Chooser Object
 # 
 # A chooser object can be created to choose in a state-driven style.
 # 
@@ -373,9 +372,11 @@ X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 # Create and return a chooser object.  The key/value parameters are the same
 # as for C<choose()> above.
 # 
-# =item C<$window = $chooser-E<gt>choose ()>
+# =item C<$window = $chooser-E<gt>choose (key=E<gt>value,...)>
 # 
-# Run a window choose on C<$chooser>.
+# Run a window choose on C<$chooser>.  Key/value parameters are as per the
+# C<choose()> class method above.  They're apply to this choose, without
+# changing the C<$chooser> object.
 # 
 # =item C<$boolean = $chooser-E<gt>start ()>
 # 
@@ -385,9 +386,9 @@ X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 # =item C<$window = $chooser-E<gt>handle_event (@fields)>
 # 
 # Handle an event in C<$chooser>.  The C<@fields> arguments are the same as
-# from the C<X11::Protocol> event handler function.  All events arriving
-# while the chooser is active should be passed to it, and it will act on
-# those it's interested in.
+# from the C<X11::Protocol> event handler function.  All events should be
+# shown to the chooser this way while it's active.  Anything not relevant is
+# ignored.
 #
 # For a C<ButtonPress> or C<ButtonRelease> event an C<AllowEvents> request
 # is sent to get the next button event, in the usual way for an active
@@ -401,6 +402,13 @@ X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 # =item C<$chooser-E<gt>abort>
 # 
 # Stop a choose.
+# 
+# =item C<$chooser-E<gt>chosen_window>
+# 
+# Return the window chosen by the user, or C<undef> if aborted or not yet
+# chosen.  This can be used after C<$chooser-E<gt>is_done()> is true (though
+# actually the chosen window is recorded a little earlier, on the button
+# press, where C<is_done()> is true only after the button release).
 # 
 # =back
 

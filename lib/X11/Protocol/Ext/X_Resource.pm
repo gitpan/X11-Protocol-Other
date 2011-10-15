@@ -21,17 +21,21 @@ use strict;
 use Carp;
 
 use vars '$VERSION';
-$VERSION = 11;
+$VERSION = 12;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-# /usr/include/X11/extensions/XRes.h
 # /usr/include/X11/extensions/XResproto.h
+#     protocol
 #
-# server side source:
-#     http://cgit.freedesktop.org/xorg/xserver/tree/Xext/xres.c
-#     http://cgit.freedesktop.org/xorg/xserver/plain/Xext/xres.c
+# http://cgit.freedesktop.org/xorg/xserver/tree/Xext/xres.c
+# http://cgit.freedesktop.org/xorg/xserver/plain/Xext/xres.c
+#     server side source
+#
+# /usr/include/X11/extensions/XRes.h
+#     Xlib.
+#
 
 ### X_Resource.pm loads
 
@@ -39,17 +43,7 @@ $VERSION = 11;
 use constant CLIENT_MAJOR_VERSION => 1;
 use constant CLIENT_MINOR_VERSION => 0;
 
-sub _request_empty {
-  if (@_ > 1) {
-    croak "No parameters in this request";
-  }
-  return '';
-}
-
-sub _request_card32 {
-  my ($X, $xid) = @_;
-  return pack 'L', $xid;
-}
+#------------------------------------------------------------------------------
 
 my $reqs =
   [
@@ -77,7 +71,7 @@ my $reqs =
     } ],
 
    ["XResourceQueryClientResources",  # 2
-    \&_request_card32,
+    \&_request_card32s,  # ($X, $client_xid)
     sub {
       my ($X, $data) = @_;
       ### XResourceQueryClientResources reply
@@ -88,7 +82,7 @@ my $reqs =
     }],
 
    ["XResourceQueryClientPixmapBytes",  # 3
-    \&_request_card32,
+    \&_request_card32s,  # ($X, $client_xid)
     do {
       # see if 2^64-1 survives an sprintf %d, if so then 64-bit UV integers
       my $v = ((0xFFFFFFFF * (2.0**32)) + 0xFFFFFFFF);
@@ -133,7 +127,87 @@ my $reqs =
         }
       }
     } ],
+
+
+   # #----------------------
+   # # protocol 1.2
+   #
+   # # mask bits ...
+   # # ClientXIDMask      0x01
+   # # LocalClientPIDMask 0x02
+   # # xid_or_pid 'None'
+   # ["XResourceQueryClientIds",  # 4
+   #  sub {
+   #    my $X = shift;  # ($X, $xid_or_pid, $mask, ...)
+   #    return pack 'L*',
+   #      scalar(@_)/2, # num specs
+   #        @_;
+   #  },
+   #  sub {
+   #    my ($X, $data) = @_;
+   #    ### XResourceQueryClientResources reply
+   #    my ($num) = unpack 'x8L', $data;
+   #    ### $num
+   #    my $pos = 32;
+   #    my @ret;
+   #    # obey $num rather than the reply length
+   #    for (1 .. $num) {
+   #      my @elem = unpack 'L3', substr($data,$pos,12);
+   #      my ($client_xid, $mask, $length) = unpack 'L3', substr($data,$pos,12);
+   #      $pos += 12;
+   #      my $length = 4 * pop @elem;
+   #      push @elem, unpack 'L*', substr($data,$pos,$length);
+   #      $pos += $length;
+   #      push @ret, \@elem;
+   #    }
+   #    return @ret;
+   #  }],
+   #
+   # ["XResourceQueryResourceBytes",  # 5
+   #  sub {
+   #    my $X = shift;  # ($X, $client_xid, $resource,$type, ...)
+   #    my $client_xid = shift;
+   #    return pack 'L*',
+   #      $client_xid,
+   #        scalar(@_)/2, # num specs
+   #          @_;
+   #  },
+   #  sub {
+   #    my ($X, $data) = @_;
+   #    ### XResourceQueryClientResources reply
+   #    my ($num) = unpack 'x8L', $data;
+   #    ### $num
+   #    my $pos = 32;
+   #    my @ret;
+   #    # obey $num rather than the reply length
+   #    for (1 .. $num) {
+   #      my @elem = unpack 'L6', # $resource,$type,$bytes,$refcount,$usecount
+   #        substr($data,$pos,24);
+   #      $pos += 24;
+   #      my $length = 20 * pop @elem;
+   #      push @elem, unpack 'L*', substr($data,$pos,$length);
+   #      $pos += $length;
+   #      push @ret, \@elem;
+   #    }
+   #    return @ret;
+   #  }],
+
   ];
+
+sub _request_empty {
+  if (@_ > 1) {
+    croak "No parameters in this request";
+  }
+  return '';
+}
+sub _request_card32s {
+  shift;
+  ### _request_card32s(): @_
+  return pack 'L*', @_;
+}
+
+
+#------------------------------------------------------------------------------
 
 sub new {
   my ($class, $X, $request_num, $event_num, $error_num) = @_;

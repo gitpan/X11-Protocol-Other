@@ -20,7 +20,7 @@ package X11::Protocol::Ext::TOG_CUP;
 use strict;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 11;
+$VERSION = 12;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines

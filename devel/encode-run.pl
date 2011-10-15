@@ -35,6 +35,27 @@ my @ords = grep { ! (($_ >= 0x80 && $_ <= 0x9F)
 my $ords_str = join ('', map {chr} @ords);
 
 
+{
+  foreach my $i (0x80 .. 0xFF) {
+    my $chr = chr($i);
+    my $bytes = Encode::encode('utf-8', $chr, Encode::FB_QUIET());
+    next if length $chr;
+    printf "U+%04X = %s\n", $i, bytestr($bytes);
+  }
+  exit 0;
+}
+
+{
+  @ords = (0x2022);
+  foreach my $i (@ords) {
+    my $chr = chr($i);
+    # my $bytes = Encode::encode('jis0201-raw', $chr, Encode::FB_QUIET());
+    my $bytes = Encode::encode('x11-compound-text', $chr, Encode::FB_QUIET());
+    next if length $chr;
+    printf "U+%04X = %s\n", $i, bytestr($bytes);
+  }
+  exit 0;
+}
 
 {
   # round trip
@@ -114,16 +135,7 @@ my $ords_str = join ('', map {chr} @ords);
 }
 
 
-{
-  foreach my $i (@ords) {
-    my $chr = chr($i);
-    # my $bytes = Encode::encode('jis0201-raw', $chr, Encode::FB_QUIET());
-    my $bytes = Encode::encode('x11-compound-text', $chr, Encode::FB_QUIET());
-    next if length $chr;
-    printf "U+%04X = %s\n", $i, bytestr($bytes);
-  }
-  exit 0;
-}
+
 
 
 {

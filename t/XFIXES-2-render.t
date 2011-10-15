@@ -30,7 +30,7 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-my $test_count = 13;
+my $test_count = (tests => 13)[1];
 plan tests => $test_count;
 
 require X11::Protocol;

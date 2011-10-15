@@ -17,28 +17,18 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-use lib 't/lib';
-
-
-
 use strict;
-use Test::Without::Shm;
-use IPC::SysV;
+use X11::Protocol;
+
+use lib 'devel', '.';
 
 # uncomment this to run the ### lines
 use Smart::Comments;
 
-require IPC::SysV;
-Test::Without::Shm->mode('nomem');
-Test::Without::Shm->mode('enabled');
-my $shmid = shmget (IPC::SysV::IPC_PRIVATE(),
-                    5000,
-                    IPC::SysV::IPC_CREAT() | 0666); # world read/write
-print $shmid,"\n";
-
-Test::Without::Shm->mode('not_implemented');
-my $var;
-if (! shmread($shmid,$var,0,1)) {
-  print "shmread: $!\n";
+{
+  my $X = X11::Protocol->new (':0');
+  my $atom = $X->atom("_XSETTINGS_S0");
+  my $win = $X->GetSelectionOwner ($atom);
+  ### $win
+  exit 0;
 }
-# shmwrite

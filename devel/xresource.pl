@@ -29,67 +29,6 @@ use X11::Protocol::Ext::X_Resource;
 use Smart::Comments;
 
 
-{
-  my $X = X11::Protocol->new (':0');
-  $X->init_extension('X-Resource') or die $@;
-  my $clients = [ $X->XResourceQueryClients ];
-  ### $clients
-  my $xid = $clients->[2]->[0] + 123;
-  my $base = clients_xid_to_base ($clients, $xid);
-  ### $xid
-  ### $base
-
-  sub clients_xid_to_base {
-    my ($clients, $xid) = @_;
-    my $elem;
-    foreach $elem (@$clients) {
-      if (($xid & ~ $elem->[1]) == $elem->[0]) {
-        return $elem->[0];
-      }
-    }
-    return undef;
-  }
-  exit 0;
-}
-
-{
-  my $X = X11::Protocol->new (':0');
-  require X11::AtomConstants;
-  my @names = atom_names ($X,
-                          X11::AtomConstants::WINDOW(),
-                          X11::AtomConstants::PIXMAP(),
-                         );
-  ### @names
-
-  @names = atom_names ($X,
-                       X11::AtomConstants::WINDOW(),
-                       X11::AtomConstants::COLORMAP(),
-                       X11::AtomConstants::PIXMAP(),
-                       X11::AtomConstants::FONT(),
-                      );
-  ### @names
-
-  exit 0;
-}
-
-{
-  my $data;
-  my $result = unpack 'xL', $data;
-  ### $data
-  exit 0;
-}
-
-{
-  my $X = X11::Protocol->new (':0');
-  $X->{'error_handler'}  = sub {
-    my ($X, $data) = @_;
-    ### error handler: $data
-    return;
-  };
-  $X->QueryPointer(999999);
-  ### exit
-  exit 0;
-}
 
 {
   my $X0 = X11::Protocol->new (':0');
@@ -106,8 +45,8 @@ use Smart::Comments;
   $X->init_extension('X-Resource') or die $@;
   $X->QueryPointer($X->root); # sync
 
-  { my @ret = $X->XResourceQueryVersion (99,99);
-    ### @ret
+  { my @version = $X->XResourceQueryVersion (99,99);
+    ### @version
   }
   $X->QueryPointer($X->root); # sync
 
@@ -175,6 +114,69 @@ use Smart::Comments;
 
   exit 0;
 }
+
+{
+  my $X = X11::Protocol->new (':0');
+  $X->init_extension('X-Resource') or die $@;
+  my $clients = [ $X->XResourceQueryClients ];
+  ### $clients
+  my $xid = $clients->[2]->[0] + 123;
+  my $base = clients_xid_to_base ($clients, $xid);
+  ### $xid
+  ### $base
+
+  sub clients_xid_to_base {
+    my ($clients, $xid) = @_;
+    my $elem;
+    foreach $elem (@$clients) {
+      if (($xid & ~ $elem->[1]) == $elem->[0]) {
+        return $elem->[0];
+      }
+    }
+    return undef;
+  }
+  exit 0;
+}
+
+{
+  my $X = X11::Protocol->new (':0');
+  require X11::AtomConstants;
+  my @names = atom_names ($X,
+                          X11::AtomConstants::WINDOW(),
+                          X11::AtomConstants::PIXMAP(),
+                         );
+  ### @names
+
+  @names = atom_names ($X,
+                       X11::AtomConstants::WINDOW(),
+                       X11::AtomConstants::COLORMAP(),
+                       X11::AtomConstants::PIXMAP(),
+                       X11::AtomConstants::FONT(),
+                      );
+  ### @names
+
+  exit 0;
+}
+
+{
+  my $data;
+  my $result = unpack 'xL', $data;
+  ### $data
+  exit 0;
+}
+
+{
+  my $X = X11::Protocol->new (':0');
+  $X->{'error_handler'}  = sub {
+    my ($X, $data) = @_;
+    ### error handler: $data
+    return;
+  };
+  $X->QueryPointer(999999);
+  ### exit
+  exit 0;
+}
+
 {
   my $v = ((0xFFFFFFFF * (2.0**32)) + 0xFFFFFFFF);
   require Devel::Peek;

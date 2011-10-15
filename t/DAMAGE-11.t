@@ -18,7 +18,8 @@
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
 
-# Tests of DAMAGE 1.1 things when available (ie. DamageAdd).
+# Tests of DAMAGE 1.1 things when available, ie. DamageAdd.
+#
 
 BEGIN { require 5 }
 use strict;
@@ -33,7 +34,7 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-my $test_count = 16;
+my $test_count = (tests => 18)[1];
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -91,12 +92,11 @@ $X->QueryPointer($X->root); # sync
 
 my $damage_obj = $X->{'ext'}->{'DAMAGE'}->[3];
 MyTestHelpers::diag ("DAMAGE extension version $damage_obj->{'major'}.$damage_obj->{'minor'}");
-unless (($damage_obj->{'major'} <=> 1
-         || $damage_obj->{'minor'} <=> 1)
+unless (($damage_obj->{'major'} <=> 1 || $damage_obj->{'minor'} <=> 1)
         >= 0) {
   MyTestHelpers::diag ("DAMAGE 1.1 not available");
   foreach (1 .. $test_count) {
-    skip ('no DamageAdd on server', 1, 1);
+    skip ('no DAMAGE 1.1 on server', 1, 1);
   }
   exit 0;
 }
@@ -111,17 +111,19 @@ unless (($damage_obj->{'major'} <=> 1
                     $X->root_depth,
                     200,100);  # width,height
 
-  my $damage = $X->new_rsrc;
-  $X->DamageCreate ($damage, $pixmap, 'BoundingBox');
-
+  my @received_names;
   my %notify;
   local $X->{'event_handler'} = sub {
     my (%h) = @_;
     ### event_handler: \%h
+    push @received_names, $h{'name'};
     if ($h{'name'} eq 'DamageNotify') {
       %notify = %h;
     }
   };
+
+  my $damage = $X->new_rsrc;
+  $X->DamageCreate ($damage, $pixmap, 'BoundingBox');
 
   my $region = $X->new_rsrc;
   $X->XFixesCreateRegion ($region, [10,11, 40,50]);
@@ -130,13 +132,22 @@ unless (($damage_obj->{'major'} <=> 1
   # sync, so as to wait for the DamageNotify
   $X->QueryPointer($X->root);
 
-  ok (!!$notify{'synthetic'}, '', 'DamageAdd/DamageNotify - synthetic');
+  if (! %notify) {
+    MyTestHelpers::diag ("oops, no DamageNotify event, only ",
+                         scalar(@received_names)," events: ",
+                         join(',',@received_names));
+  }
+
+  ok (!! %notify, 1, 'DamageAdd/DamageNotify - event received');
+  ok (!!$notify{'synthetic'}, '', 'DamageAdd/DamageNotify - synthetic false');
 
   ok ($notify{'damage'}, $damage, 'DamageAdd/DamageNotify - damage');
   ok ($notify{'drawable'}, $pixmap, 'DamageAdd/DamageNotify - drawable');
   ok ($notify{'level'}, 'BoundingBox', 'DamageAdd/DamageNotify - level');
   ok ($notify{'more'}, 0, 'DamageAdd/DamageNotify - more');
-  ok ($notify{'time'} != 0, 1, 'DamageAdd/DamageNotify - time');
+  ok (defined $notify{'time'}, 1, 'DamageAdd/DamageNotify - time defined');
+  ok (defined $notify{'time'} && $notify{'time'} != 0, 1,
+      'DamageAdd/DamageNotify - time non-zero');
 
   my $area = $notify{'area'};
   ok (ref $area, 'ARRAY', 'DamageAdd/DamageNotify - area');

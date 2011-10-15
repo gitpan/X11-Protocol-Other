@@ -19,61 +19,117 @@
 
 BEGIN { require 5 }
 use strict;
-use ExtUtils::Manifest;
-use Test::More;
+use Test::More tests => 1;
 
 use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $verbose = 1;
+ok (Test::FileIsPartOfDist->check(verbose=>1),
+    'Test::FileIsPartOfDist');
+exit 0;
 
-sub makefile_distname {
-  my $filename = "Makefile";
-  my $ret;
-  open FH, "< $filename" or die "Cannot open $filename: $!";
-  while (defined (my $line = <FH>)) {
-    if ($line =~ /^DISTNAME\s*=\s*([^#]*)/) {
-      $ret = $1;
-      $ret =~ s/\s+$//;
-      last;
+
+
+package Test::FileIsPartOfDist;
+BEGIN { require 5 }
+use strict;
+use ExtUtils::Manifest;
+use File::Slurp;
+
+sub import {
+  my $class = shift;
+  my $arg;
+  foreach $arg (@_) {
+    if ($arg eq '-test') {
+      require Test;
+      Test::plan(tests=>1);
+      is ($class->check, 1, 'Test::FileIsPartOfDist');
     }
   }
-  close FH or die "Error closing $filename: $!";
-  return $ret;
+  return 1;
 }
 
-sub check_file_is_part_of {
-  my ($filename, $distname) = @_;
+sub new {
+  my $class = shift;
+  return bless { @_ }, $class;
+}
+
+sub check {
+  my $class = shift;
+  my $self = $class->new(@_);
+
+  my $manifest = ExtUtils::Manifest::maniread();
+  if (! $manifest) {
+    $self->diag("no MANIFEST perhaps");
+    return 0;
+  }
+  my @filenames = keys %$manifest;
+
+  my $distname = $self->makefile_distname;
+  if (! defined $distname) {
+    $self->diag("Oops, DISTNAME not found in Makefile");
+    return 0;
+  }
+  if ($self->{'verbose'}) {
+    $self->diag("DISTNAME $distname");
+  }
 
   my $good = 1;
-  open FH, "< $filename" or die "Cannot open $filename: $!";
-  while (defined (my $line = <FH>)) {
-    $line =~ /[T]his file is part of/i or next;
-    unless ($line =~ /[T]his file is part of \Q$distname/i) {
-      diag "$filename: $line";
+  my $filename;
+  foreach $filename (@filenames) {
+    if (! $self->check_file_is_part_of($filename,$distname)) {
       $good = 0;
     }
   }
-  close FH or die "Error closing $filename: $!";
   return $good;
 }
 
-my $manifest = ExtUtils::Manifest::maniread();
-my @filenames = keys %$manifest;
-plan tests => scalar(@filenames);
-
-my $distname = makefile_distname();
-if ($verbose) {
-  diag "DISTNAME $distname";
+sub makefile_distname {
+  my ($self) = @_;
+  my $filename = "Makefile";
+  my $content = File::Slurp::read_file ($filename);
+  if (! defined $content) {
+    $self->diag("Cannot read $filename: $!");
+    return undef;
+  }
+  my $distname;
+  if ($content =~ /^DISTNAME\s*=\s*([^#\n]*)/m) {
+    $distname = $1;
+    $distname =~ s/\s+$//;
+  }
+  return $distname;
 }
-if (! defined $distname) {
-  die "Oops, DISTNAME not found in Makefile";
+
+sub check_file_is_part_of {
+  my ($self, $filename, $distname) = @_;
+
+  my $content = File::Slurp::read_file ($filename);
+  if (! defined $content) {
+    $self->diag("Cannot read $filename: $!");
+    return 0;
+  }
+
+  $content =~ /([T]his file is part of[^\n]*)/i
+    or return 1;
+  my $got = $1;
+  if ($got =~ /[T]his file is part of \Q$distname/i) {
+    return 1;
+  }
+  $self->diag("$filename: $got");
+  $self->diag("expected DISTNAME: $distname");
+  return 0;
 }
 
-foreach my $filename (@filenames) {
-  ok (check_file_is_part_of($filename,$distname),
-      "$filename");
+sub diag {
+  my $self = shift;
+  my $func = $self->{'diag_func'}
+    || eval { Test::More->can('diag') }
+      || \&_diag;
+  &$func(@_);
 }
-
-exit 0;
+sub _diag {
+  my $msg = join('', map {defined($_)?$_:'[undef]'} @_)."\n";
+  $msg =~ s/^/# /mg;
+  print STDERR $msg;
+}

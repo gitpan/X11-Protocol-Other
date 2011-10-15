@@ -20,9 +20,38 @@
 use 5.004;
 use strict;
 use X11::Protocol;
+use X11::Protocol::WM;
 
 # uncomment this to run the ### lines
 use Smart::Comments;
+
+{
+  my $X = X11::Protocol->new;
+
+  my $window = $X->new_rsrc;
+  $X->CreateWindow ($window,
+                    $X->root,         # parent
+                    'InputOutput',
+                    0,                # depth, from parent
+                    'CopyFromParent', # visual
+                    0,0,              # x,y
+                    100,100,          # width,height
+                    0,                # border
+                    background_pixel => $X->black_pixel,
+                   );
+  X11::Protocol::WM::set_wm_name ($X, $window, "\x{2202}");
+  # require Encode;
+  # $x->changeproperty($window,
+  #                    $X->atom('_NET_WM_NAME'),
+  #                    $X->atom('UTF8_STRING'),   # type
+  #                    8,                         # byte format
+  #                    'Replace',
+  #                    Encode::encode_utf8("\x{2202}"));
+  $X->MapWindow ($window);
+
+  for (;;) { $X->handle_input }
+  exit 0;
+}
 
 {
   require Gtk2;

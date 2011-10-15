@@ -97,6 +97,7 @@
 # various testing
 ^tempfile\.png$
 ^tempfile
+\.tmp$
 
 
 # my dists
