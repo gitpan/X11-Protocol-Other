@@ -21,23 +21,80 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 12;
+$VERSION = 13;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
 use Smart::Comments;
 
 
+# /usr/share/doc/x11proto-xext-dev/sync.txt.gz
 #
+# /usr/include/X11/extensions/syncproto.h
+# /usr/include/X11/extensions/syncconst.h
+# /usr/include/X11/extensions/syncstr.h
 #
 # /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
 # /usr/include/X11/extensions/xtestconst.h
+#
+# /usr/include/X11/extensions/sync.h
+#    Xlib.
+#
 
-### SYNC.pm loads
 
 # these not documented yet ...
-use constant CLIENT_MAJOR_VERSION => 2;
+use constant CLIENT_MAJOR_VERSION => 3;
 use constant CLIENT_MINOR_VERSION => 1;
+
+#------------------------------------------------------------------------------
+
+{
+  my $uv = ~0;
+  my $count;
+  while ($uv) {
+    $uv >>= 1;
+    $count++;
+  }
+
+  if ($count >= 64) {
+     eval "#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
+sub _hilo_to_sv {
+  my ($hi,$lo) = @_;
+  return ($hi << 32) + $lo;
+}
+HERE
+     eval "#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
+use Math::BigInt;
+sub _hilo_to_sv {
+  my ($hi,$lo) = @_;
+  return Math::BigInt->new($hi)->blsft(32)->badd($lo);
+}
+HERE
+
+sub _sv_to_hilo {
+  my ($sv) = @_;
+  my $shift = int($sv/65536);
+  return (int($shift/65536), 
+          ($shift % 65536) * 65536 + ($sv % 65536));
+}
+
+
+#------------------------------------------------------------------------------
+# symbolic constants
+
+my %const_arrays
+  = (
+     SyncValueType => ['Absolute', 'Relative' ],
+     SyncTestType => [ 'PositiveTransition','NegativeTransition',
+                       'PositiveComparison','NegativeComparison' ],
+     SyncAlarmState => ['Active', 'Inactive', 'Destroyed' ],
+    );
+
+my %const_hashes
+  = (map { $_ => { X11::Protocol::make_num_hash($const_arrays{$_}) } }
+     keys %const_arrays);
+
+#------------------------------------------------------------------------------
 
 my $reqs =
   [
@@ -75,27 +132,36 @@ my $reqs =
         $pos += 10;
         my $name = substr ($data, $pos, $name_len);
         $pos += $name_len;
-        push @ret, [$counter, $res_hi, $res_lo, $name];
+        push @ret, [$counter, _hilo_to_sv($res_hi,$res_lo), $name];
       }
     }],
 
    ['SyncCreateCounter',  # 2
-    \&_request_card32s, # my ($X, $counter, $initial_hi, $initial_lo)
+    sub {
+      my ($X, $counter, $initial) = @_;
+      return pack 'LLL', _sv_to_hilo($initial);
+    },
    ],
 
    ['SyncSetCounter',  # 3
-    \&_request_card32s, # my ($X, $counter, $value_hi, $value_lo)
+    sub {
+      my ($X, $counter, $value) = @_;
+      return pack 'LLL', _sv_to_hilo($value);
+    },
    ],
 
    ['SyncChangeCounter',  # 4
-    \&_request_card32s, # my ($X, $counter, $value_hi, $value_lo)
+    sub {
+      my ($X, $counter, $value) = @_;
+      return pack 'LLL', _sv_to_hilo($value);
+    },
    ],
 
    ['SyncQueryCounter',  # 5
     \&_request_card32s, # ($X, $counter)
     sub {
       my ($X, $data) = @_;
-      return unpack 'lL', $data;
+      return _hilo_to_sv (unpack 'lL', $data);
     },
    ],
 
@@ -106,6 +172,7 @@ my $reqs =
    ['SyncAwait',  # 7
     \&_request_empty,
    ],
+
    ['SyncCreateAlarm',  # 8
     sub {
       my ($X, $alarm) = @_;
@@ -137,7 +204,38 @@ my $reqs =
       return unpack 'x8l';
     }],
 
+   #------------------------
+
+   ['SyncCreateFence',  # 14
+    sub {
+      my ($X, $drawable, $fence, $initially_triggered) = @_;
+      return pack 'LLCxxx', $drawable, $fence, $initially_triggered;
+    }],
+
+   ['SyncTriggerFence',  # 15
+    \&_request_card32s, # ($X, $fence)
+   ],
+
+   ['SyncResetFence',  # 16
+    \&_request_card32s, # ($X, $fence)
+   ],
+
+   ['SyncDestroyFence',  # 17
+    \&_request_card32s, # ($X, $fence)
+   ],
+
+   ['SyncQueryFence',  # 18
+    \&_request_card32s, # ($X, $fence)
+   ],
+
+   ['SyncAwaitFence',  # 19
+    \&_request_card32s, # ($X, $fence,...)
+   ],
   ];
+
+
+#------------------------------------------------------------------------------
+# events
 
 my $SyncCounterNotify_event = [ 'xCxxLlLlLLSCx',
                                 ['kind','XFixesSelectionNotifySubtype'],
@@ -162,6 +260,8 @@ my $SyncAlarmNotify_event = [ 'xCxxLlLlLLCx3',
                               'state',
                             ];
 
+#------------------------------------------------------------------------------
+
 sub _num_none {
   my ($xid) = @_;
   if (defined $xid && $xid eq "None") {
@@ -178,9 +278,15 @@ sub new {
   # Requests
   _ext_requests_install ($X, $request_num, $reqs);
 
-  # Errors
-  _ext_const_error_install ($X, $error_num, 'Counter', 'Alarm');
+  # Constants
+  %{$X->{'ext_const'}}     = (%{$X->{'ext_const'}     ||= {}}, %const_arrays);
+  %{$X->{'ext_const_num'}} = (%{$X->{'ext_const_num'} ||= {}}, %const_hashes);
 
+  # Errors
+  _ext_const_error_install ($X, $error_num,
+                            'Counter',  # 0
+                            'Alarm',    # 1
+                            'Fence');   # 2
 
   # Any need to negotiate the version before using?
   #  my ($major, $minor) = $X->req('SyncQueryVersion',
@@ -263,8 +369,8 @@ automatically negotiate in C<init_extension> if necessary.
 
 =head1 ERRORS
 
-Error types "Counter" and "Alarm" are a bad C<$counter> or C<$alarm>
-resource XID in a request.
+Error types "Counter", "Alarm" and "Fence" are respectively a bad
+C<$counter>, C<$alarm> or C<$fence> resource XID in a request.
 
 =head1 SEE ALSO
 

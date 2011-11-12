@@ -22,7 +22,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 12;
+$VERSION = 13;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -190,7 +190,7 @@ __END__
 
 =head1 NAME
 
-X11::Protocol::Ext::MIT_SHM - ...
+X11::Protocol::Ext::MIT_SHM - images in SysV style shared memory
 
 =for test_synopsis my ($window, $bpp)
 

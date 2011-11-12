@@ -39,6 +39,7 @@ devel/lib/X11/Protocol/Ext/SYNC.pm
 devel/lib/X11/Protocol/Ext/TOG_CUP.pm
 devel/lib/X11/Protocol/Ext/XFree86_DGA.pm
 devel/lib/X11/Protocol/Ext/XFree86_VidModeExtension.pm
+devel/lib/X11/Protocol/Ext/XInputExtension.pm
 devel/lib/X11/Protocol/Ext/XTEST.pm
 devel/magnifier.pl
 devel/Makefile
@@ -55,7 +56,7 @@ devel/wm-icon-size.pl
 devel/WM-maybe.pl
 devel/wm-user-time.pl
 devel/wm.pl
-devel/XFIXES-5.t
+devel/xfixes-barrier.pl
 devel/xfixes.pl
 devel/xinerama.pl
 devel/xresource.pl
@@ -132,6 +133,7 @@ t/XFIXES-2-shape.t
 t/XFIXES-2.t
 t/XFIXES-3.t
 t/XFIXES-4.t
+t/XFIXES-5.t
 t/XINERAMA-10.t
 t/XINERAMA-11.t
 t/XINERAMA-use.t

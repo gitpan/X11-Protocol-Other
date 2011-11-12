@@ -31,10 +31,11 @@ use Smart::Comments;
 
 
 {
-  my $X0 = X11::Protocol->new (':0');
+  my $display = $ENV{'DISPLAY'} || ':0';
+  my $X0 = X11::Protocol->new ($display);
   ### resource_id_base: sprintf '%X', $X0->resource_id_base
 
-  my $X = X11::Protocol->new (':0');
+  my $X = X11::Protocol->new ($display);
   ### resource_id_base: sprintf '%X', $X->resource_id_base
 
   { my @query = $X->QueryExtension('X-Resource');

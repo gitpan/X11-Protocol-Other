@@ -59,7 +59,7 @@ $X->QueryPointer($X->{'root'});  # sync
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 12;
+my $want_version = 13;
 ok ($X11::Protocol::Other::VERSION,
     $want_version,
     'VERSION variable');

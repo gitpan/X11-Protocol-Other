@@ -17,6 +17,9 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 13, November 2011
+    - XFIXES 5.0 pointer barriers
+
 Version 12, October 2011
     - X11::Protocol::WM fix is_utf8() fallback
 

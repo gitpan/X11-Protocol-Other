@@ -25,7 +25,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 12;
+$VERSION = 13;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -202,27 +202,27 @@ X11::Protocol::Ext::DRI2 - direct video memory access
 
  use X11::Protocol;
  my $X = X11::Protocol->new;
- $X->init_extension('XFree86-DGA')
-   or print "XFree86-DGA extension not available";
+ $X->init_extension('DRI2')
+   or print "DRI2 extension not available";
 
 =head1 DESCRIPTION
 
-The XFree86-DGA extension ...
+The DRI2 extension ...
 
 =head1 REQUESTS
 
 The following requests are made available with an C<init_extension()>, as
 per L<X11::Protocol/EXTENSIONS>.
 
-    my $is_available = $X->init_extension('XFree86-DGA');
+    my $is_available = $X->init_extension('DRI2');
 
-=head2 XFree86-DGA 1.0
+=head2 DRI2 1.0
 
 =over
 
 =item C<($server_major, $server_minor) = $X-E<gt>DRI2QueryVersion ()>
 
-Return the DGA protocol version implemented by the server.
+Return the DRI2 protocol version implemented by the server.
 
 =back
 

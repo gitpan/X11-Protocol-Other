@@ -25,74 +25,11 @@ use lib 'devel', '.';
 # uncomment this to run the ### lines
 use Smart::Comments;
 
-{
-  my $X = X11::Protocol->new (':0');
-  $X->init_extension('XFIXES') or die;
-  my ($rootx,$rooty, $width,$height, $xhot,$yhot, $serial, $pixels)
-    = $X->XFixesGetCursorImage ();
-  # {
-  #   my @bytes = unpack 'C*', $pixels;
-  #   foreach my $y (0 .. $height-1) {
-  #     my @row = splice @bytes, 0,$width*4;
-  #     print map {sprintf '%02X ',$_} @row;
-  #     print "\n";
-  #   }
-  # }
-  {
-    my @words = unpack 'L*', $pixels;
-    foreach my $y (0 .. $height-1) {
-      my @row = splice @words, 0,$width;
-      delete @row[5 .. $#row];
-      print map {sprintf '%08X ',$_} @row;
-      print "\n";
-    }
-  }
-  exit 0;
-}
-
-{
-  my $X = X11::Protocol->new (':0');
-  $X->init_extension('XFIXES') or die;
-
-  $X->XFixesHideCursor ($X->root);
-  $X->QueryPointer($X->{'root'}); # sync
-
-  sleep 1;
-
-  $X->XFixesShowCursor ($X->root);
-  $X->QueryPointer($X->{'root'}); # sync
-  $X->XFixesShowCursor ($X->root);
-  $X->QueryPointer($X->{'root'}); # sync
-
-  sleep 1;
- 
-  exit 0;
-}
-
-{
-  my $X = X11::Protocol->new (':0');
-  $X->init_extension('XFIXES') or die;
-
-  my $region = $X->new_rsrc;
-  $X->XFixesCreateRegion ($region, [1,2,1,1], [4,6,1,1]);
-  { my @rects = $X->XFixesFetchRegion ($region);
-    ### @rects
-  }
-
-  my $r2 = $X->new_rsrc;
-  $X->XFixesCreateRegion ($r2);
-  $X->XFixesRegionExtents ($region, $r2);
-  { my @rects = $X->XFixesFetchRegion ($r2);
-    ### @rects
-  }
- 
-  exit 0;
-}
-
 
 
 {
-  my $X = X11::Protocol->new (':0');
+  my $display = $ENV{'DISPLAY'} || ':0';
+  my $X = X11::Protocol->new ($display);
   $X->{'event_handler'} = sub {
     my (%h) = @_;
     ### event_handler: \%h
@@ -171,6 +108,72 @@ use Smart::Comments;
 
   exit 0;
 }
+
+{
+  my $X = X11::Protocol->new (':0');
+  $X->init_extension('XFIXES') or die;
+  my ($rootx,$rooty, $width,$height, $xhot,$yhot, $serial, $pixels)
+    = $X->XFixesGetCursorImage ();
+  # {
+  #   my @bytes = unpack 'C*', $pixels;
+  #   foreach my $y (0 .. $height-1) {
+  #     my @row = splice @bytes, 0,$width*4;
+  #     print map {sprintf '%02X ',$_} @row;
+  #     print "\n";
+  #   }
+  # }
+  {
+    my @words = unpack 'L*', $pixels;
+    foreach my $y (0 .. $height-1) {
+      my @row = splice @words, 0,$width;
+      delete @row[5 .. $#row];
+      print map {sprintf '%08X ',$_} @row;
+      print "\n";
+    }
+  }
+  exit 0;
+}
+
+{
+  my $X = X11::Protocol->new (':0');
+  $X->init_extension('XFIXES') or die;
+
+  $X->XFixesHideCursor ($X->root);
+  $X->QueryPointer($X->{'root'}); # sync
+
+  sleep 1;
+
+  $X->XFixesShowCursor ($X->root);
+  $X->QueryPointer($X->{'root'}); # sync
+  $X->XFixesShowCursor ($X->root);
+  $X->QueryPointer($X->{'root'}); # sync
+
+  sleep 1;
+ 
+  exit 0;
+}
+
+{
+  my $X = X11::Protocol->new (':0');
+  $X->init_extension('XFIXES') or die;
+
+  my $region = $X->new_rsrc;
+  $X->XFixesCreateRegion ($region, [1,2,1,1], [4,6,1,1]);
+  { my @rects = $X->XFixesFetchRegion ($region);
+    ### @rects
+  }
+
+  my $r2 = $X->new_rsrc;
+  $X->XFixesCreateRegion ($r2);
+  $X->XFixesRegionExtents ($region, $r2);
+  { my @rects = $X->XFixesFetchRegion ($r2);
+    ### @rects
+  }
+ 
+  exit 0;
+}
+
+
 
 {
   my $X = X11::Protocol->new (':0');

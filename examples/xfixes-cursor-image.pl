@@ -23,26 +23,29 @@
 # This is an example of getting the mouse pointer cursor image with XFIXES.
 #
 # XFixesGetCursorImage() retrieves the cursor image.  CursorNotify events
-# report when it changes.  That's normally due to moving into a window with
-# a "cursor" attribute, but can also be a pointer grab, or even an animated
-# cursor from the RENDER extension.  See cursor-font-anim.pl for some fun
-# with an animated root window cursor.
+# report when the image changes.  A change is normally due to moving into a
+# window with a different "cursor" attribute (ie. cursor type to show), but
+# may also be a pointer grab, or even an animated cursor from the RENDER
+# extension.  See cursor-font-anim.pl for some fun with an animated root
+# window cursor.
 #
 # The only painful thing is that GetCursorImage gives 8-bit RGBA, so it's
 # necessary to allocate colours etc to display that in a window.  In the
-# code here its drawn to a pixmap, then that pixmap put up under Expose.
+# code here its drawn to a pixmap, then that pixmap drawn to the window
+# under Expose.
 #
-# XFixesGetCursorImage() isn't done in the "event_handler" code, since it's
-# a round-trip request and waiting for the reply might read new events and
-# call the event_handler recursively.  If badly lagged and continually
-# getting CursorNotify or whatever then that could be a very deep recursion,
-# or make a mess of the drawing code.  So the event_handler just notes a
-# fresh get is required and that's done in the main $X->handle_input() loop.
+# XFixesGetCursorImage() isn't done in the "event_handler" code, since that
+# Get is a round-trip request and waiting for the reply might read new
+# events and call the event_handler recursively.  If badly lagged and
+# continually getting CursorNotify or whatever then that could be a very
+# deep recursion, or make a mess of the drawing code.  So the event_handler
+# just notes a fresh GetCursorImage is required and that's done in the main
+# $X->handle_input() loop.
 #
 # With only the core X protocol there's no real way to get the current
-# cursor or its image.  The windows cursor attribute can't be read back with
-# GetWindowAttributes(), and all the area copying things, including
-# GetImage(), ignore the cursor.
+# cursor or its image.  The cursor attribute on a window can't be read back
+# with GetWindowAttributes(), and all the area copying things (including
+# GetImage()) ignore the cursor.
 #
 # Things Not Done:
 #
@@ -56,9 +59,11 @@
 # would be to send all the pixels in one PutImage(), but building the
 # server's required bit units, byte order and padding is bit like hard work.
 #
-# The alpha channel in the cursor image is only mapped to a pixel drawn or
-# not.  It might be combined with the grey window background without too
-# much trouble.  What's the right multiplication?
+# The alpha channel in the cursor image is only used to draw or not draw a
+# each pixel.  It could be combined with the grey window background without
+# too much trouble.  What's the right multiplication for alpha weighting?
+# In the core protocol cursor pixels are always fully-opaque or
+# fully-transparent, but XFIXES can make partial-transparent cursors.
 #
 
 use 5.004;

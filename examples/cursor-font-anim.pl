@@ -21,11 +21,11 @@
 # Usage: perl cursor-font-anim.pl
 #
 # This is a bit of nonsense using the RENDER extension to make an annoying
-# animated cursor for the root window, going through each of the standard
+# animated cursor for the root window, cycling through each of the standard
 # cursor font shapes.
 #
-# The size of the X11::CursorFont @CURSOR_NAME array is used for how many
-# cursors are available in the cursor font.
+# The size of the X11::CursorFont module @CURSOR_NAME array is used for how
+# many cursors are available in the cursor font.
 #
 # When you get sick of this put it back to something sensible with for
 # instance

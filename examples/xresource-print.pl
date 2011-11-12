@@ -20,24 +20,24 @@
 
 # Usage: perl xresource-print.pl
 #
-# This is an example printing the resource counts and pixmap bytes for all
-# clients.
+# This is an example printing the resource counts and pixmap bytes used for
+# all clients.
 #
-# The only subtle part is $X->robust_req() just in case a client disconnects
-# in between the XResourceQueryClients() list and then querying their usage.
-# There's only a short time between, but error checking is a good idea when
-# dealing with things belonging to other clients.
+# The only subtle part is $X->robust_req() which is used in case a client
+# disconnects in between the XResourceQueryClients() list and then querying
+# each for their usage.  It's only a short time between, but error checking
+# is a good idea when dealing with things belonging to other clients.
 #
 # An eval{} around a plain $X->XResourceQueryClientResources() is another
 # way to do it.  Such an eval might also catch error replies queued up from
 # earlier asynchronous requests.  There's none in this case, but it's the
 # nature of the protocol to only get back errors later on.
 #
-# In X11::Protocol 0.56 an $X->{'error_handler'} isn't very good for
-# continuing processing things with replies.  If it merely prints a message
-# and returns then something fishy happens, giving an empty reply to the
-# unpacking which then often throws an error (unpack "x" of no data is an
-# error).
+# For reference, in X11::Protocol 0.56 an $X->{'error_handler'} isn't very
+# good for continuing processing things with replies.  If the handler merely
+# prints a message and returns then something fishy happens, giving an empty
+# reply to the unpacking which then often throws an error (unpack of no data
+# is an error).
 #
 
 use 5.004;

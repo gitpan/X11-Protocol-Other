@@ -31,7 +31,7 @@
 #
 # The source window can be given as an XID with the "--id" command line
 # option, otherwise an X11::Protocol::ChooseWindow is run so you can click
-# on a window like xwininfo.
+# on a window like xwininfo does.
 #
 # Details:
 #
@@ -39,8 +39,9 @@
 # reply.  This is because reading the reply may also read and process other
 # events, which would call event_handler() recursively and possibly
 # endlessly.  Any event handler should bear that in mind.  In this program
-# the danger would be that if the $source window is changing rapidly causing
-# a new DamageNotify event to come very soon after each DamageSubtract().
+# the danger would be that if the $source window is changing rapidly and so
+# causing a new DamageNotify event to come very soon after each
+# DamageSubtract().
 #
 # The $gc used for copying has "graphics_expose" off, which means any parts
 # not available in the source window are cleared to the destination
@@ -60,13 +61,13 @@
 # object could be a clip mask for the CopyArea().  Changes outside the
 # duplicated area would then still go back and forward as DamageNotify and
 # CopyArea, but the server would see from the clip region no actual drawing
-# needed.
+# required.
 #
 # If $window is bigger than the $source then the excess is cleared.  Some
 # care is taken to clear only the excess area, not the whole of $window,
 # since the latter way would make it flash to black and then to the copied
 # $source.  On a fast screen you might not notice, but on a slow screen or
-# if the server is a bit bogged down such flashing is very unattractive.
+# if the server is bogged down then such flashing is very unattractive.
 #
 # Shortcomings:
 #
@@ -78,14 +79,16 @@
 # pixel colour conversions would be required.  If the destination was on a
 # different server or different screen then some data transfers with
 # GetImage() and PutImage() would be needed as well as pixel conversions.
+# (As usual X11::Protocol::Ext::MIT_SHM might do that through shared memory
+# if the program is on the same machine as the server.)
 #
 # Duplicating the root window is specifically disallowed.  The problem is
 # that a draw to $window is a change to the root window contents, so
 # generates another DamageNotify, which does another draw, etc, in an
 # infinite loop.  It might work if attention was paid to what parts of the
-# root had changed.  Clip or only draw to $source if it's a part which fits
-# in $source, and which is not $source itself (ie. a previous draw to
-# duplicate).
+# root had changed.  Changes to the part of the root which is unobscured
+# parts of $window will be due to the duplicating drawing and so don't
+# require any further drawing.
 #
 
 BEGIN { require 5 }

@@ -17,6 +17,13 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
+
+# Usage: perl xinerama-info.pl
+#
+# Print some information from the XINERAMA extension, including the layout
+# of monitors making up the screen.
+#
+
 use 5.004;
 use strict;
 use X11::Protocol;

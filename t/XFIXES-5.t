@@ -17,13 +17,6 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use lib 'devel';
-
-
-
-
-
 use strict;
 use X11::Protocol;
 use Test;
@@ -34,11 +27,11 @@ use Test;
 
 use lib 't';
 use MyTestHelpers;
-BEGIN { MyTestHelpers::nowarnings() }
+#BEGIN { MyTestHelpers::nowarnings() }
 END { MyTestHelpers::diag ("END"); }
 
 # uncomment this to run the ### lines
-use Smart::Comments;
+#use Smart::Comments;
 
 my $test_count = (tests => 2)[1];
 plan tests => $test_count;
@@ -97,19 +90,61 @@ $X->QueryPointer($X->root); # sync
 
 
 #------------------------------------------------------------------------------
-# XFixesCreatePointerBarrier()
+# XFixesCreatePointerBarrier() / XFixesDestroyPointerBarrier()
 
-my $barrier = $X->new_rsrc;
-$X-XFixesCreatePointerBarrier ($barrier, $X->root, 100,100, 200,100,
-                               ['PositiveY','NegativeY']);
-ok (1,1);
+{
+  my $barrier = $X->new_rsrc;
+  $X->XFixesCreatePointerBarrier ($barrier, $X->root, 100,100, 200,100,
+                                  0);
+  $X->QueryPointer($X->root); # sync
+
+  $X->XFixesDestroyPointerBarrier ($barrier);
+  $X->QueryPointer($X->root); # sync
+
+  ok (1,1, 'plain barrier');
+}
 
 #------------------------------------------------------------------------------
-# XFixesDestroyPointerBarrier()
+# XFixesCreatePointerBarrier() / XFixesDestroyPointerBarrier()
+# with XInputExtension style "AllDevices"
+#
+# Saw xvfb 1.11.1.901 server giving "Implementation" (17) error when passing
+# AllDevices.  Ignore that, but still throw a normal error for anything
+# else, like bad length etc.
 
-$X->XFixesDestroyPointerBarrier ($barrier);
-$X->QueryPointer($X->root); # sync
-ok (1,1);
+{
+  my $barrier = $X->new_rsrc;
 
+  my $orig_error_handler = $X->{'error_handler'};
+  local $X->{'error_handler'} = sub {
+    my ($X, $data) = @_;
+    ### error handler
+    ### $data
+
+    my ($type, $seq, $info, $minor_op, $major_op) = unpack 'xCSLSC', $data;
+    if ($X->interp('Error',$type) eq 'Implementation') {
+      MyTestHelpers::diag ("ignore XFixesCreatePointerBarrier error \"Implementation\" for xinput device \"AllDevices\"");
+      undef $barrier;
+    } else {
+      goto $orig_error_handler;
+    }
+  };
+
+  ### request ...
+  $X->XFixesCreatePointerBarrier ($barrier, $X->root, 100,100, 200,100,
+                                  0,
+                                  'AllDevices');
+  ### sync ...
+  $X->QueryPointer($X->root);
+  ### sync ok ...
+
+  if (defined $barrier) {
+    $X->XFixesDestroyPointerBarrier ($barrier);
+    $X->QueryPointer($X->root); # sync
+  }
+  ok (1,1, 'AllDevices barrier');
+}
+
+#------------------------------------------------------------------------------
 
 exit 0;

@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION';
-$VERSION = 12;
+$VERSION = 13;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -262,7 +262,7 @@ X11::Protocol::Ext::X_Resource - server resource usage
 =head1 DESCRIPTION
 
 The X-Resource extension gives some server resource utilization information,
-mainly as diagnostics.
+mainly for use as diagnostics.
 
 =over
 
@@ -281,8 +281,8 @@ Total memory used by all the pixmaps of a given client.
 =back
 
 "Resources" here means memory, objects, etc, not to be confused with the
-resource database of widget settings and user preferences (per
-L<X(7)/RESOURCES>).
+resource database of user preferences and widget settings of
+L<X(7)/RESOURCES>.
 
 See F<examples/xresource-print.pl> in the C<X11-Protocol-Other> sources for
 a simple dump of the resources reported.
@@ -308,7 +308,7 @@ to automatically negotiate in C<$X-E<gt>init_extension()> if/when needed.
 
 =item C<@clients = $X-E<gt>XResourceQueryClients ()>
 
-Return a list of client connections on the server.  Each returned element is
+Return a list of client connections on the server.  Each returned value is
 an arrayref pair
 
     [ $xid_base, $xid_mask ]
@@ -327,7 +327,7 @@ C<$xid_mask> 0x1FFFFF, meaning 0xA00000 through 0xBFFFFF is this client.
       printf "client base %X mask %X\n", $xid_base, $xid_mask;
     }
 
-The given C<$X> connection itself is included in the return, as
+The given C<$X> connection itself is included in the return.  This will be
 C<$X-E<gt>{'resource_id_base'}> and C<$X-E<gt>{'resource_id_mask'}>.
 
 =item C<($atom,$count,...) = $X-E<gt>XResourceQueryClientResources ($xid)>
@@ -367,7 +367,7 @@ Or put the list into a hash to lookup a particular resource type,
 
     print "using $windows many windows, and $grabs passive grabs";
 
-C<List::Pairwise> has a C<mapp()> and other things to work with this sort of
+C<List::Pairwise> has C<mapp()> and other things to work with this sort of
 two-at-a-time list too.  See F<examples/xresource-pairwise.pl> in the
 C<X11-Protocol-Other> sources for a complete program.
 
@@ -377,15 +377,15 @@ thing.  So if no pixmaps then no C<PIXMAP> entry at all.
 Basics like C<WINDOW>, C<PIXMAP>, C<GC> C<COLORMAP>, C<FONT> and C<CURSOR>
 are how many of those in use.  The server might also report things like
 S<C<PASSIVE GRAB>> or S<C<COLORMAP ENTRY>> (atoms with spaces in their
-names).  The X.org server (circa version 1.9) even sometimes reports
-"Unregistered resource 30" (an atom with that name), which is something or
-other.
+names).  The X.org server (circa version 1.9) even sometimes reports things
+like "Unregistered resource 30" (an atom with that name), which is something
+or other.
 
 If the given C<$xid> is not a connected client then a BadValue error
 results.  Be careful of that if querying resources of another client since
-it might disconnect at any time.  C<$X-E<gt>robust_req()> is good, or maybe
-C<GrabServer> to hold connections between C<XResourceQueryClients> and
-C<XResourceQueryClientResources>.
+the client might disconnect at any time.  C<$X-E<gt>robust_req()> is good,
+or maybe C<GrabServer> to hold connections between
+C<XResourceQueryClients()> and C<XResourceQueryClientResources()>.
 
 =item C<$bytes = $X-E<gt>XResourceQueryClientPixmapBytes ($xid)>
 
@@ -395,8 +395,8 @@ stipples are included (or should be).  If the client has no pixmaps at all
 the return is 0.
 
 The client is identified by an C<$xid> as per
-C<XResourceQueryClientResources> above.  It can be anything in the client's
-XID range, allocated or not.
+C<XResourceQueryClientResources()> above.  It can be anything in the
+client's XID range, allocated or not.
 
     my $pixmap = $X->new_rsrc;
     $X->CreatePixmap ($pixmap,
@@ -409,9 +409,9 @@ XID range, allocated or not.
     print "total of all pixmaps is $bytes bytes of memory\n";
 
 The return is a 64-bit value.  On a 32-bit system currently a value bigger
-than 32 bits is returned as floating point, or bigger than 53 bits as
-C<Math::BigInt>.  Most of the time 32-bits is enough, as 4 Gbytes of pixmaps
-is quite a lot, or 53-bit float should be plenty, being about 8192
+than 32 bits is returned as floating point, or bigger than 53 bit float as
+C<Math::BigInt>.  Most of the time 32-bits is enough, since that would be 4
+Gbytes of pixmaps, or 53-bit float should be plenty, that being about 8192
 terabytes!
 
 =back

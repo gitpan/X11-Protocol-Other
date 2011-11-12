@@ -22,7 +22,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 12;
+$VERSION = 13;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -30,17 +30,19 @@ $VERSION = 12;
 
 # /usr/share/doc/x11proto-fixes-dev/fixesproto.txt.gz
 #     http://cgit.freedesktop.org/xorg/proto/fixesproto/tree/fixesproto.txt
-#
-# /usr/include/X11/extensions/Xfixes.h
 # /usr/include/X11/extensions/xfixesproto.h
 # /usr/include/X11/extensions/xfixeswire.h
 #
 # /usr/share/doc/x11proto-xext-dev/shape.txt.gz
+#
+# /usr/include/X11/extensions/Xfixes.h
+#     Xlib.
+#
+# /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
 
-### XFIXES.pm loads
 
 # these not documented yet ...
-use constant CLIENT_MAJOR_VERSION => 4;
+use constant CLIENT_MAJOR_VERSION => 5;
 use constant CLIENT_MINOR_VERSION => 0;
 
 
@@ -321,25 +323,35 @@ my $reqs =
    #---------------------------------------------------------------------------
    # version 5.0
 
-   # untested, and not sure about how to take the directions arg
-   #
-   # ['XFixesCreatePointerBarrier',  # 31
-   #  sub {
-   #    my ($X, $barrier, $drawable, $x1,$y1, $x2,$y2, $directions,
-   #        @devices) = @_;
-   #    my $devices = pack 'S*', map{_num_xinputdevice($_)} @devices;
-   #    return pack ('LLssLxx'.padding($devices),
-   #                 $barrier,             # CARD32
-   #                 $drawable,            # CARD32
-   #                 $x1,$y1, $x2,$y2,     # INT16
-   #                 $X->num('XFixesBarrierDirections',$directions), # CARD32
-   #                 # pad16
-   #                 scalar(@devices),     # CARD16
-   #                 $devices);            # stringized
-   #  }],
-   # 
-   # ['XFixesDestroyPointerBarrier',  # 32
-   #  \&_request_xids ],
+   ['XFixesCreatePointerBarrier',  # 31
+    sub {
+      my ($X, $barrier, $drawable, $x1,$y1, $x2,$y2, $directions,
+          @devices) = @_;
+      my $devices = pack 'S*', map{_num_xinputdevice($_)} @devices;
+      ### @devices
+      ### $devices
+
+      # my $ret = pack ('LLssssLxxS',
+      #                 $barrier,             # CARD32
+      #                 $drawable,            # CARD32
+      #                 $x1,$y1, $x2,$y2,     # INT16 x 4
+      #                 $directions,          # CARD32
+      #                 scalar(@devices),     # CARD16
+      #                 $devices);            # packed CARD16s
+      # ### $ret
+      # ### len: length($ret)
+
+      return pack ('LLssssLxxS',
+                   $barrier,             # CARD32
+                   $drawable,            # CARD32
+                   $x1,$y1, $x2,$y2,     # INT16 x 4
+                   $directions,          # CARD32
+                   scalar(@devices),     # CARD16
+                   $devices);            # packed CARD16s
+    }],
+
+   ['XFixesDestroyPointerBarrier',  # 32
+    \&_request_xids ],  # ($X, $barrier)  single barrier to destroy
   ];
 
 sub new {
@@ -874,7 +886,70 @@ automatically undone.
 
 =head2 XFIXES version 5.0
 
-Code waiting to be tested!
+=over
+
+=item C<$X-E<gt>XFixesCreatePointerBarrier ($barrier, $drawable, $x1,$y1, $x2,$y2, $directions, $deviceid...)>
+
+Create C<$barrier> (a new XID) as a barrier object which prevents user mouse
+pointer movement across a line between C<$x1,$y1> and C<$x2,$y2>.  For
+example
+
+    my $barrier = $X->new_rsrc;
+    $X->XFixesCreatePointerBarrier ($barrier, $X->root,
+                                    100,100, 100,500,
+                                    0);
+
+X,Y coordinates are screen coordinates on the screen of C<$drawable>.  The
+line must be horizontal or vertical, so either C<$x1==$x2> or C<$y1==$y2>
+(but not both).  A horizontal barrier is across the top edge of the line
+pixels, a vertical barrier is along the left edge of the line pixels.
+
+C<$directions> is an integer OR of the follow bits for which directions to
+allow some movement across the line.  A value 0 means no movement across is
+allowed.
+
+    PositiveX    1
+    PositiveY    2
+    NegativeX    4
+    NegativeY    8
+
+For example on a horizontal line 8 would allow the pointer to move through
+the line in the negative Y direction (up the screen), and movement in the
+positive Y direction (down the screen) would still be forbidden.
+
+C<$directions> can let the user move the mouse out of some sort of forbidden
+region but not go back in.
+
+Optional C<$deviceid> arguments are X Input Extension 2.0 devices the
+barrier should apply to (see L<X11::Protocol::Ext::XInputExtension>).  Give
+no arguments to act on just the core protocol mouse pointer.  Each argument
+can be
+
+    device ID            (integer)
+    "AllDevices"         (string, 0)
+    "AllMasterDevices"   (string, 1)
+
+It's not necessary to C<$X-E<gt>init_extension('XInputExtension')> before
+using this request.
+
+The user can move the mouse pointer to go around a barrier line but by
+putting lines together a region can be constructed keeping the pointer
+inside or outside, or even making a maze to trick the user!
+
+Touchscreen pad input is not affected by barriers, and
+C<$X-E<gt>WarpPointer> can still move the pointer anywhere.
+
+One intended use is when a Xinerama screen (see
+L<X11::Protocol::Ext::XINERAMA>) is made from monitors of different pixel
+sizes so parts of the logical screen extent are off the edge of one of the
+smaller monitors.  Barriers can prevent the user losing the mouse in one of
+those dead regions.
+
+=item C<$X-E<gt>XFixesDestroyPointerBarrier ($barrier)>
+
+Destroy the given barrier (an XID).
+
+=back
 
 =head1 EVENTS
 
@@ -968,52 +1043,3 @@ You should have received a copy of the GNU General Public License along with
 X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
 =cut
-
-
-
-
-
-
-# =head2 XFIXES version 5.0
-# 
-# =over
-# 
-# =item C<$X-E<gt>XFixesCreatePointerBarrier ($barrier, $drawable, $x1,$y1, $x2,$y2, $directions, $device...)>
-# 
-# Create C<$barrier> (a new XID) as a barrier object which prevents user mouse
-# pointer movement across a line between C<$x1,$y1> and C<$x2,$y2>.
-# 
-#     my $barrier = $X->new_rsrc;
-#     $X->XFixesCreatePointerBarrier ($barrier, $X->root,
-#                                     100,100, 100,500,
-#                                     ['PositiveY','NegativeY']);
-# 
-# The line must be horizontal or vertical, so either C<$x1==$x2> or
-# C<$y1==$y2>.  A horizontal barrier is across the top edge of the line
-# pixels, a vertical barrier is along the left edge of the line.
-# 
-# C<$directions> is an arrayref list of strings
-# 
-#     PositiveX
-#     PositiveY
-#     NegativeX
-#     NegativeY 
-# 
-# C<$device> parameters are optional.  If the X Input Extension 2.0 is
-# available on the server (see L<X11::Protocol::Ext::XinputExtension>) then
-# the devices is a list of device IDs or "AllDevices" or "AllMasterDevices"
-# which the barrier should apply to.
-#
-# The user can move the mouse pointer to skirt around a barrier line, but by
-# putting lines together a region can be constructed keeping the pointer
-# inside or outside, or even making a maze to trick the user!
-# 
-# Touchscreen pad input is not affected by barriers, and
-# C<$X-E<gt>WarpPointer> can still move the pointer anywhere.
-# 
-# =item C<$X-E<gt>XFixesDestroyPointerBarrier ($barrier)>
-# 
-# Destroy the given barrier (an XID).
-# 
-# =back
-

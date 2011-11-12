@@ -25,18 +25,19 @@
 #
 # With just the core protocol this sort of thing has to be done by polling
 # GetSelectionOwner() periodically.  If you're the selection owner you're
-# notified of its loss, but third parties like a cut-buffer display have to
-# poll.
+# notified of its loss with an event, but third parties like a cut-buffer
+# display have to poll.
 #
 # The key part is merely $X->XFixesSelectSelectionInput() and the
-# XFixesSelectionNotify events.  The window creation and GetProperty
+# XFixesSelectionNotify events.  The window creation and GetProperty()
 # nonsense are only to retrieve the selection contents.  If you're
 # interested in selection changes then you probably want to fetch the
 # selection contents at some point.
 #
-# Don't think the window supplied to XFixesSelectSelectionInput() has to be
-# a client window.  It seems to work to give $X->root.  Is it's main purpose
-# in the protocol to let the client dispatch events to a widget?
+# The window supplied to XFixesSelectSelectionInput() doesn't have to be a
+# client window.  It seems to work to give $X->root.  Is it's purpose in the
+# protocol to let clients dispatch events to a widget?  Or have multiple
+# independent parts of a program listening or some such?
 #
 # The only selection data type supported here is "STRING".  A real program
 # might ask for "TEXT" to read either STRING or COMPOUND_TEXT.  The ICCCM
