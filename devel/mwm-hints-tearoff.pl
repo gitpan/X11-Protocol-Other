@@ -27,173 +27,138 @@ use Carp;
 # uncomment this to run the ### lines
 use Smart::Comments;
 
-{
-
-  #------------------------------------------------------------------------------
-  # MOTIF_WM_HINTS
-
-  # arrayref packing ... ?
-
-  # =item C<X11::Protocol::WM::set_motif_wm_hints ($X, $window, key=E<gt>value...)>
-  #
-  # Set the C<MOTIF_WM_HINTS> property on C<$window> (an XID).  This
-  # controls decorations around the window.  It originated in the Motif
-  # window manager but is recognised by many other window managers too.  For
-  # example
-  #
-  #     X11::Protocol::WM::set_motif_wm_hints
-  #       ($X, $window,
-  #        functions => ['move','close'],
-  #        decorations => ['border','title','menu']);
-  #
-  # The key/value arguments are
-  #
-  #     functions       arrayref, or integer bits
-  #     decorations     arrayref, or integer bits
-  #     input_mode      enum string or integer
-  #     status          arrayref, or integer bits
-  #
-  # C<functions> is what operations the window manager should offer on the
-  # window in a drop-down menu or similar.  The default is "all".
-  #
-  #     "all"         all functions
-  #     "resize"      to resize the window
-  #     "move"        to move the window
-  #     "minimize"    to iconify
-  #     "maximize"    to make full-screen (but still with a frame)
-  #     "close"       to close the window
-  #
-  # C<decorations> is what visual decorations the window manager should show
-  # around the window.  The default is "all".
-  #
-  #     "all"          show all decorations
-  #     "border"       a border around the window
-  #     "resizeh"      handles to resize by dragging
-  #     "title"        title bar showing WM_NAME
-  #     "menu"         drop-down menu of the "functions" above
-  #     "minimize"     button to minimize, ie. iconify
-  #     "maximize"     button to maximize, ie. full-screen
-  #
-  # C<input_mode> allows a window to be "modal", meaning the user should
-  # interact only with that window.  The window manager will generally keep
-  # it on top, not set the focus to other windows, etc.  The value is one of
-  # the following strings,
-  #
-  #     "modeless"                    0    not modal (the default)
-  #     "primary_application_modal"   1    modal to its "transient for"
-  #     "system_modal"                2    modal to the whole display
-  #     "full_application_modal"      3    modal to the current client
-  #
-  # C<status> field is an arrayref of some of the following strings, though
-  # currently there's just one,
-  #
-  #     "tearoff_window"     is a tearoff menu
-  #
-  # In Motif C<mwm>, C<tearoff_window> means the C<WM_NAME> in window's
-  # title bar is not truncated to the window size but instead the window
-  # expanded as necessary to show it in full.  This might be good for
-  # tearoff menus.  (Don't be surprised if other window managers ignore this
-  # flag though.)
-  #
-  #     X11::Protocol::WM::set_motif_wm_hints
-  #       ($X, $my_tearoff_win,
-  #        status => ['tearoff_window']);
-  #
-  # SEE ALSO
-  #
-  # F</usr/include/Xm/MwmUtil.h>, and C<mwm> sources F<WmWinInfo.c>
-  # C<ProcessWmWindowTitle()> on C<tearoff_window> flag handling.
-  #
-  sub _set_motif_wm_hints {
-    my $X = shift;
-    my $window = shift;
-    $X->ChangeProperty($window,
-                       $X->atom('_MOTIF_WM_HINTS'),  # property
-                       $X->atom('_MOTIF_WM_HINTS'),  # type
-                       32,                          # format
-                       'Replace',
-                       _pack_motif_wm_hints ($X, @_));
-  }
-
-  {
-    # /usr/include/Xm/MwmUtil.h
-    my $format = 'L5';
-    my %key_to_flag = (functions   => 1,
-                       decorations => 2,
-                       input_mode  => 4,
-                       status      => 8,
-                      );
-    my %arefargs = (functions => { all      => 1,
-                                   resize   => 2,
-                                   move     => 4,
-                                   minimize => 8,
-                                   maximize => 16,
-                                   close    => 32 },
-                    decorations => { all      => 1,
-                                     border   => 2,
-                                     resizeh  => 4,
-                                     title    => 8,
-                                     menu     => 16,
-                                     minimize => 32,
-                                     maximize => 64 },
-                    status => { tearoff_window => 1,
-                              },
-                   );
-    sub _pack_motif_wm_hints {
-      my ($X, %hint) = @_;
-
-      my $flags = 0;
-      foreach my $key (keys %hint) {
-        if (defined $hint{$key}) {
-          $flags |= $key_to_flag{$key};
-        } else {
-          croak "Unrecognised MOTIF_WM_HINTS field: ",$key;
-        }
-      }
-      foreach my $field (keys %arefargs) {
-        my $bits = 0;
-        my $h;
-        if ($h = $hint{$field}) {
-          if (ref $h) {
-            foreach my $key (@$h) {
-              if (defined (my $bit = $arefargs{$field}->{$key})) {
-                $bits |= $bit;
-              } else {
-                croak "Unrecognised MOTIF_WM_HINTS ",$field," field: ",$key;
-              }
-            }
-          }
-        }
-        $hint{$field} = $bits;
-      }
-      pack ($format,
-            $flags,
-            $hint{'functions'},
-            $hint{'decorations'},
-            _motif_input_mode_num($hint{'input_mode'}) || 0,
-            $hint{'status'});
-    }
-  }
-
-  {
-    my %input_mode_num = (modeless                  => 0,
-                          primary_application_modal => 1,
-                          # application_modal         => 1,
-                          system_modal              => 2,
-                          full_application_modal    => 3,
-                         );
-    sub _motif_input_mode_num {
-      my ($X, $input_mode) = @_;
-      if (exists $input_mode_num{$input_mode}) {
-        return $input_mode_num{$input_mode};
-      } else {
-        return $input_mode;
-      }
-    }
-  }
-
-
-}
+# {
+# 
+# 
+# 
+#   #        # motif has the name "MWM_INPUT_APPLICATION_MODAL" as an alias for
+#   #        # "MWM_INPUT_PRIMARY_APPLICATION_MODAL", but says prefer the latter
+#   #        MwmModal => ['modeless',                  # 0
+#   #                     'primary_application_modal', # 1
+#   #                     'system_modal',              # 2
+#   #                     'full_application_modal',    # 3
+#   #                    ],
+#   #        MwmStatus => ['tearoff_window',           # 0
+#   #                    ],
+# 
+# 
+# 
+#   #
+#   # The key/value arguments are
+#   #
+#   #     functions       arrayref, or integer bits
+#   #     decorations     arrayref, or integer bits
+#   #     input_mode      enum string or integer
+#   #     status          arrayref, or integer bits
+#   #
+#   # C<functions> is what operations the window manager should offer on the
+#   # window in a drop-down menu or similar.  The default is "all".
+#   #
+#   #     "all"         all functions
+#   #     "resize"      to resize the window
+#   #     "move"        to move the window
+#   #     "minimize"    to iconify
+#   #     "maximize"    to make full-screen (but still with a frame)
+#   #     "close"       to close the window
+#   #
+#   # C<decorations> is what visual decorations the window manager should show
+#   # around the window.  The default is "all".
+#   #
+#   #     "all"          show all decorations
+#   #     "border"       a border around the window
+#   #     "resizeh"      handles to resize by dragging
+#   #     "title"        title bar showing WM_NAME
+#   #     "menu"         drop-down menu of the "functions" above
+#   #     "minimize"     button to minimize, ie. iconify
+#   #     "maximize"     button to maximize, ie. full-screen
+#   #
+#   # C<input_mode> allows a window to be "modal", meaning the user should
+#   # interact only with that window.  The window manager will generally keep
+#   # it on top, not set the focus to other windows, etc.  The value is one of
+#   # the following strings,
+#   #
+#   #     "modeless"                    0    not modal (the default)
+#   #     "primary_application_modal"   1    modal to its "transient for"
+#   #     "system_modal"                2    modal to the whole display
+#   #     "full_application_modal"      3    modal to the current client
+#   #
+#   # C<status> field is an arrayref of some of the following strings, though
+#   # currently there's just one,
+#   #
+#   #     "tearoff_window"     is a tearoff menu
+#   #
+#   # In Motif C<mwm>, C<tearoff_window> means the C<WM_NAME> in window's
+#   # title bar is not truncated to the window size but instead the window
+#   # expanded as necessary to show it in full.  This might be good for
+#   # tearoff menus.  (Don't be surprised if other window managers ignore this
+#   # flag though.)
+#   #
+#   #     X11::Protocol::WM::set_motif_wm_hints
+#   #       ($X, $my_tearoff_win,
+#   #        status => ['tearoff_window']);
+#   #
+#   # {
+#   #   # /usr/include/Xm/MwmUtil.h
+#   #
+#   #   my $format = 'L5';
+#   #   my %key_to_flag = (functions   => 1,
+#   #                      decorations => 2,
+#   #                      input_mode  => 4,
+#   #                      status      => 8,
+#   #                     );
+#   #   my %arefargs = (functions => { all      => 1,
+#   #                                  resize   => 2,
+#   #                                  move     => 4,
+#   #                                  minimize => 8,
+#   #                                  maximize => 16,
+#   #                                  close    => 32 },
+#   #                   decorations => { all      => 1,
+#   #                                    border   => 2,
+#   #                                    resizeh  => 4,
+#   #                                    title    => 8,
+#   #                                    menu     => 16,
+#   #                                    minimize => 32,
+#   #                                    maximize => 64 },
+#   #                   status => { tearoff_window => 1,
+#   #                             },
+#   #                  );
+#   #   sub pack_motif_wm_hints {
+#     #     my ($X, %hint) = @_;
+#     #
+#     #     my $flags = 0;
+#     #     foreach my $key (keys %hint) {
+#     #       if (defined $hint{$key}) {
+#     #         $flags |= $key_to_flag{$key};
+#     #       } else {
+#     #         croak "Unrecognised MOTIF_WM_HINTS field: ",$key;
+#     #       }
+#     #     }
+#     #     foreach my $field (keys %arefargs) {
+#     #       my $bits = 0;
+#     #       my $h;
+#     #       if ($h = $hint{$field}) {
+#     #         if (ref $h) {
+#     #           foreach my $key (@$h) {
+#     #             if (defined (my $bit = $arefargs{$field}->{$key})) {
+#     #               $bits |= $bit;
+#     #             } else {
+#     #               croak "Unrecognised MOTIF_WM_HINTS ",$field," field: ",$key;
+#     #             }
+#     #           }
+#     #         }
+#     #       }
+#     #       $hint{$field} = $bits;
+#     #     }
+#     #     pack ($format,
+#     #           $flags,
+#     #           $hint{'functions'},
+#     #           $hint{'decorations'},
+#     #           _motif_input_mode_num($hint{'input_mode'}) || 0,
+#     #           $hint{'status'});
+#     #   }
+#     # }
+# 
+#   }
 
 
 my $X = X11::Protocol->new;
@@ -215,6 +180,9 @@ $X->ChangeProperty($w1,
                    8,                            # byte format
                    'Replace',
                    'ssssssssssssssssss ssssssssssssssssssssss sssssssssssssssssss'); # window title
+X11::Protocol::WM::set_motif_wm_hints ($X, $w1,
+                                       functions => 4+32,
+                                       decorations => 32);
 $X->MapWindow ($w1);
 
 my $w2 = $X->new_rsrc;
@@ -228,7 +196,7 @@ $X->CreateWindow ($w2,
                   0,                # border
                   background_pixel => $X->black_pixel,
                  );
-#_set_motif_wm_hints ($X, $w2, status => ['tearoff_window']);
+X11::Protocol::WM::set_motif_wm_hints ($X, $w2, status => 1);
 $X->ChangeProperty($w2,
                    X11::AtomConstants::WM_NAME,  # property
                    X11::AtomConstants::STRING,   # type
@@ -236,6 +204,11 @@ $X->ChangeProperty($w2,
                    'Replace',
                    'jfksl jksd fjskl fjskl fjskl fjksl fjkls dlfjk slkf'); # window title
 $X->MapWindow ($w2);
+
+$X->flush;
+sleep 2;
+X11::Protocol::WM::set_motif_wm_hints ($X, $w1);
+print "set again\n";
 
 while (1) {
   $X->handle_input;

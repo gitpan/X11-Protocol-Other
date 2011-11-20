@@ -31,6 +31,7 @@ plan tests => $test_count;
 use X11::Protocol::WM
   'frame_window_to_client',
   'get_wm_state',
+  'get_net_frame_extents',
   'set_wm_class',
   'set_wm_client_machine',
   'set_wm_client_machine_from_syshostname',
@@ -38,11 +39,18 @@ use X11::Protocol::WM
   'set_wm_hints',
   'set_wm_icon_name',
   'set_wm_name',
+  'set_wm_normal_hints',
   'set_wm_protocols',
   'set_wm_transient_for',
+  'set_motif_wm_hints',
   'set_net_wm_pid',
   'set_net_wm_user_time',
-  'set_net_wm_window_type';
+  'set_net_wm_window_type',
+  'pack_wm_hints',
+  'pack_wm_size_hints',
+  'pack_motif_wm_hints',
+  'unpack_wm_state',
+  ;
 
 require X11::Protocol;
 MyTestHelpers::diag ("X11::Protocol version ", X11::Protocol->VERSION);
@@ -91,6 +99,7 @@ $X->CreateWindow ($window2,
 
 { my $client_window = frame_window_to_client($X,$window); }
 { my ($state, $icon_window) = get_wm_state($X,$window); }
+{ my ($left,$right,$top,$bottom) = get_wm_state($X,$window); }
 set_wm_class($X,$window,"foo","Foo");
 set_wm_client_machine($X,$window,"mymachine");
 set_wm_client_machine_from_syshostname($X,$window);
@@ -98,6 +107,7 @@ set_wm_command($X,$window,"");
 set_wm_hints($X,$window,input=>1);
 set_wm_icon_name($X,$window,"myicon");
 set_wm_name($X,$window,"my title!");
+set_wm_normal_hints($X,$window);
 set_wm_protocols($X,$window,'WM_DELETE_WINDOW');
 set_wm_transient_for($X,$window2,$window);
 {
@@ -115,9 +125,15 @@ set_wm_transient_for($X,$window2,$window);
 
   # ok ($window, get_wm_transient_for($X,$window2,$window));
 }
+set_motif_wm_hints($X,$window);
 set_net_wm_pid($X,$window);
 set_net_wm_user_time($X,$window,0);
 set_net_wm_window_type($X,$window,'SPLASH');
+
+pack_motif_wm_hints($X);
+pack_wm_hints($X);
+pack_wm_size_hints($X);
+unpack_wm_state($X, pack('LL',0,0));
 
 $X->QueryPointer($X->{'root'});  # sync
 ok (1, 1);

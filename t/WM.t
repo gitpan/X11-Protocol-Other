@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = (tests => 129)[1];
+my $test_count = (tests => 169)[1];
 plan tests => $test_count;
 
 require X11::Protocol::WM;
@@ -87,7 +87,7 @@ sub to_hex {
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 13;
+my $want_version = 14;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');
@@ -104,6 +104,133 @@ ok (! eval { X11::Protocol::WM->VERSION($check_version); 1 },
     "VERSION class check $check_version");
 
 #------------------------------------------------------------------------------
+# _aspect_to_num_den()
+
+foreach my $elem ([1, 1,1],
+                  [2, 2,1],
+                  ['0.5', 5,10],
+                  ['0.33', 33,100],
+                  ['.33', 33,100],
+                  ['12.34', 1234,100],
+                  ['7/17', 7,17],
+
+                  # current code grows in decimal ...
+                  ['7.5/17', 75,170],
+                  ['7.5/1.0', 75,10],
+                  ['1.23/4.5', 123,450],
+                  ['12.3/4.56', 1230,456],
+
+                  # chopped down to maximum
+                  [0x8000_0000, 0x7FFF_FFFF,1],
+
+                  # not sure about this one
+                  ['4294967296/4', 0x7FFF_FFFF,2],
+                 ) {
+  my ($aspect, $want_num, $want_den) = @$elem;
+  my ($got_num, $got_den) = X11::Protocol::WM::_aspect_to_num_den($aspect);
+
+  ok ($got_num, $want_num);
+  ok ($got_den, $want_den);
+}
+
+#------------------------------------------------------------------------------
+# pack_wm_size_hints()
+
+X11::Protocol::WM::pack_wm_size_hints($X,
+                                      user_position => 1);
+X11::Protocol::WM::pack_wm_size_hints($X,
+                                      user_size => 1);
+
+X11::Protocol::WM::pack_wm_size_hints($X,
+                                      program_position => 1);
+X11::Protocol::WM::pack_wm_size_hints($X,
+                                      program_size => 1);
+
+X11::Protocol::WM::pack_wm_size_hints($X,
+                                      min_width => 100,
+                                      min_height => 200);
+
+X11::Protocol::WM::pack_wm_size_hints($X,
+                                      max_width => 100,
+                                      max_height => 200);
+X11::Protocol::WM::pack_wm_size_hints($X,
+                                      width_inc => 10,
+                                      height_inc => 11);
+X11::Protocol::WM::pack_wm_size_hints($X,
+                                      base_width => 50,
+                                      base_height => 60);
+
+{
+  my $bytes1 = X11::Protocol::WM::pack_wm_size_hints($X,
+                                                     min_aspect => '1/2',
+                                                     max_aspect => '3/4');
+  my $bytes2 = X11::Protocol::WM::pack_wm_size_hints($X,
+                                                     min_aspect_num => 1,
+                                                     min_aspect_den => 2,
+                                                     max_aspect_num => 3,
+                                                     max_aspect_den => 4);
+  ok ($bytes1, $bytes2);
+}
+
+{
+  my $bytes1 = X11::Protocol::WM::pack_wm_size_hints($X,
+                                                     win_gravity => 'NorthEast');
+  my $bytes2 = X11::Protocol::WM::pack_wm_size_hints($X,
+                                                     win_gravity => 4);
+  ok ($bytes1, $bytes2);
+}
+
+
+#------------------------------------------------------------------------------
+# pack_wm_size_hints()
+
+{
+  X11::Protocol::WM::set_wm_normal_hints($X, $window,
+                                         user_position => 1,
+                                         win_gravity => 'South');
+
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window,
+                       $X->atom('WM_NORMAL_HINTS'),
+                       'AnyPropertyType',
+                       0,   # offset
+                       100, # length
+                       0);  # delete
+  ok ($format, 32);
+  ok ($type, $X->atom('WM_SIZE_HINTS'));
+  require X11::AtomConstants;
+  ok ($type, X11::AtomConstants::WM_SIZE_HINTS());
+  my $type_name = ($type ? $X->atom_name($type) : 'None');
+  ok ($type_name, 'WM_SIZE_HINTS');
+  # ok ($value, "...");
+  ok ($bytes_after, 0);
+
+  $X->DeleteProperty($window, $X->atom('WM_NORMAL_HINTS'));
+}
+
+#------------------------------------------------------------------------------
+# unpack_wm_state()
+
+{
+  my @ret = X11::Protocol::WM::unpack_wm_state ($X, pack 'L2',0,0);
+  ok (scalar(@ret), 2);
+  ok ($ret[0], 'WithdrawnState');
+  ok ($ret[1], 'None');
+}
+{
+  my @ret = X11::Protocol::WM::unpack_wm_state ($X, pack 'L2',1,123);
+  ok (scalar(@ret), 2);
+  ok ($ret[0], 'NormalState');
+  ok ($ret[1], 123);
+}
+{
+  my @ret = X11::Protocol::WM::unpack_wm_state ($X, pack 'L2',3,123);
+  ok (scalar(@ret), 2);
+  ok ($ret[0], 'IconicState');
+  ok ($ret[1], 123);
+}
+
+#------------------------------------------------------------------------------
 # get_wm_state()
 
 {
@@ -114,24 +241,6 @@ ok (! eval { X11::Protocol::WM->VERSION($check_version); 1 },
         'get_wm_state() return 0 or 2 values');
     MyTestHelpers::diag ("WM_STATE: ",join(' ',@ret));
   }
-}
-{
-  my @ret = X11::Protocol::WM::_unpack_wm_state ($X, pack 'L2',0,0);
-  ok (scalar(@ret), 2);
-  ok ($ret[0], 'WithdrawnState');
-  ok ($ret[1], 'None');
-}
-{
-  my @ret = X11::Protocol::WM::_unpack_wm_state ($X, pack 'L2',1,123);
-  ok (scalar(@ret), 2);
-  ok ($ret[0], 'NormalState');
-  ok ($ret[1], 123);
-}
-{
-  my @ret = X11::Protocol::WM::_unpack_wm_state ($X, pack 'L2',3,123);
-  ok (scalar(@ret), 2);
-  ok ($ret[0], 'IconicState');
-  ok ($ret[1], 123);
 }
 
 {
@@ -216,6 +325,81 @@ ok (! eval { X11::Protocol::WM->VERSION($check_version); 1 },
   $X->DeleteProperty($subwin, $X->atom('WM_STATE'));
   {
     my @ret = X11::Protocol::WM::get_wm_state ($X, $subwin);
+    ok (scalar(@ret), 0);
+  }
+
+  $X->DestroyWindow($subwin);
+  $X->DestroyWindow($toplevel);
+}
+
+
+#------------------------------------------------------------------------------
+# get_net_frame_extents()
+
+{
+  my $target;
+  foreach $target ($window, $X->{'root'}) {
+    my @ret = X11::Protocol::WM::get_net_frame_extents ($X, $target);
+    ok (scalar(@ret) == 0 || scalar(@ret) == 4, 1,
+        'get_net_frame_extents() return 0 or 4 values');
+    MyTestHelpers::diag ("_NET_FRAME_EXTENTS: ",join(' ',@ret));
+  }
+}
+
+{
+  my $toplevel = $X->new_rsrc;
+  $X->CreateWindow($toplevel,
+                   $X->root,           # parent
+                   'InputOutput',      # class
+                   $X->root_depth,     # depth
+                   'CopyFromParent',   # visual
+                   0,0,                # x,y
+                   100,100,            # width,height
+                   10,                 # border
+                   background_pixel => $X->{'white_pixel'},
+                   override_redirect => 1,
+                   colormap => 'CopyFromParent',
+                  );
+
+  my $subwin = $X->new_rsrc;
+  $X->CreateWindow($subwin,
+                   $toplevel,           # parent
+                   'InputOutput',       # class
+                   $X->root_depth,      # depth
+                   'CopyFromParent',    # visual
+                   0,0,                 # x,y
+                   10,10,               # width,height
+                   0,                   # border
+                   background_pixel => $X->{'black_pixel'},
+                   colormap => 'CopyFromParent',
+                  );
+
+  $X->ChangeProperty($subwin,
+                     $X->atom('_NET_FRAME_EXTENTS'),  # property
+                     $X->atom('CARDINAL'),  # type
+                     32,                    # format
+                     'Replace',             # mode
+                     pack ('L*', 11,22,33,44));
+  {
+    my @ret = X11::Protocol::WM::get_net_frame_extents ($X, $subwin);
+    ok (scalar(@ret), 4);
+    ok (join(',',@ret), '11,22,33,44');
+  }
+
+  $X->ChangeProperty($subwin,
+                     $X->atom('_NET_FRAME_EXTENTS'),  # property
+                     $X->atom('STRING'),    # type
+                     8,                     # format
+                     'Replace',             # mode
+                     'Wrong data type');
+  {
+    my @ret = X11::Protocol::WM::get_net_frame_extents ($X, $subwin);
+    ok (scalar(@ret), 0);
+  }
+
+  $X->DeleteProperty($subwin, $X->atom('_NET_FRAME_EXTENTS'));
+  {
+    my @ret = X11::Protocol::WM::get_net_frame_extents ($X, $subwin);
     ok (scalar(@ret), 0);
   }
 
@@ -474,13 +658,85 @@ X11::Protocol::WM::set_wm_protocols ($X, $window2);
 #------------------------------------------------------------------------------
 # set_wm_hints()
 
-X11::Protocol::WM::set_wm_hints ($X, $window,
-                                 input => 1,
-                                 initial_state => 'NormalState',
-                                 icon_x  => -1,
-                                 icon_y  => -1,
-                                 urgency => 1,
-                                );
+{
+  my $pixmap = $X->new_rsrc;
+  $X->CreatePixmap ($pixmap,
+                    $X->root,
+                    $X->{'root_depth'},
+                    16,16);  # width,height
+
+  my $bitmap = $X->new_rsrc;
+  $X->CreatePixmap ($bitmap,
+                    $X->root,
+                    1,       # depth 1 bitmap
+                    16,16);  # width,height
+
+  my $icon_window = $X->new_rsrc;
+  $X->CreateWindow($icon_window,
+                   $X->root,           # parent
+                   'InputOutput',      # class
+                   $X->root_depth,     # depth
+                   'CopyFromParent',   # visual
+                   0,0,                # x,y
+                   32,32,              # width,height
+                   1,                  # border
+                   background_pixel => $X->{'black_pixel'},
+                   colormap => 'CopyFromParent');
+  $X->QueryPointer($X->root);  # sync
+
+  X11::Protocol::WM::set_wm_hints ($X, $window,
+                                   input => 1,
+                                   initial_state => 'NormalState',
+                                   icon_x  => -1,
+                                   icon_y  => -1,
+                                   urgency => 1);
+  # individual fields to see others default ...
+  X11::Protocol::WM::set_wm_hints ($X, $window, input => 1);
+  X11::Protocol::WM::set_wm_hints ($X, $window, initial_state => 'IconicState');
+  X11::Protocol::WM::set_wm_hints ($X, $window, icon_pixmap => 'None');
+  X11::Protocol::WM::set_wm_hints ($X, $window, icon_pixmap => 0);
+  X11::Protocol::WM::set_wm_hints ($X, $window, icon_pixmap => $pixmap);
+  X11::Protocol::WM::set_wm_hints ($X, $window, icon_window => 'None');
+  X11::Protocol::WM::set_wm_hints ($X, $window, icon_window => 0);
+  X11::Protocol::WM::set_wm_hints ($X, $window, icon_window => $icon_window);
+  X11::Protocol::WM::set_wm_hints ($X, $window,
+                                   icon_x  => -1,
+                                   icon_y  => -1);
+  X11::Protocol::WM::set_wm_hints ($X, $window, icon_mask => 'None');
+  X11::Protocol::WM::set_wm_hints ($X, $window, icon_mask => 0);
+  X11::Protocol::WM::set_wm_hints ($X, $window, icon_mask => $bitmap);
+  X11::Protocol::WM::set_wm_hints ($X, $window, urgency => 1);
+
+  X11::Protocol::WM::set_wm_hints ($X, $icon_window, window_group => 'None');
+  X11::Protocol::WM::set_wm_hints ($X, $icon_window, window_group => 0);
+  X11::Protocol::WM::set_wm_hints ($X, $icon_window, window_group => $window);
+
+  $X->FreePixmap($pixmap);
+  $X->FreePixmap($bitmap);
+  $X->DestroyWindow($icon_window);
+  $X->QueryPointer($X->root);  # sync
+}
+
+
+#------------------------------------------------------------------------------
+# pack_wm_hints()
+
+X11::Protocol::WM::pack_wm_hints ($X);
+X11::Protocol::WM::pack_wm_hints ($X,
+                                  input => 1);
+X11::Protocol::WM::pack_wm_hints ($X,
+                                  icon_x  => -1,
+                                  icon_y  => -1);
+X11::Protocol::WM::pack_wm_hints ($X,
+                                  urgency => 1);
+{
+  my $bytes1 = X11::Protocol::WM::pack_wm_hints
+    ($X, initial_state => 'NormalState');
+  my $bytes2 = X11::Protocol::WM::pack_wm_hints
+    ($X, initial_state => 1);
+  ok ($bytes1, $bytes2);
+}
+
 
 #------------------------------------------------------------------------------
 # _wm_unpack_wm_hints()
@@ -641,7 +897,6 @@ X11::Protocol::WM::set_net_wm_window_type ($X, $window, 'NORMAL');
   }
   MyTestHelpers::diag ("frame_window_to_client() found $count_found clients out of ",scalar(@toplevels)," toplevels");
 }
-
 
 #------------------------------------------------------------------------------
 $X->QueryPointer($X->{'root'});  # sync

@@ -29,7 +29,7 @@ ok (1, 1, 'X11::Protocol::Ext::Composite load as first thing');
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 13;
+my $want_version = 14;
 ok ($X11::Protocol::Ext::Composite::VERSION,
     $want_version,
     'VERSION variable');

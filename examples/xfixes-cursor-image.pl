@@ -128,7 +128,7 @@ $X->CreatePixmap ($pixmap,
 
 my $gc = $X->new_rsrc;
 $X->CreateGC ($gc, $pixmap,
-              # don't need NoExpose when copying from $pixmap
+              # don't want NoExpose events when copying from $pixmap
               graphics_exposures => 0);
 
 

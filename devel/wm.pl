@@ -26,6 +26,30 @@ use X11::Protocol::WM;
 use Smart::Comments;
 
 {
+  # get_net_frame_extents()
+
+  my $X = X11::Protocol->new;
+
+  my $window = $X->new_rsrc;
+  $X->CreateWindow ($window,
+                    $X->root,         # parent
+                    'InputOutput',
+                    0,                # depth, from parent
+                    'CopyFromParent', # visual
+                    0,0,              # x,y
+                    100,100,          # width,height
+                    0,                # border
+                    background_pixel => $X->black_pixel,
+                   );
+  $X->MapWindow ($window);
+  $X->flush;
+  sleep 1;
+  my @extents = X11::Protocol::WM::get_net_frame_extents ($X, $window);
+  ### @extents
+  exit 0;
+}
+
+{
   my $X = X11::Protocol->new;
 
   my $window = $X->new_rsrc;

@@ -54,6 +54,7 @@ devel/shm-id.pl
 devel/shm.pl
 devel/wm-icon-size.pl
 devel/WM-maybe.pl
+devel/wm-size-hints.pl
 devel/wm-user-time.pl
 devel/wm.pl
 devel/xfixes-barrier.pl

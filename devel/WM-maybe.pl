@@ -42,291 +42,15 @@ BEGIN {
 
 
 #------------------------------------------------------------------------------
-# set WM_NORMAL_HINTS
-
-# =item C<X11::Protocol::WM::set_wm_normal_hints ($X, $window, key=E<gt>value,...)>
-#
-# Set the C<WM_NORMAL_HINTS> property on C<$window> (an XID).  This sets
-# some minimum and maximum sizes the window would like to be.  The window
-# manager will generally restrict user resizing to the requested limits.
-# For example,
-#
-#     set_wm_normal_hints ($X, $window,
-#                          min_width => 200,
-#                          min_height => 100);
-#
-# The key/value parameters are
-#
-#     user_position      boolean, window x,y user specified
-#     user_size          boolean, window width,height user specified
-#     program_position   boolean, window x,y program specified
-#     program_size       boolean, window width,height program specified
-#     min_width          \ integers, min size in pixels
-#     min_height         /
-#     max_width          \ integers, max size in pixels
-#     max_height         /
-#     base_width         \ integers
-#     base_height        /
-#     width_inc          \ integers, size increment in pixels
-#     height_inc         /
-#     min_aspect         \  fraction 2/3 or decimal 2 or 1.5
-#     min_aspect_num      | or integer num/den up to 0x7FFFFFFF
-#     min_aspect_den      |
-#     max_aspect          |
-#     max_aspect_num      |
-#     max_aspect_den     /
-#     win_gravity        WinGravity enum "NorthEast" etc
-#
-# C<user_position> and C<user_size> are flags meaning the window's x,y
-# position or width,height (in its usual C<SetWindowAttributes()>) were
-# given by the user.  C<program_position> and C<program_size> mean they were
-# given by the program.  The window manager will generally obey user
-# settings, but may override program-specified values with its own
-# positioning or sizing policy.
-#
-# The items shown grouped above must be given together, so for instance if a
-# C<min_width> is given then C<min_height> should be given too.
-#
-# C<base_width>,C<base_height> and C<width_inc>,C<height_inc> ask that the
-# window be a certain base size in pixels and then increment in steps of the
-# "inc" many pixels.  This can be used by things like C<xterm> which want to
-# be a multiple of the character size, plus a fixed extra border, scrollbars
-# etc.
-#
-# For size increment calculations the window manager uses
-# C<min_width>,C<min_height> if C<base_width>,C<base_height> are not given.
-# It can make sense for the base to be smaller than the min.  In that case
-# the min still applies, effectively making a minimum increment to apply,
-# for example perhaps an should not go below 5 chars wide by 2 chars high.
-#
-# The aspect parameters ask that the window have a certain minimum or
-# maximum width/height ratio.  For example 2/1 means it should be twice as
-# wide as it is high.  This is applied to the size amounts above
-# C<base_width>,C<base_height> or if base is given then to the whole size.
-#
-# C<min_aspect_num>,C<min_aspect_den> and
-# C<max_aspect_num>,C<max_aspect_den> set numerator and denominator values
-# directly (integers up to 0x7FFFFFFF), or C<min_aspect> and C<max_aspect>
-# for convenience accept a single value in various forms which are turned
-# into num/den values.  Values bigger than 0x7FFFFFFF are reduced
-# proportionally as necessary.
-#
-#     2         integer
-#     2/3       fraction
-#     1.125     decimal, meaning 1125/1000
-#     1.5/4.5   decimal fraction
-#
-# =item C<$bytes = X11::Protocol::WM::pack_size_hints ($X, key=E<gt>value,...)>
-#
-# Return a C<WM_SIZE_HINTS> structure made from the given key/value
-# parameters.  C<WM_SIZE_HINTS> is the structure type for the
-# C<WM_NORMAL_HINTS> described above and the key/value parameters are as
-# above.
-#
-# (The C<$X> parameter is used to interpret the C<win_gravity> enum values.)
-#
-sub set_wm_normal_hints {
-  my $X = shift;
-  my $window = shift;
-  $X->ChangeProperty($window,
-                     X11::AtomConstants::WM_NORMAL_HINTS,  # property
-                     X11::AtomConstants::WM_SIZE_HINTS,    # type
-                     32,                                   # format
-                     'Replace',
-                     _pack_wm_size_hints ($X, @_));
-}
-
-{
-  my %key_to_flag =
-    (user_position    => 1,   # user-specified window x,y
-     user_size        => 2,   # user-specified win width,height
-     program_position => 4,   # program-specified window x,y
-     program_size     => 8,   # program-specified win width,height
-     min_width        => 16,
-     min_height       => 16,
-     max_width        => 32,
-     max_height       => 32,
-     width_inc        => 64,
-     height_inc       => 64,
-     min_aspect       => 128,
-     min_aspect_num   => 128,
-     min_aspect_den   => 128,
-     max_aspect       => 128,
-     max_aspect_num   => 128,
-     max_aspect_den   => 128,
-     base_width       => 256,
-     base_height      => 256,
-     win_gravity      => 512,
-    );
-  sub pack_wm_size_hints {
-    my ($X, %hint) = @_;
-
-    my $flags = 0;
-    foreach my $key (keys %hint) {
-      if (defined $hint{$key}) {
-        $flags |= $key_to_flag{$key};
-      } else {
-        croak "Unrecognised WM_NORMAL_HINTS field: ",$key;
-      }
-    }
-    pack ('Lx16L13',
-          $flags,
-          $hint{'min_width'},           # 1
-          $hint{'min_height'},          # 2
-          $hint{'max_width'},           # 3
-          $hint{'max_height'},          # 4
-          $hint{'width_inc'},           # 5
-          $hint{'height_inc'},          # 6
-          _aspect (\%hint, 'min'),      # 7,8
-          _aspect (\%hint, 'max'),      # 9,10
-          $hint{'base_width'},          # 11
-          $hint{'base_height'},         # 12
-          $X->interp('WinGravity',$hint{'win_gravity'}),  # 13
-         );
-  }
-
-  { require X11::Protocol;
-    my $X = X11::Protocol->new;
-    my $size_hints = _pack_wm_size_hints ($X, user_position=>1,
-                                           min_width => 1,
-                                           min_aspect => '1/3');
-    ### size_hints: unpack 'L*',$size_hints
-  }
-}
-sub _aspect {
-  my ($hint, $which) = @_;
-  if (defined (my $aspect = $hint->{"${which}_aspect"})) {
-    return _aspect_to_numden($aspect);
-  } else {
-    return ($hint->{"${which}_aspect_num"}, $hint->{"${which}_aspect_den"});
-  }
-}
-sub _aspect_to_numden {
-  my ($aspect) = @_;
-  ### $aspect
-
-  my ($num, $den);
-
-  if ($aspect =~ /^\d+$/) {
-    ### integer
-    $num = $aspect;
-    $den = 1;
-  } elsif (($num,$den) = ($aspect =~ m{(.*)/(.*)})) {
-    ### slash fraction
-  } elsif ($aspect =~ /^0*(\d*)\.(\d*?)0*$/) {
-    ### decimal
-    $num = "$1$2";
-    $den = '1'.('0' x length($2));
-  } else {
-    $num = $aspect;
-    $den = 1;
-  }  
-
-  if ($num == $num-1) {  # infinity
-    return (0x7FFF_FFFF, ($den == $den-1  # infinity too
-                          ? 0x7FFF_FFFF : 1));
-  }
-  if ($den == $den-1) {  # infinity
-    return (1, 0x7FFF_FFFF);
-  }
-
-  # cap anything bigger than 0x7FFFFFFF
-  if ($num >= $den && $num > 0x7FFF_FFFF) {
-    ### reduce big numerator
-    ($num,$den) = _aspect_reduce($num,$den);
-  }
-  if ($den > 0x7FFF_FFFF) {
-    ### reduce big denominator
-    ($den,$num) = _aspect_reduce($den,$num);
-  }
-
-  # increase non-integers in binary
-  while ((int($num) != $num || int($den) != $den)
-         && $num < 0x4000_0000
-         && $den < 0x4000_0000) {
-    $num *= 2;
-    $den *= 2;
-    ### up to: $num,$den
-  }
-
-  return (_round_nz($num), _round_nz($den));
-}
-
-sub _round_nz {
-  my ($x) = @_;
-  my $nz = ($x != 0);
-  $x = int ($x + 0.5);
-  if ($nz && $x == 0) {
-    return 1;
-  } else {
-    return $x;
-  }
-}
-
-# $x is > 0x7FFF_FFFF, reduce it to 0x7FFF_FFFF and reduce $y in proportion
-# if $y!=0 then it's not reduced to a minimum 1, not to 0
-sub _aspect_reduce {
-  my ($x,$y) = @_;
-  my $nz = ($y != 0);
-  $y = int (0.5 + $y / $x * 0x7FFF_FFFF);
-  if ($nz && $y == 0) { $y = 1; }
-  elsif ($y > 0x7FFF_FFFF) { $y = 0x7FFF_FFFF; }
-  return (0x7FFF_FFFF, $y);
-}
-# printf "%d %d", _aspect_frac('.123456789');
-
-
-
-#------------------------------------------------------------------------------
-# get _NET_FRAME_EXTENTS
-
-# =item C<my ($left,$right, $top,$bottom) = X11::Protocol::get_net_frame_extents ($X, $window)>
-#
-# Return the C<_NET_FRAME_EXTENTS> property from C<$window>.  This is set by
-# the window manager to the size in pixels of any decorations it adds around
-# C<$window>.  If there's no such property set then the return is an empty
-# list.
-#
-sub get_net_frame_extents {
-  my ($X, $window) = @_;
-  my ($value, $type, $format, $bytes_after)
-    = $X->GetProperty ($window,
-                       $X->atom('_NET_FRAME_EXTENTS'),  # property
-                       X11::AtomConstants::CARDINAL,    # type
-                       0,    # offset
-                       4,    # length, 4 x CARD32
-                       0);   # delete
-  if ($format == 32) {
-    return _unpack_net_frame_extents($value);
-  } else {
-    return;
-  }
-}
-sub _unpack_net_frame_extents {
-  my ($data) = @_;
-  return unpack 'L4', $data;
-}
-
-#------------------------------------------------------------------------------
 # get _NET_WM_ALLOWED_ACTIONS
 
 # Return 'CLOSE' etc, or atom integer if unrecognised
 # OR keep _NET_WM_ALLOWED_ACTION in case unprefixed name ?
 sub _get_net_wm_allowed_actions {
   my ($X, $window) = @_;
-  my ($value, $type, $format, $bytes_after)
-    = $X->GetProperty ($window,
-                       $X->atom('_NET_WM_ALLOWED_ACTIONS'), # property
-                       X11::AtomConstants::ATOM,            # type
-                       0,             # offset
-                       999,           # length, of CARD32
-                       0);            # no delete
-  if ($format == 32) {
-    # ENHANCE-ME: atom name fetches in one round trip
-    return map {_net_wm_allowed_action_interp($_)} unpack('L*',$value);
-  } else {
-    return;
-  }
+  # ENHANCE-ME: atom name fetches in one round trip
+  return map {_net_wm_allowed_action_interp($_)}
+    get_net_wm_allowed_actions_atoms($X,$window);
 }
 sub _net_wm_allowed_action_interp {
   my ($X, $atom) = @_;
@@ -336,6 +60,23 @@ sub _net_wm_allowed_action_interp {
     return $name;
   } else {
     return $atom;
+  }
+}
+
+# return atom integers
+sub get_net_wm_allowed_actions_atoms {
+  my ($X, $window) = @_;
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window,
+                       $X->atom('_NET_WM_ALLOWED_ACTIONS'), # property
+                       X11::AtomConstants::ATOM(),          # type
+                       0,             # offset
+                       999,           # max length, of CARD32
+                       0);            # no delete
+  if ($format == 32) {
+    return unpack 'L*',$value;
+  } else {
+    return;
   }
 }
 
@@ -371,7 +112,7 @@ sub _net_wm_allowed_action_to_atom {
 
 
 #------------------------------------------------------------------------------
-# WM_HINTS
+# get WM_HINTS, to read back, or by wm
 
 {
   my $format = 'LLLLLllLL';
@@ -455,12 +196,12 @@ sub _get_net_wm_state_atomhash {
   my ($X, $window) = @_;
   return { map {$_=>1} _get_net_wm_state_atoms($X,$window) };
 }
-sub _get_net_wm_state_atoms {
+sub get_net_wm_state_atoms {
   my ($X, $window) = @_;
   my ($value, $type, $format, $bytes_after)
     = $X->GetProperty ($window,
-                       $X->atom('_NET_WM_STATE'),     # property
-                       X11::AtomConstants::CARDINAL,  # type
+                       $X->atom('_NET_WM_STATE'),       # property
+                       X11::AtomConstants::CARDINAL(),  # type
                        0,    # offset
                        999,  # length
                        0);   # delete
@@ -777,7 +518,7 @@ sub _atoms_parallel {
 #------------------------------------------------------------------------------
 # get _NET_WM_USER_TIME
 
-# wm thing, might have to look at the defined user time window instead ...
+# for use by wm, might have to look at the defined user time window instead ...
 sub get_net_user_time_window {
   my ($X, $window) = @_;
   my ($value, $type, $format, $bytes_after)

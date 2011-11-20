@@ -17,6 +17,12 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 14, November 2011
+    - X11::Protocol::WM new set_wm_normal_hints(), pack_wm_size_hints(),
+      set_motif_wm_hints(), pack_motif_wm_hints(),
+      pack_wm_hints(), unpack_wm_state(),
+      get_net_frame_extents(),
+
 Version 13, November 2011
     - XFIXES 5.0 pointer barriers
 
