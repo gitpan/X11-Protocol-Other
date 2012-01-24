@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 14;
+$VERSION = 15;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -32,9 +32,7 @@ $VERSION = 14;
 # /usr/include/X11/extensions/saver.h
 # /usr/include/X11/extensions/saverproto.h
 #
-#
 
-### MIT_SCREEN_SAVER.pm loads
 
 # these not documented yet ... and not used as such
 use constant CLIENT_MAJOR_VERSION => 1;

@@ -1,4 +1,4 @@
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -22,11 +22,12 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 14;
+$VERSION = 15;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
+
 
 # /usr/share/doc/x11proto-xext-dev/dbe.txt.gz
 # /usr/include/X11/extensions/dbe.h
@@ -34,11 +35,13 @@ $VERSION = 14;
 #    Protocol.
 #
 # /usr/share/doc/libxext-dev/dbelib.txt.gz
+# /so/xfree/xfree86-3.3.2.3a/lib/Xext/Xdbe.c
 #    Xlib.
 #
-#
+# /so/xfree/xfree86-3.3.2.3a/programs/Xserver/dbe/dbe.c
+# /so/xorg/xorg-server-1.10.0/dbe/dbe.c
+#    Server.
 
-### DOUBLE_BUFFER.pm loads
 
 # these not documented yet ...
 use constant CLIENT_MAJOR_VERSION => 1;
@@ -59,10 +62,10 @@ my $reqs =
 
    [ 'DbeAllocateBackBufferName',  # 1
      sub {
-       my ($X, $window, $buffer, $swap_action) = @_;
+       my ($X, $window, $buffer, $action_hint) = @_;
        ### DbeAllocateBackBufferName request
        return pack 'LLCxxx',
-         $window, $buffer, $X->num('DbeSwapAction',$swap_action);
+         $window, $buffer, $X->num('DbeSwapAction',$action_hint);
      } ],
 
    [ 'DbeDeallocateBackBufferName',  # 2
@@ -85,15 +88,22 @@ my $reqs =
 
    [ 'DbeGetVisualInfo',  # 6
      sub {
+       ### DbeGetVisualInfo request ...
        my $X = shift;   # ($X, $window, $window, ...)
-       return pack 'L*', scalar(@_), @_;  # ($drawable, ...)
+       ### num_windows: scalar(@_)
+       ### windows: @_
+       return pack 'L*', scalar(@_), @_; # (num_windows, window, window, ...)
      },
      sub {
        my ($X, $data) = @_;
+       ### DbeGetVisualInfo reply ...
+
        my $num_screens = unpack 'x8L', $data;
+       ### $num_screens
+
        my $pos = 32;
        # Maybe should return single aref in scalar context.
-       # The map{} ends up giving a count in scalar context.
+       # The map{} ends up giving a count in scalar context (or does it?).
        return map {
          my $num_visuals = unpack 'L', substr($data,$pos,4);
          $pos += 4;
@@ -119,7 +129,7 @@ my $DbeSwapAction_hash
 
 sub new {
   my ($class, $X, $request_num, $event_num, $error_num) = @_;
-  ### DOUBLE_BUFFER new()
+  ### DOUBLE_BUFFER new() ...
 
   # Constants
   $X->{'ext_const'}->{'DbeSwapAction'} = $DbeSwapAction_array;
@@ -192,8 +202,8 @@ X11::Protocol::Ext::DOUBLE_BUFFER - window off-screen double buffering
 
 The DOUBLE-BUFFER extension lets a client program draw into an off-screen
 "back buffer" on a window and when ready swap it to the user-visible
-"front".  A back buffer is a drawable and has the same size, depth,
-visibility, etc as the window proper.
+"front".  A back buffer is a drawable with the same size, depth, visibility,
+etc as the window proper.
 
 Drawing off-screen then swapping to visible is good for smooth frame by
 frame animations or if some drawing is complex or poorly implemented and has
@@ -201,12 +211,12 @@ clears and redraws which would flash if done directly to the window.
 
 Off-screen drawing can also be done to a pixmap then copy into the window,
 but a back buffer might be implemented more efficiently and in particular it
-only keeps visible portions of a window, so memory is not used for
+need only keep visible portions of a window, so memory is not used for
 overlapped areas.
 
 The server might support double buffering only on certain visuals.
-C<DbeGetVisualInfo> lists those which are supported, or just try to create a
-back buffer for a window and watch for an error reply.
+C<DbeGetVisualInfo()> lists those which are supported, or just try to create
+a back buffer for a window and watch for an error reply.
 
 See F<examples/dbe-swap.pl> in the X11-Protocol-Other sources for a simple
 program drawing with double buffering.
@@ -228,9 +238,9 @@ C<$server_major> and C<$server_minor> is what the server will do, which
 might be less than requested (but not higher).
 
 The code here supports 1.0 and automatically negotiates within
-C<init_extension()> so direct use of C<DbeGetVersion> is not necessary.
+C<init_extension()> so direct use of C<DbeGetVersion()> is not necessary.
 
-=item C<$X-E<gt>DbeAllocateBackBufferName ($window, $buffer, $swap_action_hint)>
+=item C<$X-E<gt>DbeAllocateBackBufferName ($window, $buffer, $action_hint)>
 
 Create C<$buffer> (a new XID) as the back buffer on C<$window>.  C<$buffer>
 is a drawable and can be used with all usual drawing operations.
@@ -238,24 +248,24 @@ is a drawable and can be used with all usual drawing operations.
     my $buffer = $X->new_rsrc;
     $X->DbeAllocateBackBufferName ($window, $buffer, 'Copied');
 
-C<$swap_action_hint> is the most likely C<$swap_action> in later
-C<DbeSwapBuffers> requests (see below).  This is just a hint and doesn't
-restrict what can be done.
+C<$action_hint> is the most likely C<$action> in later C<DbeSwapBuffers()>
+requests (see below).  But this is just a hint and doesn't restrict what can
+be done.
 
-If C<$window> is already double buffered then C<$buffer> becomes a further
-reference to the existing back buffer.  
+If C<$window> is already double buffered then C<$buffer> becomes another
+reference to that back buffer.
 
 If C<$window> is destroyed (C<DestroyWindow>) before C<$buffer> then
-C<$buffer> continues to exist and should still be deallocated (per below)
-but attempting to draw into it gives a Resource error reply.
+C<$buffer> continues to exist and should still be deallocated (below) but
+attempting to draw into it gives a C<Resource> error reply.
 
 =item C<$X-E<gt>DbeDellocateBackBufferName ($buffer)>
 
 Deallocate C<$buffer> and release that XID.
 
-If multiple C<DbeAllocateBackBufferName> requests are made on a single
-window then the other XIDs continue to refer to the window back buffer.  The
-underlying buffer is released when all buffer XIDs to it are deallocated.
+If multiple C<DbeAllocateBackBufferName()> requests have been made on a
+window then all the other XIDs continue to refer to the window back buffer.
+The underlying buffer remains until all buffer XIDs for it are deallocated.
 
 =item C<$X-E<gt>DbeSwapBuffers ($window1,$action1, $window2,$action2,...)>
 
@@ -268,8 +278,8 @@ buffer becomes visible and what was the front becomes the back.
 Only the content is swapped, the XIDs are unchanged, so C<$window> is still
 the visible window front and any C<$buffer> XIDs to it are still the back.
 
-The contents of the back buffer after swapping are controlled by C<$action>
-(an enum string) for each window,
+The contents of each back buffer after swapping are controlled by the
+corresponding C<$action> (a string) for each window,
 
      $action        new back buffer contents
     ---------       --------------------------
@@ -278,8 +288,9 @@ The contents of the back buffer after swapping are controlled by C<$action>
     "Untouched"     left at current content (previous visible)
     "Copied"        content of the old back buffer (unchanged)
 
-"Untouched" is untouched in the sense that the front visible buffer has now
-been swapped to be the back buffer and that content left unchanged.
+"Untouched" means the content of the old visible front buffer which is
+swapped to become the new back buffer is left unchanged, so the new back
+contents are the old front contents.
 
 "Copied" is as if the back buffer content is copied to the front, making
 both now the same.
@@ -293,19 +304,19 @@ Begin and End might be done as an atomic combination for higher performance.
 If the server doesn't recognise the sequence then it just runs it
 sequentially as normal.
 
-If a C<DbeSwapBuffers> is in the idiom then it should be the first request,
-immediately following the Begin.
+If a C<DbeSwapBuffers()> is in the idiom then it should be the first
+request, immediately following the Begin.
 
-    # swap and clear buffer to a GC stipple
+    # swap then clear back buffer to a GC stipple
     # no guarantee any server would actually optimize this!
     $X->DbeBeginIdiom;
     $X->DbeSwapBuffers ($window, 'Untouched');
     $X->PolyFillRectangle ($buffer, $gc, [0,0,$width,$height]);
     $X->DbeEndIdiom;
 
-There need not be a swap in an idiom, for example a C<CopyArea> of parts of
-the back buffer to the window might be in a Begin/End and might perhaps be
-optimized by the server.
+There need not be a swap in an idiom.  For example a C<CopyArea()> of some
+parts of the back buffer to the window might be in a Begin/End and might
+perhaps be optimized by the server.
 
     $X->DbeBeginIdiom;
     $X->CopyArea ($buffer, $window,  # from buffer to window
@@ -315,52 +326,51 @@ optimized by the server.
 
 The idea of idiom groupings is to have a flexible way to express combination
 operations, including things not yet imagined, rather than adding specific
-requests to the protocol.  In principle the server can optimize any
+requests to the protocol.  In principle the server can always optimize
 consecutive requests, but that depends on them arriving at the server
-together.  A C<DbeBeginIdiom> is a kind of permission to the server not to
-perform requests immediately, but to wait (if it wishes) and see if what
-follows can be combined.
+together.  A C<DbeBeginIdiom()> is like a permission to the server not to
+perform the requests immediately, but to wait, if it wishes and if it can,
+to see if what follows can be combined.
 
 =item C<@infos = $X-E<gt>DbeGetVisualInfo ($drawable1, $drawable2, ...)>
 
 =item C<@infos = $X-E<gt>DbeGetVisualInfo ()>
 
 For each C<$drawable>, return a list of the visual IDs on that screen which
-support double-buffering.  If no drawables are given then return information
+support double-buffering.
+
+    my ($info_aref_drawable1, $info_aref_drawable2)
+      = $X->DbeGetVisualInfo ($drawable1, $drawable2);
+
+If no drawables are given then return information
 about each screen on the server.
 
-    my @infos = $X->DbeGetVisualInfo ($drawable1, $drawable2);
-    # $info[0] and $info[1] are arrayrefs
+    my @list_of_info_aref = $X->DbeGetVisualInfo ();
 
-Each returned value is an arrayref containing a list of visual ID and visual
-data pairs,
+Each returned value is an arrayref.  Each arrayref contains a list of visual
+ID and visual data pairs,
 
-    # each info arrayref is
+    # each $info_aref is
     [ $visual_id1, [ $depth, $perflevel ],
       $visual_id2, [ $depth, $perflevel ],
-      ... ]
+      ...
+    ]
 
 C<$depth> is the visual's depth the same as in the server info
 C<$X-E<gt>{'visuals'}-E<gt>{$visual_id}-E<gt>{'depth'}>.
 
 C<$perflevel> is an integer indicating how good the performance of double
-buffering is on the visual.  A higher value means higher performance, but
+buffering is on this visual.  A higher value means higher performance, but
 the actual number has no meaning and in particular cannot be compared
 between different servers.
 
-So for example,
-
-    my ($info_aref_1, $info_aref_2)
-      = $X->DbeGetVisualInfo ($drawable1, $drawable2);
-
-Or if enquiring about a single drawable's screen then as follows.  Note it
-must be called with array context, the result in scalar context is
-unspecified as yet.
+If enquiring about a single drawable's screen then use a list context like
+the following.  The result in scalar context is unspecified as yet.
 
     my ($info_aref) = $X->DbeGetVisualInfo ($X->root);
 
-The visual+perf pairs are arranged so they can be put into a hash to check
-support for double buffering on a given visual,
+The visual+perf are pairs so they can be put into a hash to check support
+for double buffering on a given visual,
 
     my %hash = @$info_aref;   # pairs $visualid => [$d,$p]
     if ($hash{$my_visual_id}) {
@@ -368,7 +378,7 @@ support for double buffering on a given visual,
     }
 
 If you've got a choice of equally suitable visuals for application display
-then the performance level could be used to choose the best among them.
+then the performance level might be compared to choose the best.
 
 C<List::Pairwise> has some grep and map functions for pair lists like the
 C<$info_aref>.
@@ -378,10 +388,25 @@ program printing this info.
 
 =item C<$window = $X-E<gt>DbeGetBackBufferAttributes ($buffer)>
 
-Return the window (an XID) which C<$buffer> is working on.  If the target
-window has been destroyed (C<DestroyWindow>) then return "None".
+Return the window (an integer XID) which C<$buffer> is for.  If its target
+window has been destroyed (C<DestroyWindow()>) then the return is "None".
 
 =back
+
+=head1 BUGS
+
+In some XFree86 3.x servers there was a bug in C<DbeGetVisualInfo()> where
+the reply length was miscalculated, in bytes instead of CARD32s, resulting
+in a length value bigger than the actual data sent.  The symptom is the
+client hangs waiting for data the length says should follow, and which never
+does.
+
+This affects any client code, including the Xlib C<XdbeGetVisualInfo()> as
+used for instance by the C<xdpyinfo> program.
+
+Is there a good way to notice the problem?  Probably not beyond looking at
+the server name and version and either forbidding the request or doing
+something nasty to the way C<handle_input()> reads as a workaround.
 
 =head1 SEE ALSO
 
@@ -394,7 +419,7 @@ http://user42.tuxfamily.org/x11-protocol-other/index.html
 
 =head1 LICENSE
 
-Copyright 2011 Kevin Ryde
+Copyright 2011, 2012 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

@@ -45,10 +45,14 @@ sub DEBUG { 0 }
   my $stacktraces;
   my $stacktraces_count = 0;
   sub nowarnings_handler {
-    $warning_count++;
-    if ($stacktraces_count < 3 && eval { require Devel::StackTrace }) {
-      $stacktraces_count++;
-      $stacktraces .= "\n" . Devel::StackTrace->new->as_string() . "\n";
+    my ($msg) = @_;
+    # don't error out for cpan alpha version number warnings
+    unless ($msg =~ /^Argument "[0-9._]+" isn't numeric in numeric gt/) {
+      $warning_count++;
+      if ($stacktraces_count < 3 && eval { require Devel::StackTrace }) {
+        $stacktraces_count++;
+        $stacktraces .= "\n" . Devel::StackTrace->new->as_string() . "\n";
+      }
     }
     warn @_;
   }

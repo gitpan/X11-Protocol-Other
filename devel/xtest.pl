@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -58,13 +58,13 @@ sleep 1;
 {
   $X->WarpPointer ('None', $window, 0,0,0,0, 10,10);
   ### ButtonPress ...
-  $X->SetPointerMapping(3, 2, 1, 4 .. 11);
-  $X->XTestFakeInput ({ name   => 'ButtonPress',
-                        detail => 1 });
-  $X->XTestFakeInput ({ name   => 'ButtonRelease',
-                        time   => 2000,
-                        detail => 1 });
-  $X->SetPointerMapping(1 .. 11);
+  $X->SetPointerMapping(3, 2, 1, 4 .. 10);
+  $X->XTestFakeInput ([ name   => 'ButtonPress',
+                        detail => 1 ]);
+  $X->XTestFakeInput (name   => 'ButtonRelease',
+                      time   => 2000,
+                      detail => 1);
+  $X->SetPointerMapping(1 .. 10);
   for (;;) {
     $X->handle_input;
   }

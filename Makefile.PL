@@ -62,12 +62,6 @@ MyMakeMakerExtras::WriteMakefile
                        %encode_modules,
                       },
         },
-        maximum_devel =>
-        { description => 'Stuff used variously for development.',
-          requires => { 'Smart::Comments'     => 0,
-                        'Devel::Comments'     => 0,
-                      },
-        },
       },
      },
    },

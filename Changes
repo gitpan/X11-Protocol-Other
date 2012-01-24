@@ -1,4 +1,4 @@
-Copyright 2011 Kevin Ryde
+Copyright 2011, 2012 Kevin Ryde
 
 This file is part of X11-Protocol-Other.
 
@@ -16,6 +16,11 @@ You can get a copy of the GNU General Public License online at
 <http://www.gnu.org/licenses/>.
 
 
+
+Version 15, January 2012
+    - new X11::Protocol::Ext::XFree86_DGA, protocol version 1.0
+    - new X11::Protocol::Ext::TOG_CUP
+    - XSetRoot check TOG-CUP reserved pixels
 
 Version 14, November 2011
     - X11::Protocol::WM new set_wm_normal_hints(), pack_wm_size_hints(),

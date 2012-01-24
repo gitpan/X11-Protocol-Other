@@ -1,4 +1,4 @@
-/* Copyright 2011 Kevin Ryde
+/* Copyright 2011, 2012 Kevin Ryde
 
    This file is part of X11-Protocol-Other.
 
@@ -33,7 +33,12 @@ main (void)
   int event_base, error_base;
   XScreenSaverInfo info;
 
-  display = XOpenDisplay (NULL);
+  char *display_name = getenv("DISPLAY");
+  if (! display_name) {
+    display_name = ":0";
+  }
+
+  display = XOpenDisplay (display_name);
   if (! display) {
     printf ("no DISPLAY\n");
     abort ();
@@ -58,7 +63,7 @@ main (void)
   }
 
   printf ("state %d\n", info.state);
-    printf ("til_or_since %lu\n", info.til_or_since);
+  printf ("til_or_since %lu\n", info.til_or_since);
   printf ("til_or_since as signed %ld\n", info.til_or_since);
 
   if (! XForceScreenSaver (display, ScreenSaverReset)) {

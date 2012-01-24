@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -25,7 +25,11 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = (tests => 4)[1];
+# uncomment this to run the ### lines
+#use Smart::Comments;
+
+
+my $test_count = (tests => 7)[1];
 plan tests => $test_count;
 
 {
@@ -58,6 +62,7 @@ if (! defined $display) {
   }
   exit 0;
 }
+MyTestHelpers::diag ("DISPLAY ", $display);
 
 # pass display arg so as not to get a "guess" warning
 my $X;
@@ -70,12 +75,18 @@ if (! eval { $X = X11::Protocol->new ($display); }) {
 }
 $X->QueryPointer($X->{'root'});  # sync
 
+
+# Something fishy with xvfb test server seems to cause the reconnect below
+# to fail.  Keeping a second connection makes it better, dunno why.
+my $keepalive_X = X11::Protocol->new ($display);
+
+
 require X11::Protocol::XSetRoot;
 
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 14;
+my $want_version = 15;
 ok ($X11::Protocol::XSetRoot::VERSION,
     $want_version,
     'VERSION variable');
@@ -94,6 +105,7 @@ ok (! eval { X11::Protocol::XSetRoot->VERSION($check_version); 1 },
 #------------------------------------------------------------------------------
 # set_background()
 
+### black ...
 X11::Protocol::XSetRoot->set_background
   (display => $display,
    color => 'black');
@@ -102,6 +114,7 @@ X11::Protocol::XSetRoot->set_background
   (display => $display,
    color => 'white');
 
+### green ...
 X11::Protocol::XSetRoot->set_background
   (display => $display,
    color => 'green');
@@ -114,10 +127,12 @@ X11::Protocol::XSetRoot->set_background
   (X => $X,
    pixmap => 0);
 
+### None ...
 X11::Protocol::XSetRoot->set_background
   (X => $X,
    pixmap => 'None');
 
+### pixmap ...
 {
   my $pixmap = $X->new_rsrc;
   $X->CreatePixmap ($pixmap,
@@ -141,6 +156,49 @@ X11::Protocol::XSetRoot->set_background
        pixmap => $pixmap,
        pixmap_allocated_colors => 1);
   undef $X;
+}
+
+
+#------------------------------------------------------------------------------
+# _tog_cup_pixel_is_reserved()
+
+### new connection ...
+$X = X11::Protocol->new ($display);
+
+my $screen_num = 0;
+### $screen_num
+
+my $black_pixel = $X->{'screens'}->[$screen_num]->{'black_pixel'};
+my $white_pixel = $X->{'screens'}->[$screen_num]->{'white_pixel'};
+
+# results if TOG-CUP not initialized ... but currently always automatically
+# attempted
+#
+# {
+#   ok (X11::Protocol::XSetRoot::_tog_cup_pixel_is_reserved($X,$screen_num,$white_pixel),
+#       0);
+#   ok (X11::Protocol::XSetRoot::_tog_cup_pixel_is_reserved($X,$screen_num,$black_pixel),
+#       0);
+#   ok (X11::Protocol::XSetRoot::_tog_cup_pixel_is_reserved($X,$screen_num,-99),
+#       0);
+# }
+
+{
+  my $got = X11::Protocol::XSetRoot::_tog_cup_pixel_is_reserved($X,$screen_num,$white_pixel);
+
+  my $have_tog_cup = ($X->init_extension('TOG-CUP') ? 1 : 0);
+  MyTestHelpers::diag ("have TOG-CUP: $have_tog_cup");
+  my $want_yes = ($have_tog_cup ? 1 : 0);
+
+  ok ($got,
+      $want_yes,
+      'white_pixel in TOG-CUP reserved');
+  ok (X11::Protocol::XSetRoot::_tog_cup_pixel_is_reserved($X,$screen_num,$black_pixel),
+      $want_yes,
+      'black_pixel in TOG-CUP reserved');
+  ok (X11::Protocol::XSetRoot::_tog_cup_pixel_is_reserved($X,$screen_num,-99),
+      0,
+      'bogus pixel not in TOG-CUP reserved');
 }
 
 

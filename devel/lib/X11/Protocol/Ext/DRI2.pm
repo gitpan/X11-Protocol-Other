@@ -2,7 +2,7 @@
 
 
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -22,31 +22,84 @@
 BEGIN { require 5 }
 package X11::Protocol::Ext::DRI2;
 use strict;
+use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 14;
+$VERSION = 15;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
-use Smart::Comments;
+#use Smart::Comments;
 
 
+# /usr/share/doc/x11proto-dri2-dev/dri2proto.txt.gz
 #
+# /usr/include/X11/extensions/dri2proto.h
+# /usr/include/X11/extensions/dri2tokens.h
 #
 # /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
-# /usr/include/X11/extensions/xtestconst.h
 
 ### DRI2.pm loads
 
 # these not documented yet ...
-use constant CLIENT_MAJOR_VERSION => 2;
+use constant CLIENT_MAJOR_VERSION => 1;
 use constant CLIENT_MINOR_VERSION => 1;
+
+
+#------------------------------------------------------------------------------
+# symbolic constants
+
+my %const_arrays
+  = (
+     DRI2Driver => ['DRI', 'VDPAU'],
+     DRI2Attachment => [qw(
+                            FrontLeft
+                            BackLeft
+                            FrontRight
+                            BackRight
+                            Depth
+                            Stencil
+                            Accum
+                            FakeFrontLeft
+                            FakeFrontRight
+                            DepthStencil
+                            Hiz
+                         )],
+    );
+
+my %const_hashes
+  = (map { $_ => { X11::Protocol::make_num_hash($const_arrays{$_}) } }
+     keys %const_arrays);
+
+#------------------------------------------------------------------------------
+# events
+
+my $BufferSwapComplete_event = [ 'xCxxL5',
+                                 ['subtype','XFixesSelectionNotifySubtype'],
+                                 'window',
+                                 ['owner',['None']], # window
+                                 'selection',        # atom
+                                 'time',
+                                 'selection_time',
+                               ];
+
+my $InvalidateBuffers_event = [ 'xCxxL5',
+                                ['subtype','XFixesSelectionNotifySubtype'],
+                                'window',
+                                ['owner',['None']], # window
+                                'selection',        # atom
+                                'time',
+                                'selection_time',
+                              ];
+
+#------------------------------------------------------------------------------
+# requests
 
 my $reqs =
   [
-   ['DRI2QueryVersion',  # 0
-    \&_request_card32s,  # ($X, $client_major, $client_minor)
+   ['DRI2QueryVersion',    # 0
+    \&_request_card32s, # ($X, $client_major, $client_minor)
     sub {
       my ($X, $data) = @_;
       return unpack 'x8LL', $data;
@@ -64,20 +117,28 @@ my $reqs =
     }],
 
    ['DRI2Connect',  # 1
-    \&_request_screen,
+    sub {
+      my ($X, $window, $driver_type) = @_;
+      return pack 'LL', $window, $X->num('DRI2Driver',$driver_type);
+    },
     sub {
       my ($X, $data) = @_;
-      my ($drivlen, $devlen) = unpack 'x8LL', $data;
-      return (substr($data, 32,$drivlen),
-              substr($data, 32+$drivlen, $devlen));
+      ### DRI2Connect() reply: length($data), $data
+      my ($driver_len, $device_len) = unpack 'x8LL', $data;
+      ### $driver_len
+      ### $device_len
+      return (substr($data, 32,
+                     $driver_len),
+              substr($data, 32 + X11::Protocol::padding($driver_len),
+                     $device_len));
     },
    ],
 
    ['DRI2Authenticate',  # 2
-    \&_request_card32s,  # ($X, $window, $magic)
+    \&_request_card32s,  # ($X, $window, $token)
     sub {
       my ($X, $data) = @_;
-      return unpack 'x8L', $data; # (authenticated)
+      return unpack 'x8L', $data; # ($authenticated)
     },
    ],
 
@@ -90,10 +151,28 @@ my $reqs =
    ],
 
    ['DRI2GetBuffers',  # 5
-    \&_request_card32s,  # ($X, $drawable, $count)
+    sub {  # ($X, $drawable, $attach...)
+      my $X = shift;
+      my $drawable = shift;
+      return pack 'LL*',
+        $drawable,
+          scalar(@_), # num attachments
+            map {$X->num('DRI2Attachment',$_)} @_;
+    },
     sub {
       my ($X, $data) = @_;
-      return unpack 'x8L3', $data; # (width,height,count)
+      ### DRI2GetBuffers() reply: length($data), $data
+
+      my ($width, $height, $buffer_count) = unpack 'x8LLL', $data;
+      ### $width
+      ### $height
+      ### $buffer_count
+
+      return ($width, $height,
+              map {
+                # (attach, name, pitch, cpp, flags)
+                [ unpack 'L*', substr($data,12+$_*20,20) ]
+              } 1 .. $buffer_count);
     },
    ],
 
@@ -154,10 +233,33 @@ my $reqs =
    ],
   ];
 
-sub _request_screen {
+sub new {
+  my ($class, $X, $request_num, $event_num, $error_num) = @_;
+  ### DRI2 new()
+
+  # Constants
+  %{$X->{'ext_const'}}     = (%{$X->{'ext_const'}     ||= {}}, %const_arrays);
+  %{$X->{'ext_const_num'}} = (%{$X->{'ext_const_num'} ||= {}}, %const_hashes);
+
+  # Requests
+  _ext_requests_install ($X, $request_num, $reqs);
+
+  return bless { }, $class;
+}
+
+#------------------------------------------------------------------------------
+# generic
+
+sub _request_card32s {
+  shift;
+  ### _request_card32s(): @_
+  return pack 'L*', @_;
+}
+sub _request_screen16 {
   shift;  # ($X, $screen)
+  @_ == 1 or croak "Single screen number parameter expected";
   return pack 'Sxx', @_;
-},
+}
 
 sub _num_none {
   my ($xid) = @_;
@@ -166,16 +268,6 @@ sub _num_none {
   } else {
     return $xid;
   }
-}
-
-sub new {
-  my ($class, $X, $request_num, $event_num, $error_num) = @_;
-  ### DRI2 new()
-
-  # Requests
-  _ext_requests_install ($X, $request_num, $reqs);
-
-  return bless { }, $class;
 }
 
 sub _ext_requests_install {
@@ -220,9 +312,52 @@ per L<X11::Protocol/EXTENSIONS>.
 
 =over
 
-=item C<($server_major, $server_minor) = $X-E<gt>DRI2QueryVersion ()>
+=item C<($server_major, $server_minor) = $X-E<gt>DRI2QueryVersion ($client_major, $client_minor)>
 
-Return the DRI2 protocol version implemented by the server.
+Negotiate a protocol version with the server.  C<$client_major> and
+C<$client_minor> is what the client would like.  The returned
+C<$server_major> and C<$server_minor> is what the server will do.
+
+=item C<($driver_name, $device_name) = $X-E<gt>DRI2Connect ($window, $driver_type)>
+
+Get the driver and device filename to use on C<$window> (integer XID).
+C<$driver_type> is one of
+
+    "DRI"      0
+    "VDPAU"    1
+
+If C<$driver_type> is unknown or the client is not on the same machine as
+the server then the returned C<$driver_name> and C<$device_name> are empty
+strings "".
+
+=item C<$bool = $X-E<gt>DRI2Authenticate ($window, $token_type)>
+
+Ask the server to authenticate C<$token> so the client can access DRI memory
+on the screen associated with C<$window> (an integer XID).  The return is 1
+if successful or 0 if C<$token> is no good.
+
+=item C<($width,$height,$buffer...) = $X-E<gt>DRI2GetBuffers ($drawable, $attach...)>
+
+Get buffers for C<$drawable> (integer XID) at the given C<$attach> points.
+Each C<$attach> argument is
+
+    FrontLeft           0
+    BackLeft            1
+    FrontRight          2
+    BackRight           3
+    Depth               4
+    Stencil             5
+    Accum               6
+    FakeFrontLeft       7
+    FakeFrontRight      8
+    DepthStencil        9     new in protocol 1.1
+    Hiz                10
+
+=item C<$X-E<gt>DRI2CopyRegion ($drawable, $region, $src_attach, $dst_attach)>
+
+Copy C<$region> (integer XID of XFIXES Region type) from C<$src_attach> to
+C<$dst_attach> buffers of C<$drawable> (integer XID).  The attach arguments
+are per C<DRI2GetBuffers()> above.
 
 =back
 
@@ -236,7 +371,7 @@ http://user42.tuxfamily.org/x11-protocol-other/index.html
 
 =head1 LICENSE
 
-Copyright 2011 Kevin Ryde
+Copyright 2011, 2012 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

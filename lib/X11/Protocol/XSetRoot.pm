@@ -1,4 +1,4 @@
-# Copyright 2010, 2011 Kevin Ryde
+# Copyright 2010, 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -23,10 +23,11 @@ use X11::AtomConstants;
 use X11::Protocol::Other 3;  # v.3 for hexstr_to_rgb()
 
 use vars '$VERSION';
-$VERSION = 14;
+$VERSION = 15;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
+
 
 # _XSETROOT_ID the same as xsetroot and other rootwin programs do
 sub set_background {
@@ -44,17 +45,23 @@ sub set_background {
   }
   ### X: "$X"
 
-  my $screen_info;
   my $root = $option{'root'};
+  my $screen_number = $option{'screen'};
+
   if (! defined $root) {
-    if (defined (my $screen_number = $option{'screen'})) {
-      $screen_info = $X->{'screens'}->[$screen_number];
-      $root = $screen_info->{'root'};
+    if (defined $screen_number) {
+      $root = $X->{'screens'}->[$screen_number]->{'root'};
     } else {
       $root = $X->{'root'};
     }
   }
+  if (! defined $screen_number) {
+    $screen_number = X11::Protocol::Other::root_to_screen($X,$root);
+  }
   ### $root
+
+  my $visual = X11::Protocol::Other::window_visual($X,$root);
+  my $visual_is_dynamic = X11::Protocol::Other::visual_is_dynamic($X,$visual);
   my $allocated;
 
   my @change;
@@ -66,7 +73,7 @@ sub set_background {
     $allocated = $option{'pixmap_allocated_colors'};
 
   } else {
-    $screen_info ||= X11::Protocol::Other::root_to_screen_info($X,$root);
+    my $screen_info = $X->{'screens'}->[$screen_number];
     my $pixel;
     if (defined ($pixel = $option{'pixel'})) {
       ### pixel: $pixel
@@ -81,15 +88,16 @@ sub set_background {
     }
     @change = (background_pixel => $pixel);
 
-    $allocated = ($pixel != $screen_info->{'black_pixel'}
-                  && $pixel != $screen_info->{'black_pixel'});
+    $allocated = $visual_is_dynamic
+      && ! ($pixel == $screen_info->{'black_pixel'}
+            || $pixel == $screen_info->{'white_pixel'}
+            || _tog_cup_pixel_is_reserved($X,$screen_number,$pixel));
   }
   ### $root
   ### @change
 
   if ($allocated) {
-    if (X11::Protocol::Other::visual_is_dynamic
-        ($X, X11::Protocol::Other::window_visual($X,$root))) {
+    if ($visual_is_dynamic) {
       unless ($option{'X'}) {
         croak 'Need X connection to set background from allocated pixel or pixmap';
       }
@@ -134,6 +142,22 @@ sub set_background {
     $X->QueryPointer($root);
   }
 }
+
+sub _tog_cup_pixel_is_reserved {
+  my ($X, $screen_number, $pixel) = @_;
+  ### _tog_cup_pixel_is_reserved(): $pixel
+
+  if ($X->{'ext'}->{'TOG_CUP'}
+      || $X->init_extension('TOG-CUP')) {
+    foreach my $c ($X->CupGetReservedColormapEntries($screen_number)) {
+      if ($c->[0] == $pixel) {
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
 
 # =item C<X11::Protocol::XSetRoot-E<gt>kill_current ($X)>
 #
@@ -205,11 +229,11 @@ X11::Protocol::XSetRoot -- set root window background
  use X11::Protocol::XSetRoot;
  X11::Protocol::XSetRoot->set_background (color => 'green');
 
- # or given $X, which then can't be used any more
+ # or given $X, but which then can't be used any more
  X11::Protocol::XSetRoot->set_background
-                            (X       => $X,
-                             pixmap  => $pixmap_xid,
-                             pixmap_allocated_colors => 1);
+                  (X       => $X,
+                   pixmap  => $pixmap_xid,
+                   pixmap_allocated_colors => 1);
 
 =head1 DESCRIPTION
 
@@ -217,8 +241,8 @@ This module sets the X root window background in the style of the
 C<xsetroot> program.
 
 The simplest use is a named colour, or a 1 to 4 digit hex string like
-"#RRGGBB" or "#RRRRGGGGBBBB".  Named colours are per the server's usual
-C<AllocNamedColor> etc.
+"#RRGGBB" or "#RRRRGGGGBBBB".  Named colours are interpreted by the server's
+usual C<AllocNamedColor()> etc.
 
     X11::Protocol::XSetRoot->set_background
                                (color => 'green');
@@ -226,22 +250,25 @@ C<AllocNamedColor> etc.
     X11::Protocol::XSetRoot->set_background
                                (color => '#FF0000'); # red
 
-A pattern can be set with a pixmap or a big pixmap the size of the whole
-screen.
+A pattern can be set with a pixmap.  Or a complete background picture with a
+big pixmap the size of the whole screen.
 
-    # draw $pixmap with black_pixel and white_pixel ...
+    # draw to $pixmap with black_pixel and white_pixel,
+    # then ...
     X11::Protocol::XSetRoot->set_background
                                (X      => $X,
                                 pixmap => $pixmap);
 
-C<set_background> takes over ownership of the given C<$pixmap> and frees it
-with C<FreePixmap> once put into the window background.  Setting an
-application drawn pixmap is the main use for this module.  A solid colour
-can be simply by running the actual C<xsetroot> program.
+C<set_background()> takes ownership of the given C<$pixmap> and frees it
+with C<FreePixmap> once put into the window background.
+
+Putting an application drawn pixmap into the background is the main uses for
+this module.  If you want a solid colour then that can be done easily enough
+by running the actual C<xsetroot> program.
 
 =head2 Allocated Pixels
 
-If the pixmap has pixels allocated with C<AllocColor> etc then this should
+If a pixmap has pixels allocated with C<AllocColor()> etc then this should
 be indicated with the C<pixmap_allocated_colors> option,
 
     # draw $pixmap with AllocColor colours
@@ -251,26 +278,31 @@ be indicated with the C<pixmap_allocated_colors> option,
                                 pixmap_allocated_colors => 1);
     # don't use $X any more
 
-The way allocated colour retention works means the C<$X> connection cannot
-be used any more in this case, or if the C<color> or C<pixel> options are an
-allocated colour (anything except the X root colormap C<black_pixel> and
-C<white_pixel>).
-
-Allocated colours are preserved in the root colormap using
-C<SetCloseDownMode> C<RetainPermanent> and a client XID recorded in the
-C<_XSETROOT_ID> property on the root window.  A subsequent C<xsetroot> or
-compatible program does a C<KillClient> to free the pixels.  This can happen
-any time after setting, perhaps immediately.
-
-If the root visual is static such as C<TrueColor> then an C<AllocColor> is
-just a lookup, not an actual allocation.  On a static visual
-C<set_background> skips the RetainPermanent and C<_XSETROOT_ID>.
+The way allocated colour retention works means that the C<$X> connection
+cannot be used any more in this case, and likewise if the C<color> or
+C<pixel> options are an allocated colour.
 
 The easiest thing is to close an C<$X> connection immediately after a
-C<set_background>.  Perhaps there could be a return value to say whether a
+C<set_background()>.  Perhaps there could be a return value to say whether a
 retain was done and the connection cannot be used again.  Or if in the
 future there's an explicit C<$X-E<gt>close> of some sort then that could be
 used here, and would indicate whether the connection is still good.
+
+Allocated colours in the root colormap are preserved using
+C<SetCloseDownMode('RetainPermanent')> and putting a client XID in the
+C<_XSETROOT_ID> property on the root window.  A subsequent C<xsetroot> or
+compatible program does a C<KillClient()> to free those pixels.  This kill
+could happen any time after setting, perhaps immediately.
+
+For a static visual such as C<TrueColor> there's no colour allocation
+(C<AllocColor()> is just a lookup) and in that case C<set_background()>
+knows there's never any need for C<RetainPermanent>.
+
+Also if the C<color> given results in the screen C<black_pixel> or
+C<white_pixel> then there's no a C<RetainPermanent> since those pixels are
+fixed in the root colormap.  If the server has the TOG-CUP extension (see
+L<X11::Protocol::Ext::TOG_CUP>) then the reserved pixels it lists are
+treated similarly.
 
 =head1 FUNCTIONS
 
@@ -289,53 +321,62 @@ parameters are
 
     color    => string
     pixel    => integer pixel value
-    pixmap   => XID of pixmap to display
+    pixmap   => XID of pixmap to display, or "None"
     pixmap_allocated_colors => boolean, default false
 
-The server is given by an C<X> connection object , or a C<display> name to
+The server is given by an C<X> connection object, or a C<display> name to
 connect to, otherwise the C<DISPLAY> environment variable.
 
 The root window is given by C<root> or C<screen>, or otherwise the current
-"chosen" screen on C<$X>, or the screen part of the C<display> name.
+C<choose_screen()> on C<$X>, or the default screen coming from the display
+name.
 
 The background to show is given by a colour name or pixel, or a pixmap.
-C<color> can be anything understood by the server C<AllocNamedColor>, plus 1
-to 4 digit hex like "#RGB" or "#RRRRGGGGBBBB".
+C<color> can be anything understood by the server C<AllocNamedColor()>, plus
+1 to 4 digit hex
+
+    "blue"
+    "#RGB"
+    "#RRGGBB"
+    "#RRRGGGBBB"
+    "#RRRRGGGGBBBB"
 
 C<pixel> is an integer pixel value in the root window colormap.  It's
-automatically recognised as allocated or not -- anything except the screen
-pre-defined black or white pixel value is allocated.
+automatically recognised as allocated or not (the screen pre-defined black
+or white or TOG-CUP reserved pixels).
 
-C<pixmap> is an XID integer.  C<set_background> takes ownership of this
-pixmap and will C<FreePixmap> once installed.  "None" or 0 means no pixmap,
-which gives the server's default root background (usually a black and white
-weave pattern).
+C<pixmap> is an XID integer.  C<set_background()> takes ownership of this
+pixmap and will C<FreePixmap()> once installed.  "None" or 0 means no
+pixmap, which gives the server's default root background (usually a black
+and white weave pattern).
 
 C<pixmap_allocated_colors> should be true if any of the pixels in C<pixmap>
-were allocated with C<AllocColor> etc, as opposed to just the screen
-pre-defined black and white pixels.
+were allocated with C<AllocColor()> etc, as opposed to just the screen
+pre-defined black and white pixels (and any TOG-CUP reserved).
 
-When an allocated pixel or a pixmap with allocated pixels is set as the
+When an allocated pixel or pixmap with allocated pixels is set as the
 background the C<_XSETROOT_ID> mechanism described above means the C<$X>
 connection could be killed by another C<xsetroot> at any time, so should not
-be used any more.  The easiest thing is to make C<set_background> the last
+be used any more.  The easiest thing is to make C<set_background()> the last
 thing done on C<$X>.
 
 Setting a C<pixel> or C<pixmap> can only be done on an C<X> connection as
 such, not from the C<display> option.  This is because retaining the colours
 with the C<_XSETROOT_ID> mechanism can only be done from the client
-connection which created them, not a new connection.
+connection which created them, not a new separate client connection.
 
 =back
 
 =head1 FILES
 
-F</etc/X11/rgb.txt> on the server, the usual colour names database for the
-C<color> option here.
+F</etc/X11/rgb.txt> on the server, being the usual colour names database for
+the C<color> option above.
 
 =head1 SEE ALSO
 
-L<xsetroot(1)>
+L<xsetroot(1)>,
+L<X11::Protocol>,
+L<X11::Protocol::Ext::TOG_CUP>
 
 =head1 HOME PAGE
 
@@ -343,7 +384,7 @@ http://user42.tuxfamily.org/x11-protocol-other/index.html
 
 =head1 LICENSE
 
-Copyright 2010, 2011 Kevin Ryde
+Copyright 2010, 2011, 2012 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

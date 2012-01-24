@@ -1,4 +1,4 @@
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -15,8 +15,26 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-CFLAGS = -Wall -g
-LOADLIBES = -lXss -lX11
+CFLAGS = -Wall -g -Wpadded
+LOADLIBES = -lXss -lXi -lX11
+
+pad:
+	gcc -Wpadded -x c -fsyntax-only /usr/include/X11/extensions/xf86vmproto.h
+	cd /usr/include/X11/extensions; \
+	for i in *.h; do \
+	  if egrep -q 'B32|B16' $$i; then \
+	    echo '#include <stdio.h>'      >/tmp/$$i; \
+	    echo '#include <X11/X.h>'     >>/tmp/$$i; \
+	    echo '#include <X11/Xdefs.h>'     >>/tmp/$$i; \
+	    echo '#include <X11/Xproto.h>'    >>/tmp/$$i; \
+	    echo '#include <X11/Xprotostr.h>' >>/tmp/$$i; \
+	    echo '#include <X11/Xmd.h>'       >>/tmp/$$i; \
+	    cat $$i                           >>/tmp/$$i; \
+	    gcc -Wpadded -fsyntax-only -x c /tmp/$$i; \
+	  fi \
+	done
+
+# if grep -q 'Display *[*]' $$i; then :; else \
 
 all: encode-emacs22.ctext encode-emacs22-ext.ctext \
 	encode-emacs23.ctext encode-emacs23-ext.ctext \

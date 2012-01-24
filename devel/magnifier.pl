@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -157,7 +157,7 @@ sub dump_region {
 }
 
 sub fh_readable {
-  my ($fh);
+  my ($fh) = @_;
   require IO::Select;
   my $s = IO::Select->new;
   $s->add($fh);

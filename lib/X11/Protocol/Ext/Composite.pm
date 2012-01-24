@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 14;
+$VERSION = 15;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -250,21 +250,21 @@ X11::Protocol::Ext::Composite - off-screen window contents
 
 The Composite extension holds the full pixel contents of windows in
 off-screen storage, ready for things like C<CopyArea>.  Normally the server
-only keeps the visible parts of a window, not overlapped or obscured areas.
+only keeps the visible parts of a window, not areas overlapped or obscured.
 
-In "automatic" mode the visible parts of a window are displayed on screen as
+In "Automatic" mode the visible parts of a window are displayed on screen as
 normal.  The off-screen storage is then a little like the backing store
 feature, but just when one or more clients declare an interest in the full
 content.
 
-In "manual" mode the window contents are not drawn on screen, only kept
+In "Manual" mode the window contents are not drawn on screen, only kept
 off-screen.  This mode is for use by special "composite manager" programs
 which might make a composite display (hence the name of the extension) of
-the overlapping windows with some partial-transparency or shadowing effects.
+the overlapping windows with partial-transparency or shadowing effects.
 
-There's no drawing or combining to actually make a composite window result.
-When required that's done with the usual core protocol drawing or with
-drawing extensions such as RENDER (see L<X11::Protocol::Ext::RENDER>).
+There's nothing here to draw or combine to actually make a composite window
+result.  When required that's done with the usual core protocol drawing or
+with drawing extensions such as RENDER (see L<X11::Protocol::Ext::RENDER>).
 
 =head1 REQUESTS
 

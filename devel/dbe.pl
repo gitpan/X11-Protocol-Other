@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -20,10 +20,55 @@
 use strict;
 use X11::Protocol;
 
-use lib 'devel', '.';
-
 # uncomment this to run the ### lines
 use Smart::Comments;
+
+$ENV{'DISPLAY'} ||= ':0';
+
+
+{
+  my $X = X11::Protocol->new;
+  $X->init_extension('DOUBLE-BUFFER') or die;
+
+  # {
+  #   my @version = $X->DbeGetVersion (99,99);
+  #   ### @version
+  # }
+  # # $X->QueryPointer($X->{'root'}); # sync
+
+  {
+    ### DbeGetVisualInfo send ...
+    my $window = $X->root;
+    my $seq = $X->send('DbeGetVisualInfo',$window);
+    sleep 1;
+    ### $seq
+    ### sync ...
+
+    # foreach (1..7) {
+    #   $X->send('GetAtomName',3);
+    # }
+    # # $X->{'connection'}->give("\0"x16384);
+    # $X->flush;
+    # 
+    # $X->QueryPointer($X->{'root'});
+
+    for (;;) {
+      ### X handle_input ...
+      $X->handle_input;
+    }
+    exit 0;
+  }
+
+  {
+    ### DbeGetVisualInfo ...
+    ### seq: $X->{'sequence_num'}
+    my @infos = $X->DbeGetVisualInfo($X->root);
+    ### @infos
+  }
+  $X->QueryPointer($X->{'root'}); # sync
+
+  exit 0;
+}
 
 {
   my $X = X11::Protocol->new (':0');
@@ -89,24 +134,7 @@ use Smart::Comments;
   exit 0;
 }
 
-{
-  # require("X11/Protocol/Ext/DBE.pm");
 
-  my $X = X11::Protocol->new ($ENV{'DISPLAY'} || ':0');
-  $X->init_extension('DOUBLE-BUFFER') or die;
-
-  { my @version = $X->DbeGetVersion (99,99);
-    ### @version
-  }
-  $X->QueryPointer($X->{'root'}); # sync
-
-  { my @infos = $X->DbeGetVisualInfo($X->root);
-    ### @infos
-  }
-  $X->QueryPointer($X->{'root'}); # sync
-
-  exit 0;
-}
 
 
 

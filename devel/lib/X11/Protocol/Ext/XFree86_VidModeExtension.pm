@@ -2,7 +2,7 @@
 
 
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -22,22 +22,41 @@
 BEGIN { require 5 }
 package X11::Protocol::Ext::XFree86_VidModeExtension;
 use strict;
+use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 14;
+$VERSION = 15;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
 use Smart::Comments;
 
 
-# /usr/include/X11/extensions/xf86vm.h
-# /usr/include/X11/extensions/xf86vmproto.h
+# Protocol 0.7:
+#   /so/x11r6.4/xc/include/extensions/xf86vmstr.h
+#   /so/x11r6.4/xc/programs/Xserver/Xext/xf86vmode.c
 #
-# /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
+# Protocol 0.8:
+#   /so/xfree/xfree86-3.3.2.3a/lib/Xxf86vm/XF86VMode.c
+#   /so/xfree/xfree86-3.3.2.3a/include/extensions/xf86vmode.h
+#   /so/xfree/xfree86-3.3.2.3a/programs/Xserver/hw/xfree86/doc/man/XF86VM.man
+#      xlib
+#
+#   /so/xfree/xfree86-3.3.2.3a/programs/Xserver/Xext/xf86vmode.c
+#   /so/xfree/xfree86-3.3.2.3a/programs/Xserver/hw/xfree86/common/xf86Cursor.c
+#
+# Protocol 2.0:
+#   /usr/include/X11/extensions/xf86vm.h
+#   /usr/include/X11/extensions/xf86vmproto.h
+#
+#   /so/xorg/xorg-server-1.10.0/hw/xfree86/dixmods/extmod/xf86vmode.c
+#       server source
+#
+# Other:
+#   /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
+#
 
-### XFree86_VidModeExtension.pm loads
 
 # these not documented yet ...
 use constant CLIENT_MAJOR_VERSION => 2;
@@ -62,35 +81,29 @@ my $XF86VidModeNotify_event
 my $reqs =
   [
    ['XF86VidModeQueryVersion',  # 0
-    &_request_empty,
+    \&_request_empty,
     sub {
       my ($X, $data) = @_;
       return unpack 'x8SS', $data;
-
-      # Any interest in holding onto the version?
-      #  my ($server_major, $server_minor) = unpack 'x8SS', $data;
-      # ### $server_major
-      # ### $server_minor
-      # my $self;
-      # if ($self = $self->{'ext'}{'XFree86_VidModeExtension'}->[3]) {
-      #   $self->{'major'} = $server_major;
-      #   $self->{'minor'} = $server_minor;
-      # }
-      # return ($server_major, $server_minor);
     }],
 
    ['XF86VidModeGetModeLine',  # 1
-    \&_request_screen,
+    \&_request_screen16,
     sub {
       my ($X, $data) = @_;
-      die;
+      # ($dotclock,
+      #  $hdisplay,$hsyncstart,$hsyncend,$htotal,
+      #  $hskew,$vdisplay,$vsyncstart,$vsyncend,$vtotal,
+      #  $flags)
+      my @data = unpack 'LS9xxL', $data;
+      my $dotclock = shift @data;
+      return ($dotclock, \@data);
     },
    ],
 
    ['XF86VidModeModModeLine',  # 2
     sub {
-      shift;
-      # ($X, $screen, 
+      # ($X, $screen_num,
       #  $hdisplay,
       #  $hsyncstart,
       #  $hsyncend,
@@ -100,33 +113,142 @@ my $reqs =
       #  $vsyncstart,
       #  $vsyncend,
       #  $vtotal,
-      # $flags,
+      #  $flags)
+
+      shift; # $X
       # or 'LS9xxLx4' in 0.x protocol ...
-      return pack 'LS9xxLx12x4', $screen, $enable;
+      return pack 'LS9xxLx12x4', @_;
     }],
 
    ['XF86VidModeSwitchMode',  # 3
-    \&_request_screen,
     sub {
-      my ($X, $data) = @_;
-      die;
+      my ($X, $screen_num, $zoom) = @_;
+      return pack 'SS', $screen_num, $zoom;
     },
    ],
 
    ['XF86VidModeGetMonitor',  # 4
-    \&_request_screen,
+    \&_request_screen16,
     sub {
       my ($X, $data) = @_;
-      die;
+
+      # bandwidth new in protocol version X.X
+      my ($vendor_len, $model_len, $num_hsync, $num_vsync, $bandwidth)
+        = unpack 'x8C4L', $data;
+
+      my $pos = 32;
+      my @hsyncs;
+      foreach (1 .. $num_hsync) {
+        my $sync = unpack 'L', substr($data,$pos,4);
+        $pos += 4;
+        push @hsyncs, [ $sync & 0xFFFF, $sync >> 16 ]; # lo,hi
+      }
+
+      my @vsyncs;
+      foreach (1 .. $num_vsync) {
+        my $sync = unpack 'L', substr($data,$pos,4);
+        $pos += 4;
+        push @vsyncs, [ $sync & 0xFFFF, $sync >> 16 ]; # lo,hi
+      }
+
+      my $vendor = substr ($data, $pos, $vendor_len);
+      $pos += $vendor_len + X11::Protocol::padding($vendor_len);
+      my $model = substr ($data, $pos, $model_len);
+
+      return $vendor, $model, \@hsyncs, \@vsyncs, $bandwidth;
     },
    ],
 
    ['XF86VidModeLockModeSwitch',  # 5
-    \&_request_screen,
+    sub {
+      my ($X, $screen_num, $lock) = @_;
+      return pack 'SS', $screen_num, $lock;
+    },
    ],
 
    ['XF86VidModeGetAllModeLines',  # 6
-    \&_request_screen,
+    \&_request_screen16,
+    sub {
+      my ($X, $data) = @_;
+      ### XF86VidModeGetAllModeLines() reply length: length($data)
+
+      use Data::HexDump::XXD;
+      print scalar(Data::HexDump::XXD::xxd($data));
+      print "\n";
+
+      my $self = $X->{'ext'}{'XFree86_VidModeExtension'}->[3];
+      ### $self
+      my $protocol_2 = ($self->{'set_client_major'} >= 2);
+      my $protocol_08 = (($self->{'server_major'} <=> 0
+                          || $self->{'server_minor'} <=> 8)
+                         >= 0);
+
+      my ($num_modes) = unpack 'x8L', $data;
+      ### $num_modes
+
+      my $pos = 32;
+      my @ret;
+      foreach (1 .. $num_modes) {
+        ### $pos
+        my %h;
+
+        # bigger data format if XF86VidModeSetClientVersion() is 2 or more
+        if ($protocol_2) {
+          @h{ # hash slice
+            qw(dotclock
+
+               hdisplay
+               hsyncstart
+               hsyncend
+               htotal
+
+               hskew
+
+               vdisplay
+               vsyncstart
+               vsyncend
+               vtotal
+
+               flags
+               private_size
+             )} = unpack 'LS4LS4x4Lx12L', substr($data,$pos,48);
+          $pos += 48;
+
+        } else {
+          @h{ # hash slice
+            qw(dotclock
+
+               hdisplay
+               hsyncstart
+               hsyncend
+               htotal
+
+               vdisplay
+               vsyncstart
+               vsyncend
+               vtotal
+
+               flags
+               private_size
+             )} = unpack 'LS8L2', substr($data,$pos,28);
+          $pos += 28;
+        }
+
+        # in protocol 0.7 the server gave a "private_size" field but didn't
+        # send the actual data, per server code in X11R6.4
+        # /so/x11r6.4/xc/programs/Xserver/Xext/xf86vmode.c
+        #
+        if ($protocol_08) {
+          my $private_size = 4 * delete $h{'private_size'};
+          ### $private_size
+          $h{'private'} = substr($data,$pos,$private_size);
+          $pos += $private_size;
+        }
+
+        push @ret, \%h;
+      }
+      return @ret;
+    }
    ],
 
    ['XF86VidModeAddModeLine',  # 7
@@ -136,7 +258,7 @@ my $reqs =
     }],
 
    ['XF86VidModeDeleteModeLine',  # 8
-    \&_request_screen,
+    \&_request_screen16,
    ],
 
    ['XF86VidModeValidateModeLine',  # 9
@@ -150,28 +272,30 @@ my $reqs =
     } ],
 
    ['XF86VidModeSwitchToMode',   # 10
-    \&_request_screen,
+    \&_request_screen16,
    ],
 
    ['XF86VidModeGetViewPort',   # 11
-    \&_request_screen,
+    \&_request_screen16,
    ],
 
    ['XF86VidModeSetViewPort',   # 12
-    \&_request_screen,
+    \&_request_screen16,
    ],
 
    #---------------------------------------------------------------------------
    # protocol 2.0
 
    ['XF86VidModeGetDotClocks',  # 13
-    \&_request_screen,
+    \&_request_screen16,
    ],
 
    [ 'XF86VidModeSetClientVersion',  # 14
      sub {
-       shift;  # ($X, $screen, $x, $y, $flags)
-       return pack 'LSSL', @_;
+       my ($X, $client_major, $client_minor) = @_;
+       my $self = $X->{'ext'}{'XFree86_VidModeExtension'}->[3];
+       $self->{'set_client_major'} = $client_major;
+       return pack 'SS', @_;
      },
    ],
 
@@ -201,23 +325,9 @@ my $reqs =
      } ],
 
    [ 'XF86VidModeGetPermissions',  # 20
-     \&_request_screen,
+     \&_request_screen16,
    ],
   ];
-
-sub _request_screen {
-  shift;  # ($X, $screen)
-  return pack 'Sxx', @_;
-},
-
-sub _num_none {
-  my ($xid) = @_;
-  if (defined $xid && $xid eq "None") {
-    return 0;
-  } else {
-    return $xid;
-  }
-}
 
 sub new {
   my ($class, $X, $request_num, $event_num, $error_num) = @_;
@@ -237,7 +347,37 @@ sub new {
                             'XF86VidModeZoomLocked',         # 6
                            );
 
-  return bless { }, $class;
+  my ($server_major, $server_minor) = $X->XF86VidModeQueryVersion;
+
+  return bless { set_client_major => 0,
+                 server_major     => $server_major,
+                 server_minor     => $server_minor,
+               }, $class;
+}
+
+#------------------------------------------------------------------------------
+# generic
+
+sub _request_empty {
+  # ($X)
+  if (@_ > 1) {
+    croak "No parameters in this request";
+  }
+  return '';
+}
+sub _request_screen16 {
+  shift;  # ($X, $screen)
+  @_ == 1 or croak "Single screen number parameter expected";
+  return pack 'Sxx', @_;
+}
+
+sub _num_none {
+  my ($xid) = @_;
+  if (defined $xid && $xid eq "None") {
+    return 0;
+  } else {
+    return $xid;
+  }
 }
 
 sub _ext_requests_install {
@@ -300,6 +440,40 @@ per L<X11::Protocol/EXTENSIONS>.
 
 Return the DGA protocol version implemented by the server.
 
+=item C<($dotclock, $modeline) = $X-E<gt>XF86VidModeGetModeLine ($screen_num)>
+
+Get the current mode of C<$screen_num> (integer 0 upwards).  The return is a
+list of key/value pairs,
+
+    dotclock   => integer
+    hdisplay   => integer, horizontal visible pixels
+    hsyncstart => integer, horizontal sync start
+    hsyncend   => integer, horizontal sync end
+    htotal     => integer, horizontal total pixels
+    hskew      => integer
+    vdisplay   => integer, vertical visible pixels
+    vsyncstart => integer, vertical sync start
+    vsyncend   => integer, vertical sync end
+    vtotal     => integer, vertical total pixels
+    flags      => integer
+
+=item C<@fields = $X-E<gt>XF86VidModeSwitchMode ($screen_num, $zoom)>
+
+Switch to the next or previous mode on C<$screen_num> (integer 0 upwards).
+If C<$zoom> is 1 (or more) to switch to the next mode, or 0 to switch to the
+previous mode.
+
+=item C<$X-E<gt>XF86VidModeLockModeSwitch ($screen_num, $lock)>
+
+Lock or unlock mode switching on C<$screen_num> (integer 0 upwards).  If
+C<$lock> is non-zero then mode switching via either the keyboard or the
+C<XF86VidModeSwitchMode()> request is prevented.  If C<$lock> is zero
+switching is allowed again.
+
+=item C<$X-E<gt>XF86VidModeGetAllModeLines ($screen_num)>
+
+
+
 =back
 
 =head1 SEE ALSO
@@ -312,7 +486,7 @@ http://user42.tuxfamily.org/x11-protocol-other/index.html
 
 =head1 LICENSE
 
-Copyright 2011 Kevin Ryde
+Copyright 2011, 2012 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

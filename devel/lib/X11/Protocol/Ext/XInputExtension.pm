@@ -1,4 +1,8 @@
-# Copyright 2011 Kevin Ryde
+# in progress
+
+
+
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -18,19 +22,23 @@
 BEGIN { require 5 }
 package X11::Protocol::Ext::XInputExtension;
 use strict;
+use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 14;
+$VERSION = 15;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
 use Smart::Comments;
 
-
+# /usr/share/doc/x11proto-input-dev/XIproto.txt.gz
 # /usr/share/doc/x11proto-input-dev/XI2proto.txt.gz
-# /usr/include/X11/extensions/XInput2.h
+#
+# /usr/include/X11/extensions/XIproto.h
 # /usr/include/X11/extensions/XI2proto.h
+#
+# /usr/include/X11/extensions/XInput2.h
 #
 # /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
 
@@ -44,10 +52,25 @@ use constant CLIENT_MINOR_VERSION => 0;
 
 my %const_arrays
   = (
-     XInputExtensionDeviceUse => ['MasterPointer', 'MasterKeyboard',
-                                  'SlavePointer', 'SlaveKeyboard',
-                                  'FloatingSlave' ],
-     XInputExtensionClass => ['Key', 'Button', 'Valuator'],
+     XIDeviceUse => ['MasterPointer', 'MasterKeyboard',
+                     'SlavePointer', 'SlaveKeyboard',
+                     'FloatingSlave' ],
+     XIClass => ['Key', 'Button', 'Valuator'],
+     XIDeviceMode => ['Relative', 'Absolute'],
+     XIFeedbackClass => ['Kbd',     # 0
+                         'Ptr',     # 1
+                         'String',  # 2
+                         'Integer', # 3
+                         'Led',     # 4
+                         'Bell',    # 5
+                        ],
+     XIUse => ['Pointer',           # 0
+               'Keyboard',          # 1
+               'ExtensionDevice',   # 2
+               'ExtensionKeyboard', # 3
+               'ExtensionPointer',  # 4
+              ],
+
     );
 
 my %const_hashes
@@ -61,11 +84,12 @@ my $reqs =
   [
    undef,  # 0
 
-   ['XInputExtensionGetExtensionVersion',  # 1
+   ['XIGetExtensionVersion',  # 1
     sub {
       my ($X, $name) = @_;
-      ### XInputExtensionGetExtensionVersion() ...
-      # my $ret =  pack ('Sxx' . X11::Protocol::padded($name),
+      ### XIGetExtensionVersion() ...
+      if (! defined $name) { $name = "XInputExtension"; }
+      # my $ret = pack ('Sxx' . X11::Protocol::padded($name),
       #              length($name), $name);
       # ### $ret
       # ### len: length($ret)
@@ -88,10 +112,114 @@ my $reqs =
       # return ($server_major, $server_minor);
     }],
 
-   undef,  # ListInputDevices		2
+   ['XIListInputDevices',  # 2
+    \&_request_empty,
+    sub {
+      my ($X, $data) = @_;
+
+      use Data::HexDump::XXD;
+      print scalar(Data::HexDump::XXD::xxd($data));
+      print "\n";
+
+      my ($num_devices) = unpack 'x8C', $data;
+      my $pos = 32;
+      ### $num_devices
+
+      my @ret;
+      my @infos;
+      foreach (1 .. $num_devices) {
+        ### device: $_
+        ### pos: sprintf '%d %#X', $pos, $pos
+
+        my ($type_atom, $deviceid, $num_classes, $use, $attached_deviceid)
+          = unpack 'LCCCC', substr ($data, $pos, 8);
+        $pos += 8;
+        my $info = { type => $type_atom,
+                     use  => $X->interp('XIUse',$use),
+                     attached_deviceid => $attached_deviceid,
+                     num_classes => $num_classes,
+                   };
+        push @infos, $info;
+        push @ret, $deviceid => $info;
+      }
+
+      foreach my $info (@infos) {
+        my $num_classes = $info->{'num_classes'};
+
+        my @classes;
+        $info->{'classes'} = \@classes;
+
+        foreach (1 .. $num_classes) {
+          ### pos: sprintf '%d %#X', $pos, $pos
+
+          my ($class, $class_len) = unpack 'CC', substr ($data, $pos, 2);
+          my %class_info = (class => $X->interp('XIClass',$class));
+          push @classes, \%class_info;
+
+          ### $class
+          ### class interp: $X->interp('XIClass',$class)
+          ### $class_len
+          ### assert: $class_len >= 2
+
+          if ($class == 0) { # Key
+            ($class_info{'min_keycode'},
+             $class_info{'max_keycode'},
+             $class_info{'num_keys'})
+              = unpack 'xxCCS', substr ($data, $pos, 6);
+          } elsif ($class == 1) { # Button
+            ($class_info{'num_buttons'})
+              = unpack 'xxS', substr ($data, $pos, 4);
+          } elsif ($class == 2) { # Valuator
+            my ($num_axes, $mode, $motion_buffer_size)
+              = unpack 'xxCCL', substr ($data, $pos, 8);
+            $class_info{'num_axes'} = $num_axes;
+            $class_info{'mode'} = $X->interp('XIDeviceMode',$mode);
+            $class_info{'motion_buffer_size'} = $motion_buffer_size;
+            $class_info{'axes'}
+              = [ map {
+                # FIXME: min/max signed or unsigned? Xlib is signed ...
+                my ($resolution, $min_value, $max_value)
+                  = unpack 'Lll', substr ($data, $pos+12*$_-4, 12);
+                { resolution => $resolution,
+                    min_value => $min_value,
+                      max_value => $max_value
+                    }
+              } 1 .. $num_axes ];
+          }
+          $pos += $class_len;
+        }
+      }
+
+      ### names pos: sprintf '%d %#X', $pos, $pos
+      foreach my $i (1 .. $num_devices) {
+        my ($name_len) = unpack 'C', substr($data,$pos++,1);
+        ### $name_len
+        $ret[2*$i-1]->{'name'} = substr($data,$pos,$name_len);
+        $pos += $name_len;
+      }
+      return @ret;
+    }],
+
    undef,  # OpenDevice			3
-   undef,  # CloseDevice			4
-   undef,  # SetDeviceMode			5
+
+   ['XICloseDevice',  # 4
+    sub {
+      my ($X, $deviceid) = @_;
+      return pack 'Cxxx', $deviceid;
+    }],
+
+   ['XISetDeviceMode',  # 5
+    sub {
+      my ($X, $deviceid, $mode) = @_;
+      return pack 'CCxx',
+        $deviceid, $X->num('XIDeviceMode',$mode);
+    },
+    sub {
+      my ($X, $data) = @_;
+      # FIXME: decode status value ...
+      return unpack 'x8C', $data;
+    }],
+
    undef,  # SelectExtensionEvent		6
    undef,  # GetSelectedExtensionEvents	7
    undef,  # ChangeDeviceDontPropagateList 8
@@ -99,12 +227,40 @@ my $reqs =
    undef,  # GetDeviceMotionEvents		10
    undef,  # ChangeKeyboardDevice		11
    undef,  # ChangePointerDevice		12
-   undef,  # GrabDevice			13
-   undef,  # UngrabDevice			14
+
+   ['XIGrabDevice',  # 13
+    sub {
+      my ($X, $window, $deviceid, $owner_events, $event_class_list,
+          $this_device_mode, $other_device_mode, $time) = @_;
+      return pack('LLSCCCCxxC*',
+                  $window,
+                  _num_time($time),
+                  scalar(@$event_class_list), # event_count
+                  $X->num('SyncMode',$this_device_mode),
+                  $X->num('SyncMode',$other_device_mode),
+                  $owner_events,
+                  $deviceid,
+                  map {$X->num('XIEventClass',$_)}
+                  @$event_class_list
+                 )
+    },
+    sub {
+      my ($X, $data) = @_;
+      my ($status) = unpack 'x8C', $data;
+      return $X->interp('GrabStatus',$status);
+    } ],
+
+   ['XIUngrabDevice',  # 14
+    sub {
+      my ($X, $deviceid, $time) = @_;
+      return pack 'LCxxx', _num_time($time), $deviceid;
+    } ],
+
    undef,  # GrabDeviceKey			15
    undef,  # UngrabDeviceKey		16
    undef,  # GrabDeviceButton		17
    undef,  # UngrabDeviceButton		18
+
    undef,  # AllowDeviceEvents		19
    undef,  # GetDeviceFocus		20
    undef,  # SetDeviceFocus		21
@@ -118,7 +274,13 @@ my $reqs =
    undef,  # SetDeviceButtonMapping	29
    undef,  # QueryDeviceState		30
    undef,  # SendExtensionEvent		31
-   undef,  # DeviceBell			32
+
+   ['XIDeviceBell',  # 32
+    sub {
+      my ($X, $deviceid, $feedbackclass, $feedbackid, $percent) = @_;
+      return pack 'CCCc', $deviceid, $feedbackclass, $feedbackid, $percent;
+    } ],  #
+
    undef,  # SetDeviceValuators		33
    undef,  # GetDeviceControl		34
    undef,  # ChangeDeviceControl		35
@@ -141,10 +303,10 @@ my $reqs =
    undef,  # XIGetClientPointer            45
    undef,  # XISelectEvents                46
 
-   ['XInputExtensionQueryVersion',  # 47
+   ['XIQueryVersion',  # 47
     sub {
       shift; # ($X, $client_major, $client_minor)
-      ### XInputExtensionQueryVersion() ...
+      ### XIQueryVersion() ...
       return pack 'SS', @_;
     },
     sub {
@@ -156,22 +318,22 @@ my $reqs =
       # ### $server_major
       # ### $server_minor
       # my $self;
-      # if ($self = $self->{'ext'}{'XInputExtension'}->[3]) {
+      # if ($self = $self->{'ext'}{'XI'}->[3]) {
       #   $self->{'major'} = $server_major;
       #   $self->{'minor'} = $server_minor;
       # }
       # return ($server_major, $server_minor);
     }],
 
-   ['XInputExtensionQueryDevice',  # 48
+   ['XIQueryDevice',  # 48
     sub {
       my ($X, $deviceid) = @_;
-      ### XInputExtensionQueryDevice() ...
+      ### XIQueryDevice() ...
       return pack 'Sxx', $deviceid;
     },
     sub {
       my ($X, $data) = @_;
-      ### XInputExtensionQueryDevice reply ...
+      ### XIQueryDevice reply ...
 
       my ($num_devices) = unpack 'x8S', $data;
       ### $num_devices
@@ -207,12 +369,12 @@ my $reqs =
           ### $sourceid
           ### $num_whatever
 
-          push @classes, [ $X->interp('XInputExtensionClass', $type), 
+          push @classes, [ $X->interp('XIClass', $type),
                            $sourceid ];
         }
 
         push @ret, [ $deviceid,
-                     $X->interp('XInputExtensionDeviceUse',$use),
+                     $X->interp('XIDeviceUse',$use),
                      $attachment,
                      $enabled,
                      $name,
@@ -221,11 +383,34 @@ my $reqs =
       return @ret;
     }],
 
-   undef,  # XISetFocus                    49
-   undef,  # XIGetFocus                    50
+   ['XISetFocus',  # 49
+    sub {
+      my ($X, $window, $deviceid, $time) = @_;
+      return pack 'LLSxx', _num_none($window), _num_time($time), $deviceid;
+    } ],
+
+   ['XIGetFocus',  # 50
+    sub {
+      my ($X, $deviceid) = @_;
+      return pack 'Sxx', $deviceid;
+    },
+    sub {
+      my ($X, $data) = @_;
+      return unpack 'L', $data;
+    } ],
+
    undef,  # XIGrabDevice                  51
    undef,  # XIUngrabDevice                52
-   undef,  # XIAllowEvents                 53
+
+   ['XIAllowEvents',  # 53
+    sub {
+      my ($X, $deviceid, $mode, $time) = @_;  # per $X->AllowEvents() arg order
+      return pack 'LSCx',
+        _num_time($time),
+          $deviceid,
+            $X->num('AllowEventsMode',$mode);
+    } ],
+
    undef,  # XIPassiveGrabDevice           54
    undef,  # XIPassiveUngrabDevice         55
    undef,  # XIListProperties              56
@@ -233,7 +418,7 @@ my $reqs =
    undef,  # XIDeleteProperty              58
    undef,  # XIGetProperty                 59
 
-   ['XInputExtensionGetSelectedEvents',  # 60
+   ['XIGetSelectedEvents',  # 60
     \&_request_xids,
     sub {
       my ($X, $data) = @_;
@@ -264,6 +449,22 @@ sub _num_none {
     return $xid;
   }
 }
+sub _num_time {
+  my ($time) = @_;
+  if (defined $time && $time eq "CurrentTime") {
+    return 0;
+  } else {
+    return $time;
+  }
+}
+
+sub _request_empty {
+  # ($X)
+  if (@_ > 1) {
+    croak "No parameters in this request";
+  }
+  return '';
+}
 sub _request_xids {
   my $X = shift;
   ### _request_xids(): @_
@@ -287,9 +488,9 @@ sub new {
   _ext_const_error_install ($X, $error_num,
                             'Device',                 # 0
                             'Event',                  # 1
-                            'XInputExtensionMode',    # 2
+                            'XIMode',    # 2
                             'DeviceBusy',             # 3
-                            'XInputExtensionClass');  # 4
+                            'XIClass');  # 4
 
   # Requests
   _ext_requests_install ($X, $request_num, $reqs);
@@ -351,9 +552,9 @@ per L<X11::Protocol/EXTENSIONS>.
 
     my $is_available = $X->init_extension('XInputExtension');
 
-=head2 XInputExtension 1.0
+=head1 XInputExtension 1.5
 
-=head2 XInputExtension 2.0
+=head1 XInputExtension 2.0
 
 =over
 
@@ -373,7 +574,7 @@ http://user42.tuxfamily.org/x11-protocol-other/index.html
 
 =head1 LICENSE
 
-Copyright 2011 Kevin Ryde
+Copyright 2011, 2012 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

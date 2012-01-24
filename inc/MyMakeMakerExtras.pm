@@ -81,37 +81,42 @@ sub strip_comments {
 
 sub _meta_merge_shared_tests {
   my ($opts) = @_;
-  if (-e 'xt/0-Test-Pod.t') {
-    _meta_merge_req_add (_meta_merge_maximum_devel($opts),
-                         'Test::Pod' => '1.00');
-  }
-  if (-e 'xt/0-Test-DistManifest.t') {
-    _meta_merge_req_add (_meta_merge_maximum_devel($opts),
-                         'Test::DistManifest' => 0);
-  }
-  if (-e 'xt/0-Test-Synopsis.t') {
-    _meta_merge_req_add (_meta_merge_maximum_devel($opts),
-                         'Test::Synopsis' => 0);
-  }
-  if (-e 'xt/0-Test-YAML-Meta.t') {
-    _meta_merge_req_add (_meta_merge_maximum_devel($opts),
-                         'Test::YAML::Meta' => '0.15');
-  }
-  if (-e 'xt/0-META-read.t') {
-    if (_min_perl_version_lt ($opts, 5.00307)) {
+
+  if (exists $opts->{'META_MERGE'}->{'optional_features'}->{'maximum_devel'}) {
+    # only if "maximum_devel" in use
+
+    if (-e 'xt/0-Test-Pod.t') {
       _meta_merge_req_add (_meta_merge_maximum_devel($opts),
-                           'FindBin' => 0);
+                           'Test::Pod' => '1.00');
     }
-    if (_min_perl_version_lt ($opts, 5.00405)) {
+    if (-e 'xt/0-Test-DistManifest.t') {
       _meta_merge_req_add (_meta_merge_maximum_devel($opts),
-                           'File::Spec' => 0);
+                           'Test::DistManifest' => 0);
     }
-    _meta_merge_req_add (_meta_merge_maximum_devel($opts),
-                         'YAML'              => 0,
-                         'YAML::Syck'        => 0,
-                         'YAML::Tiny'        => 0,
-                         'YAML::XS'          => 0,
-                         'Parse::CPAN::Meta' => 0);
+    if (-e 'xt/0-Test-Synopsis.t') {
+      _meta_merge_req_add (_meta_merge_maximum_devel($opts),
+                           'Test::Synopsis' => 0);
+    }
+    if (-e 'xt/0-Test-YAML-Meta.t') {
+      _meta_merge_req_add (_meta_merge_maximum_devel($opts),
+                           'Test::YAML::Meta' => '0.15');
+    }
+    if (-e 'xt/0-META-read.t') {
+      if (_min_perl_version_lt ($opts, 5.00307)) {
+        _meta_merge_req_add (_meta_merge_maximum_devel($opts),
+                             'FindBin' => 0);
+      }
+      if (_min_perl_version_lt ($opts, 5.00405)) {
+        _meta_merge_req_add (_meta_merge_maximum_devel($opts),
+                             'File::Spec' => 0);
+      }
+      _meta_merge_req_add (_meta_merge_maximum_devel($opts),
+                           'YAML'              => 0,
+                           'YAML::Syck'        => 0,
+                           'YAML::Tiny'        => 0,
+                           'YAML::XS'          => 0,
+                           'Parse::CPAN::Meta' => 0);
+    }
   }
 }
 # return hashref of "maximum_tests" under $opts, created if necessary
@@ -126,17 +131,19 @@ sub _meta_merge_maximum_tests {
 
 sub _meta_merge_shared_devel {
   my ($opts) = @_;
-  _meta_merge_req_add (_meta_merge_maximum_devel($opts),
-                       # the "make unused" target below
-                       'warnings::unused' => 0);
-  _meta_merge_req_add (_meta_merge_maximum_devel($opts),
-                       # used a lot
-                       'Smart::Comments' => 0,
-                       'Devel::Comments' => 0);
-  if (-e 'inc/my_pod2html') {
-    if (_min_perl_version_lt ($opts, 5.009003)) {
-      _meta_merge_req_add (_meta_merge_maximum_devel($opts),
-                           'Pod::Simple::HTML' => 0);
+  if (exists $opts->{'META_MERGE'}->{'optional_features'}->{'maximum_devel'}) {
+    _meta_merge_req_add (_meta_merge_maximum_devel($opts),
+                         # the "make unused" target below
+                         'warnings::unused' => 0);
+    _meta_merge_req_add (_meta_merge_maximum_devel($opts),
+                         # used a lot
+                         'Smart::Comments' => 0,
+                         'Devel::Comments' => 0);
+    if (-e 'inc/my_pod2html') {
+      if (_min_perl_version_lt ($opts, 5.009003)) {
+        _meta_merge_req_add (_meta_merge_maximum_devel($opts),
+                             'Pod::Simple::HTML' => 0);
+      }
     }
   }
 }
@@ -363,7 +370,7 @@ check-copyright-years:
 	  exit $$result)
 
 check-spelling:
-	if find . -type f | egrep -v '(Makefile|dist-deb)' | xargs egrep --color=always -nHi '\b[t]o to\b|[t]ranpose|[a]djustement|[g]lpyh|[r]ectanglar|[a]vailabe|[g]rabing|[c]usor|[r]efering|[w]riteable|[n]ineth|\b[o]mmitt?ed|[o]mited|[$$][rd]elf|[r]equrie|[n]oticable|[c]ontinous|[e]xistant|[e]xplict|[a]gument|[d]estionation|\b[t]he the\b|\b[w]ith with\b|\b[i]n in\b|\b[tw]hen then\b|\b[n]ote sure\b|[c]orrespondance'; \
+	if find . -type f | egrep -v '(Makefile|dist-deb)' | xargs egrep --color=always -nHi '\b[t]o to\b|[t]ranpose|[a]djustement|[g]lpyh|[r]ectanglar|[a]vailabe|[g]rabing|[c]usor|[r]efering|[w]riteable|[n]ineth|\b[o]mmitt?ed|[o]mited|[$$][rd]elf|[r]equrie|[n]oticable|[c]ontinous|[e]xistant|[e]xplict|[a]gument|[d]estionation|\b[t]he the\b|\b[w]ith with\b|\b[i]n in\b|\b[tw]hen then\b|\b[n]ote sure\b|[c]orrespondance|[s]prial'; \
 	then false; else true; fi
 HERE
 

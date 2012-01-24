@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -29,6 +29,7 @@ END { MyTestHelpers::diag ("END"); }
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
+
 
 my $test_count = (tests => 21)[1];
 plan tests => $test_count;
@@ -78,6 +79,25 @@ ok (!!$dbe_obj, 1, 'Dbe object');
 MyTestHelpers::diag ("DOUBLE-BUFFER extension version $dbe_obj->{'major'}.$dbe_obj->{'minor'}");
 
 
+
+#------------------------------------------------------------------------------
+# Have seen an xfree86 3.3.6 server somehow botch the length in its reply
+# and end up sending nothing in reply DbeGetVisualInfo, unless you provoke
+# it to further output by just a send() and then further send()s fetching
+# something (QueryPointer, GetAtomName, whatever).
+#
+# Think this is a server bug, and one not easily worked around.  For now set
+# an alarm() so as not to hang but otherwise let this .t script fail.
+#
+
+$SIG{'ALRM'} = sub {
+  MyTestHelpers::diag ("Oops, timeout");
+  exit 1;
+};
+alarm(30);
+
+
+
 #------------------------------------------------------------------------------
 # DbeSwapAction enum
 
@@ -103,9 +123,10 @@ MyTestHelpers::diag ("DOUBLE-BUFFER extension version $dbe_obj->{'major'}.$dbe_o
 
 my $have_root_dbe = 0;
 {
+  ### DbeGetVisualInfo one screen ...
   my @info_aref_list = $X->DbeGetVisualInfo ($X->root);
-  $X->QueryPointer($X->{'root'}); # sync
   ### @info_aref_list
+  $X->QueryPointer($X->{'root'}); # sync
 
   ok (scalar(@info_aref_list), 1);
   my $info_aref = $info_aref_list[0];
@@ -157,6 +178,7 @@ my $have_root_dbe = 0;
 }
 
 {
+  ### DbeGetVisualInfo all screens ...
   my @info_aref_list = $X->DbeGetVisualInfo ();
   $X->QueryPointer($X->{'root'}); # sync
 
@@ -181,9 +203,11 @@ my $have_root_dbe = 0;
 #------------------------------------------------------------------------------
 
 {
+  ### DbeAllocateBackBufferName ...
   my $buffer = $X->new_rsrc;
   $X->DbeAllocateBackBufferName ($X->root, $buffer, 'Copied');
   $X->QueryPointer($X->root); # sync
+  ### $buffer
 
   {
     my $got_window = $X->DbeGetBackBufferAttributes ($buffer);
