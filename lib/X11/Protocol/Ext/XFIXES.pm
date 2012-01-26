@@ -1,4 +1,4 @@
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -22,7 +22,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 15;
+$VERSION = 16;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -1027,7 +1027,7 @@ http://user42.tuxfamily.org/x11-protocol-other/index.html
 
 =head1 LICENSE
 
-Copyright 2011 Kevin Ryde
+Copyright 2011, 2012 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

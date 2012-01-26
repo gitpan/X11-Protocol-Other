@@ -168,9 +168,13 @@ if (! $direct_video_available) {
 
   my @ret;
   if ($direct_video_available) {
-    @ret = $X->XF86DGAGetVideoLL(0);
-    MyTestHelpers::diag ("XF86DGAGetVideoLL ", join(', ',@ret));
-    MyTestHelpers::diag ("  in hex ", join(', ',map{sprintf '%X',$_}@ret));
+    if (eval {
+      @ret = $X->XF86DGAGetVideoLL(0);
+      1;
+    }) {
+      MyTestHelpers::diag ("XF86DGAGetVideoLL ", join(', ',@ret));
+      MyTestHelpers::diag ("  in hex ", join(', ',map{sprintf '%X',$_}@ret));
+    }
   }
   skip ($skip_if_no_direct_video,
         scalar(@ret), 4);

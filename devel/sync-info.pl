@@ -18,6 +18,14 @@
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
 
+
+use lib 'devel/lib';
+$ENV{'DISPLAY'} ||= ":0";
+
+
+
+
+
 # Usage: perl sync-info.pl
 #
 # Print some information from the SYNC extension.
@@ -33,16 +41,14 @@ if (! $X->init_extension('SYNC')) {
   exit 0;
 }
 
-my ($major, $minor) = $X->SyncInitialize (3, 1);
-print "SYNC extension version $major.$minor\n";
+my @infos = $X->SyncListSystemCounters;
+my $num_infos = scalar(@infos);
+print "total $num_infos system counters\n";
 
-my @system_infos = $X->SyncListSystemCounters;
-my $system_count = scalar(@system_infos);
-print "$system_count system counters\n";
-
-foreach my $elem (@system_infos) {
+foreach my $elem (@infos) {
   my ($counter, $resolution, $name) = @$elem;
-  print "  $counter resolution=$resolution \"$name\"\n";
+  my $value = $X->SyncQueryCounter($counter);
+  print "counter=$counter resolution=$resolution \"$name\"  value=$value\n";
 }
 
 exit 0;

@@ -107,7 +107,7 @@ $X->QueryPointer($X->root); # sync
 
 my $visual;
 my $visual_is_colour;
-foreach my $v (sort {$a<=>$b} keys $X->{'visuals'}) {
+foreach my $v (sort {$a<=>$b} keys %{$X->{'visuals'}}) {
   my $info = $X->{'visuals'}->{$v};
   my $class = $X->interp('VisualClass',$info->{'class'});
   MyTestHelpers::diag ("visual $v $class depth=$info->{'depth'}");

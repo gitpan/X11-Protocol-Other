@@ -1,4 +1,4 @@
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -27,7 +27,7 @@ use Exporter;
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-$VERSION = 15;
+$VERSION = 16;
 
 %CURSOR_GLYPH
   = (
@@ -326,7 +326,7 @@ http://user42.tuxfamily.org/x11-protocol-other/index.html
 
 =head1 LICENSE
 
-Copyright 2011 Kevin Ryde
+Copyright 2011, 2012 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

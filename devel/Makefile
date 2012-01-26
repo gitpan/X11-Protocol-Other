@@ -16,7 +16,7 @@
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
 CFLAGS = -Wall -g -Wpadded
-LOADLIBES = -lXss -lXi -lX11
+LOADLIBES = -lXss -lXi -lXv -lX11
 
 pad:
 	gcc -Wpadded -x c -fsyntax-only /usr/include/X11/extensions/xf86vmproto.h

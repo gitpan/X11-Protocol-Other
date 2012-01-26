@@ -26,7 +26,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 15;
+$VERSION = 16;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -272,15 +272,21 @@ my $reqs =
     } ],
 
    ['XF86VidModeSwitchToMode',   # 10
-    \&_request_screen16,
+    \&_request_screen32, # and more ...
    ],
 
    ['XF86VidModeGetViewPort',   # 11
     \&_request_screen16,
-   ],
+    sub {
+      my ($X, $data) = @_;
+      return unpack 'x8LL', $data; # ($x,$y)
+    } ],
 
    ['XF86VidModeSetViewPort',   # 12
-    \&_request_screen16,
+    sub {
+      shift;  # ($X, $screen, $x,$y)
+      return pack 'SxxLL', @_;
+    },
    ],
 
    #---------------------------------------------------------------------------
@@ -472,9 +478,16 @@ switching is allowed again.
 
 =item C<$X-E<gt>XF86VidModeGetAllModeLines ($screen_num)>
 
-
-
 =back
+
+=head1 BUGS
+
+Some versions of the X.org server circa 1.10 had the C<hskew> field of
+C<XF86VidModeGetAllModeLines()> byte swapped as 16-bit instead of 32-bit.
+If it's zero this makes no difference, but non-zero might come out wrong for
+a client with different endianness than the server.
+
+    http://cgit.freedesktop.org/xorg/xserver/commit/hw/xfree86/dixmods/extmod/xf86vmode.c?id=9edcae78c46286baff42e74bfe26f6ae4d00fe01
 
 =head1 SEE ALSO
 

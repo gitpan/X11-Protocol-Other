@@ -59,6 +59,11 @@ main (void)
   printf ("sizeof(xXF86VidModeModeInfo) %u\n",
           sizeof(xXF86VidModeModeInfo));
 
+  printf ("offsetof(hskew) %u\n",
+          offsetof(xXF86VidModeModeInfo,hskew));
+  printf ("offsetof(vdisplay) %u\n",
+          offsetof(xXF86VidModeModeInfo,vdisplay));
+
   printf ("offsetof(pad1) %u\n",
           offsetof(xXF86VidModeModeInfo,pad1));
   printf ("offsetof(flags) %u\n",

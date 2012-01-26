@@ -18,7 +18,9 @@ devel/cursor-transparent.pl
 devel/damage.pl
 devel/dbe.pl
 devel/dpms.pl
+devel/DRI2-11.t
 devel/dri2.pl
+devel/DRI2.t
 devel/encode-all.el
 devel/encode-all.pl
 devel/encode-dump.c
@@ -32,6 +34,7 @@ devel/encode-xlib.c
 devel/exe-screensaver-info.c
 devel/exe-xf86vidmode.c
 devel/exe-xi-info.c
+devel/exe-xv-info.c
 devel/exe-xv.c
 devel/frame-to-client.pl
 devel/grab.pl

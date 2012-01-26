@@ -17,6 +17,12 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
+
+use lib 'devel/lib';
+$ENV{'DISPLAY'} ||= ":0";
+
+
+
 BEGIN { require 5 }
 use strict;
 use X11::Protocol;
@@ -30,7 +36,8 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-my $test_count = (tests => 90)[1];
+
+my $test_count = (tests => 24)[1];
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -55,6 +62,7 @@ if (! eval { $X = X11::Protocol->new ($display); }) {
 }
 $X->QueryPointer($X->{'root'});  # sync
 
+# SYNC available on the server
 my ($major_opcode, $first_event, $first_error)
   = $X->QueryExtension('SYNC');
 {
@@ -72,6 +80,21 @@ if (! $X->init_extension ('SYNC')) {
 }
 $X->QueryPointer($X->root); # sync
 
+# 3.1 or higher
+{
+  my $sync = $X->{'ext'}->{'SYNC'}->[3];
+  my $server_major = $sync->{'major'};
+  my $server_minor = $sync->{'minor'};
+  MyTestHelpers::diag ("SYNC extension version $server_major.$server_minor");
+  unless ($server_major > 3
+      || ($server_major == 3 && $server_minor >= 1)) {
+    foreach (1 .. $test_count) {
+      skip ("only SYNC $server_major.$server_minor on the server", 1, 1);
+    }
+    exit 0;
+  }
+}
+
 
 #------------------------------------------------------------------------------
 # Errors
@@ -83,9 +106,9 @@ $X->QueryPointer($X->root); # sync
   ok ($X->num('Error',$first_error), $first_error);
   ok ($X->num('Error',$first_error+1), $first_error+1);
   ok ($X->num('Error',$first_error+2), $first_error+2);
-  ok ($X->interp('Error',$first_error), 'Counter');
-  ok ($X->interp('Error',$first_error), 'Alarm');
-  ok ($X->interp('Error',$first_error), 'Fence');
+  ok ($X->interp('Error',$first_error),   'Counter');
+  ok ($X->interp('Error',$first_error+1), 'Alarm');
+  ok ($X->interp('Error',$first_error+2), 'Fence');
   {
     local $X->{'do_interp'} = 0;
     ok ($X->interp('Error',$first_error), $first_error);
@@ -96,105 +119,83 @@ $X->QueryPointer($X->root); # sync
 
 
 #------------------------------------------------------------------------------
-# SyncReportLevel enum
+# SyncCreateFence / SyncDestroyFence
 
 {
-  ok ($X->num('SyncReportLevel','RawRectangles'),   0);
-  ok ($X->num('SyncReportLevel','DeltaRectangles'), 1);
-  ok ($X->num('SyncReportLevel','BoundingBox'),     2);
-  ok ($X->num('SyncReportLevel','NonEmpty'),        3);
+  my $drawable = $X->root;
 
-  ok ($X->num('SyncReportLevel',0), 0);
-  ok ($X->num('SyncReportLevel',1), 1);
-  ok ($X->num('SyncReportLevel',2), 2);
-  ok ($X->num('SyncReportLevel',3), 3);
+  my $fence = $X->new_rsrc;
+  $X->SyncCreateFence ($fence, $drawable, 0);
+  $X->QueryPointer($X->root); # sync
+  ok (1, 1, 'SyncCreateFence');
 
-  ok ($X->interp('SyncReportLevel',0), 'RawRectangles');
-  ok ($X->interp('SyncReportLevel',1), 'DeltaRectangles');
-  ok ($X->interp('SyncReportLevel',2), 'BoundingBox');
-  ok ($X->interp('SyncReportLevel',3), 'NonEmpty');
-}
+  { my $value = $X->SyncQueryFence ($fence);
+    ok ($value, 0);
+  }
 
-
-#------------------------------------------------------------------------------
-# SyncQueryVersion
-
-{
-  my $client_major = 1;
-  my $client_minor = 1;
-  my @ret = $X->SyncQueryVersion ($client_major, $client_minor);
-  MyTestHelpers::diag ("server SYNC version ", join('.',@ret));
-  ok (scalar(@ret), 2);
-  ok ($ret[0] <= $client_major, 1);
-}
+  $X->SyncTriggerFence ($fence);
+  # wait a little while for rendering to complete, perhaps
+  $X->QueryPointer($X->root); # sync
+  sleep 1;
   $X->QueryPointer($X->root); # sync
 
-#------------------------------------------------------------------------------
-# SyncCreate / SyncDestroy
-
-{
-  my $level;
-  foreach $level ('RawRectangles',
-                  'DeltaRectangles',
-                  'BoundingBox',
-                  'NonEmpty') {
-    my $damage = $X->new_rsrc;
-    $X->SyncCreate ($damage, $X->root, $level);
-    $X->SyncDestroy ($damage);
-    $X->QueryPointer($X->root); # sync
-    ok (1, 1, 'SyncCreate / SyncDestroy');
+  { my $value = $X->SyncQueryFence ($fence);
+    ok ($value, 1);
   }
+
+  $X->SyncResetFence ($fence);
+
+  { my $value = $X->SyncQueryFence ($fence);
+    ok ($value, 0);
+  }
+
+  $X->SyncDestroyFence ($fence);
+  $X->QueryPointer($X->root); # sync
+  ok (1, 1, 'SyncDestroyFence');
 }
 
+{
+  my $drawable = $X->root;
+
+  my $fence = $X->new_rsrc;
+  $X->SyncCreateFence ($fence, $drawable, 1);
+  $X->QueryPointer($X->root); # sync
+  ok (1, 1, 'SyncCreateFence');
+
+  { my $value = $X->SyncQueryFence ($fence);
+    ok ($value, 1);
+  }
+
+  $X->SyncDestroyFence ($fence);
+  $X->QueryPointer($X->root); # sync
+  ok (1, 1, 'SyncDestroyFence');
+}
+
+
 #------------------------------------------------------------------------------
-# SyncNotify event
+# SyncAwaitFence
 
 {
-  my $aref = $X->{'ext'}->{'SYNC'};
-  my ($request_num, $event_num, $error_num, $obj) = @$aref;
+  my $drawable = $X->root;
 
-  my $more;
-  foreach $more (0, 1) {
-    my $time;
-    foreach $time ('CurrentTime', 103) {
-      my %input = (# can't use "name" on an extension event, at least in 0.56
-                   # name      => "SyncNotify",
-                   synthetic => 1,
-                   code      => $event_num,
-                   sequence_number => 100,
-                   damage   => 101,
-                   drawable => 102,
-                   level    => 'BoundingBox',
-                   more     => $more,
-                   time     => $time,
-                   area     => [-104,-105,106,107],
-                   geometry => [108,109,110,111]);
-      my $data = $X->pack_event(%input);
-      ok (length($data), 32);
+  my $f1 = $X->new_rsrc;
+  $X->SyncCreateFence ($f1, $drawable, 0);
 
-      my %output = $X->unpack_event($data);
-      ### %output
+  my $f2 = $X->new_rsrc;
+  $X->SyncCreateFence ($f2, $drawable, 1);
 
-      ok ($output{'code'},      $input{'code'});
-      ok ($output{'name'},      'SyncNotify');
-      ok ($output{'synthetic'}, $input{'synthetic'});
-      ok ($output{'damage'},    $input{'damage'});
-      ok ($output{'drawable'},  $input{'drawable'});
-      ok ($output{'level'},     $input{'level'});
-      ok ($output{'more'},      $input{'more'});
-      ok ($output{'time'},      $input{'time'});
+  $X->SyncAwaitFence ($f2);
+  $X->QueryPointer($X->root); # sync
+  ok (1, 1, 'SyncAwaitFence');
 
-      ok ($output{'area'}->[0], $input{'area'}->[0]);
-      ok ($output{'area'}->[1], $input{'area'}->[1]);
-      ok ($output{'area'}->[2], $input{'area'}->[2]);
-      ok ($output{'area'}->[3], $input{'area'}->[3]);
+  $X->SyncAwaitFence ($f1,$f2);
+  $X->QueryPointer($X->root); # sync
+  ok (1, 1, 'SyncAwaitFence');
 
-      ok ($output{'geometry'}->[0], $input{'geometry'}->[0]);
-      ok ($output{'geometry'}->[1], $input{'geometry'}->[1]);
-      ok ($output{'geometry'}->[2], $input{'geometry'}->[2]);
-      ok ($output{'geometry'}->[3], $input{'geometry'}->[3]);
-    }
-  }
+  $X->SyncDestroyFence ($f1);
+  $X->SyncDestroyFence ($f2);
+  $X->QueryPointer($X->root); # sync
+  ok (1, 1, 'SyncDestroyFence');
 }
 
 

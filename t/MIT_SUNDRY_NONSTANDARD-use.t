@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -28,7 +28,7 @@ ok (1, 1, 'X11::Protocol::Ext::MIT_SUNDRY_NONSTANDARD load as first thing');
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 15;
+my $want_version = 16;
 ok ($X11::Protocol::Ext::MIT_SUNDRY_NONSTANDARD::VERSION,
     $want_version,
     'VERSION variable');

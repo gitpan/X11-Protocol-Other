@@ -42,7 +42,7 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-my $test_count = (tests => 90)[1];
+my $test_count = (tests => 119)[1];
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -86,15 +86,15 @@ $X->QueryPointer($X->root); # sync
 
 
 #------------------------------------------------------------------------------
-# "Sync" error
+# errors
 
 {
   ok ($X->num('Error','Counter'),    $first_error);
   ok ($X->num('Error','Alarm'),      $first_error+1);
-  ok ($X->num('Error',$first_error), $first_error);
+  ok ($X->num('Error',$first_error),   $first_error);
   ok ($X->num('Error',$first_error+1), $first_error+1);
-  ok ($X->interp('Error',$first_error), 'Counter');
-  ok ($X->interp('Error',$first_error), 'Alarm');
+  ok ($X->interp('Error',$first_error),   'Counter');
+  ok ($X->interp('Error',$first_error+1), 'Alarm');
   {
     local $X->{'do_interp'} = 0;
     ok ($X->interp('Error',$first_error), $first_error);
@@ -104,104 +104,213 @@ $X->QueryPointer($X->root); # sync
 
 
 #------------------------------------------------------------------------------
-# SyncReportLevel enum
+# SyncTestType enum
 
-{
-  ok ($X->num('SyncReportLevel','RawRectangles'),   0);
-  ok ($X->num('SyncReportLevel','DeltaRectangles'), 1);
-  ok ($X->num('SyncReportLevel','BoundingBox'),     2);
-  ok ($X->num('SyncReportLevel','NonEmpty'),        3);
+ok ($X->num('SyncTestType','PositiveTransition'),   0);
+ok ($X->num('SyncTestType','NegativeTransition'),   1);
+ok ($X->num('SyncTestType','PositiveComparison'),   2);
+ok ($X->num('SyncTestType','NegativeComparison'),   3);
 
-  ok ($X->num('SyncReportLevel',0), 0);
-  ok ($X->num('SyncReportLevel',1), 1);
-  ok ($X->num('SyncReportLevel',2), 2);
-  ok ($X->num('SyncReportLevel',3), 3);
-
-  ok ($X->interp('SyncReportLevel',0), 'RawRectangles');
-  ok ($X->interp('SyncReportLevel',1), 'DeltaRectangles');
-  ok ($X->interp('SyncReportLevel',2), 'BoundingBox');
-  ok ($X->interp('SyncReportLevel',3), 'NonEmpty');
-}
+ok ($X->interp('SyncTestType',0), 'PositiveTransition');
+ok ($X->interp('SyncTestType',1), 'NegativeTransition');
+ok ($X->interp('SyncTestType',2), 'PositiveComparison');
+ok ($X->interp('SyncTestType',3), 'NegativeComparison');
 
 
 #------------------------------------------------------------------------------
-# SyncQueryVersion
+# SyncValueType enum
 
-{
-  my $client_major = 1;
-  my $client_minor = 1;
-  my @ret = $X->SyncQueryVersion ($client_major, $client_minor);
-  MyTestHelpers::diag ("server SYNC version ", join('.',@ret));
-  ok (scalar(@ret), 2);
-  ok ($ret[0] <= $client_major, 1);
-}
-  $X->QueryPointer($X->root); # sync
+ok ($X->num('SyncValueType','Absolute'),   0);
+ok ($X->num('SyncValueType','Relative'),   1);
+
+ok ($X->interp('SyncValueType',0), 'Absolute');
+ok ($X->interp('SyncValueType',1), 'Relative');
+
 
 #------------------------------------------------------------------------------
 # SyncCreateCounter / SyncDestroyCounter
 
+sub big_leftshift {
+  my ($b, $n) = @_;
+  require Math::BigInt;
+  $b = Math::BigInt->new($b);
+  $b <<= $n;
+  return $b;
+}
 {
   my $counter = $X->new_rsrc;
-  $X->XTestCreateCounter ($counter, 123);
+  $X->SyncCreateCounter ($counter, 123);
+  $X->QueryPointer($X->root); # sync
+  ok (1, 1, 'SyncCreateCounter');
 
-  my $value = $X->XTestGetCounter ($counter);
+  my $value = $X->SyncQueryCounter ($counter);
   ok ($value, 123);
 
-  $X->XTestDestroyCounter ($counter);
+  foreach my $value (0, 1, -1,
+                     big_leftshift(1,32),
+                     - big_leftshift(1,32),
+                     big_leftshift(1,63) - 1,
+                     - big_leftshift(1,63),
+                    ) {
+    $X->SyncSetCounter ($counter, $value);
+    my $got_value = $X->SyncQueryCounter ($counter);
+    ok ($got_value == $value, 1,
+        "counter $value got $got_value");
+  }
+
+  $X->SyncDestroyCounter ($counter);
   $X->QueryPointer($X->root); # sync
-  ok (1, 1, 'XTestCreate / XTestDestroy');
+  ok (1, 1, 'SyncDestroyCounter');
 }
 
-# #------------------------------------------------------------------------------
-# # SyncNotify event
-# 
-# {
-#   my $aref = $X->{'ext'}->{'SYNC'};
-#   my ($request_num, $event_num, $error_num, $obj) = @$aref;
-# 
-#   my $more;
-#   foreach $more (0, 1) {
-#     my $time;
-#     foreach $time ('CurrentTime', 103) {
-#       my %input = (# can't use "name" on an extension event, at least in 0.56
-#                    # name      => "SyncNotify",
-#                    synthetic => 1,
-#                    code      => $event_num,
-#                    sequence_number => 100,
-#                    damage   => 101,
-#                    drawable => 102,
-#                    level    => 'BoundingBox',
-#                    more     => $more,
-#                    time     => $time,
-#                    area     => [-104,-105,106,107],
-#                    geometry => [108,109,110,111]);
-#       my $data = $X->pack_event(%input);
-#       ok (length($data), 32);
-# 
-#       my %output = $X->unpack_event($data);
-#       ### %output
-# 
-#       ok ($output{'code'},      $input{'code'});
-#       ok ($output{'name'},      'SyncNotify');
-#       ok ($output{'synthetic'}, $input{'synthetic'});
-#       ok ($output{'damage'},    $input{'damage'});
-#       ok ($output{'drawable'},  $input{'drawable'});
-#       ok ($output{'level'},     $input{'level'});
-#       ok ($output{'more'},      $input{'more'});
-#       ok ($output{'time'},      $input{'time'});
-# 
-#       ok ($output{'area'}->[0], $input{'area'}->[0]);
-#       ok ($output{'area'}->[1], $input{'area'}->[1]);
-#       ok ($output{'area'}->[2], $input{'area'}->[2]);
-#       ok ($output{'area'}->[3], $input{'area'}->[3]);
-# 
-#       ok ($output{'geometry'}->[0], $input{'geometry'}->[0]);
-#       ok ($output{'geometry'}->[1], $input{'geometry'}->[1]);
-#       ok ($output{'geometry'}->[2], $input{'geometry'}->[2]);
-#       ok ($output{'geometry'}->[3], $input{'geometry'}->[3]);
-#     }
-#   }
-# }
+#------------------------------------------------------------------------------
+# SyncCreateAlarm / SyncDestroyAlarm
+
+{
+  my $alarm = $X->new_rsrc;
+  $X->SyncCreateAlarm ($alarm);
+
+  $X->SyncDestroyAlarm ($alarm);
+  $X->QueryPointer($X->root); # sync
+  ok (1, 1, 'SyncCreateAlarm / SyncDestroyAlarm');
+}
+
+#------------------------------------------------------------------------------
+# alarm parameters
+
+{
+  my $counter = $X->new_rsrc;
+  $X->SyncCreateCounter ($counter, 123);
+  my $alarm = $X->new_rsrc;
+  $X->SyncCreateAlarm ($alarm, value => -123);
+
+  { my %h = $X->SyncQueryAlarm ($alarm);
+    ok ($h{'value'} == -123, 1);
+    ok ($h{'test_type'}, 'PositiveComparison');
+    ok ($h{'value_type'}, 'Absolute');
+    ok ($h{'delta'}, 1);
+    ok ($h{'events'}, 1);
+    ok ($h{'state'}, 'Inactive');
+  }
+
+  {
+    $X->SyncChangeAlarm ($alarm,
+                         test_type => 'NegativeComparison',
+                         delta => -1);
+    my %h = $X->SyncQueryAlarm ($alarm);
+    ok ($h{'test_type'}, 'NegativeComparison');
+    ok ($h{'delta'} == -1, 1);
+  }
+  {
+    $X->SyncChangeAlarm ($alarm,
+                         counter    => $counter,
+                         value_type => 'Relative');
+    my %h = $X->SyncQueryAlarm ($alarm);
+    ok ($h{'counter'}, $counter);
+  }
+  {
+    $X->SyncChangeAlarm ($alarm, value_type => 'Absolute');
+    my %h = $X->SyncQueryAlarm ($alarm);
+    ok ($h{'value_type'}, 'Absolute');
+    ok ($h{'events'}, 1);
+  }
+  {
+    $X->SyncChangeAlarm ($alarm, events => 0);
+    my %h = $X->SyncQueryAlarm ($alarm);
+    ok ($h{'events'}, 0);
+  }
+
+  $X->SyncDestroyAlarm ($alarm);
+  $X->SyncDestroyCounter ($counter);
+  $X->QueryPointer($X->root); # sync
+}
+
+#------------------------------------------------------------------------------
+# SyncCounterNotify event
+
+{
+  my $aref = $X->{'ext'}->{'SYNC'};
+  my ($request_num, $event_num, $error_num, $obj) = @$aref;
+
+  my $more;
+  foreach $more (0, 1) {
+    my $time;
+    foreach $time ('CurrentTime', 103) {
+      my %input = (# can't use "name" on an extension event, at least in 0.56
+                   # name        => "SyncCounterNotify",
+                   synthetic     => 1,
+                   code          => $event_num,
+                   sequence_number => 100,
+
+                   counter       => 101,
+                   wait_value    => -123,
+                   counter_value => -256,
+                   time          => $time,
+                   count         => 6,
+                   destroyed     => 1,
+                  );
+      my $data = $X->pack_event(%input);
+      ok (length($data), 32);
+
+      my %output = $X->unpack_event($data);
+      ### %output
+
+      ok ($output{'code'},      $input{'code'});
+      ok ($output{'name'},      'SyncCounterNotify');
+      ok ($output{'synthetic'}, $input{'synthetic'});
+
+      ok ($output{'counter'},      $input{'counter'});
+      ok ($output{'wait_value'},   $input{'wait_value'});
+      ok ($output{'counter_value'},$input{'counter_value'});
+      ok ($output{'time'},         $input{'time'});
+      ok ($output{'count'},        $input{'count'});
+      ok ($output{'destroyed'},    $input{'destroyed'});
+    }
+  }
+}
+
+#------------------------------------------------------------------------------
+# SyncAlarmNotify event
+
+{
+  my $aref = $X->{'ext'}->{'SYNC'};
+  my ($request_num, $event_num, $error_num, $obj) = @$aref;
+  my $alarm_event_num = $event_num + 1;
+
+  my $more;
+  foreach $more (0, 1) {
+    my $time;
+    foreach $time ('CurrentTime', 103) {
+      my %input = (# can't use "name" on an extension event, at least in 0.56
+                   # name          => "SyncAlarmNotify",
+                   synthetic       => 1,
+                   code            => $alarm_event_num,
+                   sequence_number => 100,
+
+                   alarm         => 101,
+                   counter_value => -123,
+                   alarm_value   => -256,
+                   time          => $time,
+                   state         => 'Destroyed',
+                  );
+      my $data = $X->pack_event(%input);
+      ok (length($data), 32);
+
+      my %output = $X->unpack_event($data);
+      ### %output
+
+      ok ($output{'code'},      $input{'code'});
+      ok ($output{'name'},      'SyncAlarmNotify');
+      ok ($output{'synthetic'}, $input{'synthetic'});
+
+      ok ($output{'alarm'},         $input{'alarm'});
+      ok ($output{'counter_value'}, $input{'counter_value'});
+      ok ($output{'alarm_value'},   $input{'alarm_value'});
+      ok ($output{'time'},          $input{'time'});
+      ok ($output{'state'},         $input{'state'});
+    }
+  }
+}
 
 
 #------------------------------------------------------------------------------

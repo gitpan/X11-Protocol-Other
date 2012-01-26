@@ -19,6 +19,8 @@
 
 
 use lib 'devel/lib';
+$ENV{'DISPLAY'} ||= ":0";
+
 
 
 use strict;
@@ -28,7 +30,7 @@ use X11::Protocol;
 use Smart::Comments;
 
 
-my $X = X11::Protocol->new (':0');
+my $X = X11::Protocol->new;
 
 my $window = $X->new_rsrc;
 $X->CreateWindow ($window,
@@ -61,7 +63,7 @@ $X->init_extension('DRI2') or die $@;
 #   ### @connect
 # }
 {
-  my @buffers = $X->DRI2GetBuffers($window,0);
+  my @buffers = $X->DRI2GetBuffers($window,2);
   ### @buffers
 }
 exit 0;

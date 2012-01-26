@@ -23,7 +23,7 @@ use X11::AtomConstants;
 use X11::Protocol::Other 3;  # v.3 for hexstr_to_rgb()
 
 use vars '$VERSION';
-$VERSION = 15;
+$VERSION = 16;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;

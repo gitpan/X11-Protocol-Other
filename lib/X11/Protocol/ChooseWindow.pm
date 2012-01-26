@@ -1,4 +1,4 @@
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -24,7 +24,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '$_instance';
-$VERSION = 15;
+$VERSION = 16;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;

@@ -90,10 +90,13 @@ MyTestHelpers::diag ("DOUBLE-BUFFER extension version $dbe_obj->{'major'}.$dbe_o
 # an alarm() so as not to hang but otherwise let this .t script fail.
 #
 
-$SIG{'ALRM'} = sub {
-  MyTestHelpers::diag ("Oops, timeout");
-  exit 1;
-};
+if (exists $SIG{'ALRM'}) {
+  # no SIGALRM in perl 5.6.0, it seems, maybe
+  $SIG{'ALRM'} = sub {
+    MyTestHelpers::diag ("Oops, timeout");
+    exit 1;
+  };
+}
 alarm(30);
 
 

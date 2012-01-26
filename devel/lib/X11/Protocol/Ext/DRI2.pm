@@ -1,4 +1,6 @@
-# mem address as 64-bit
+# 1.0,1.1 exercise GetBuffers
+
+# 1.2 counters as 64-bit
 
 
 
@@ -26,11 +28,11 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 15;
+$VERSION = 16;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
-#use Smart::Comments;
+use Smart::Comments;
 
 
 # /usr/share/doc/x11proto-dri2-dev/dri2proto.txt.gz
@@ -38,13 +40,73 @@ $VERSION = 15;
 # /usr/include/X11/extensions/dri2proto.h
 # /usr/include/X11/extensions/dri2tokens.h
 #
+# /so/xorg/xorg-server-1.10.0/hw/xfree86/dri2/dri2ext.c
+#    Server source.
+#
+# /so/xfree4/unpacked/usr/share/doc/xserver-xfree86/README.DRI.gz
+#
+# /usr/share/xcb/dri2.xml
+#    xcb (dri2 1.1)
+#
 # /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
 
 ### DRI2.pm loads
 
 # these not documented yet ...
 use constant CLIENT_MAJOR_VERSION => 1;
-use constant CLIENT_MINOR_VERSION => 1;
+use constant CLIENT_MINOR_VERSION => 2;
+
+
+#------------------------------------------------------------------------------
+# 64-bits
+
+{
+  my $uv = ~0;
+  my $bits = 0;
+  while ($uv && $bits < 64) {
+    $uv >>= 1;
+    $bits++;
+  }
+
+  if ($bits >= 64) {
+     eval "#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
+sub _hilo_to_card64 {
+  my ($hi,$lo) = @_;
+  ### _hilo_to_sv(): "$hi $lo"
+  if ($hi & 0x8000_0000) {
+    $hi -= 0x8000_0000;
+    $lo += -(1<<63);
+  }
+  ### $hi
+  ### $lo
+  ### hi shift: $hi<<1
+  ### result: ($hi << 32) + $lo
+  return ($hi << 32) + $lo;
+}
+1;
+HERE
+  } else {
+     eval "#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
+use Math::BigInt;
+sub _hilo_to_card64 {
+  my ($hi,$lo) = @_;
+  my $sv = ($hi << 32) + $lo;
+  my $sv = Math::BigInt->new($hi)->blsft(32)->badd($lo);
+  if ($hi & 0x8000_0000) {
+    $sv = -$sv;
+  }
+  return $sv;
+}
+1;
+HERE
+  }
+}
+
+sub _card64_to_hilo {
+  my ($sv) = @_;
+  return ($sv >> 32,          # hi
+          $sv & 0xFFFF_FFFF); # lo
+}
 
 
 #------------------------------------------------------------------------------
@@ -52,7 +114,7 @@ use constant CLIENT_MINOR_VERSION => 1;
 
 my %const_arrays
   = (
-     DRI2Driver => ['DRI', 'VDPAU'],
+     DRI2Driver     => ['DRI', 'VDPAU'],
      DRI2Attachment => [qw(
                             FrontLeft
                             BackLeft
@@ -123,7 +185,7 @@ my $reqs =
     },
     sub {
       my ($X, $data) = @_;
-      ### DRI2Connect() reply: length($data), $data
+      ### DRI2Connect() reply length: length($data)
       my ($driver_len, $device_len) = unpack 'x8LL', $data;
       ### $driver_len
       ### $device_len
@@ -154,27 +216,17 @@ my $reqs =
     sub {  # ($X, $drawable, $attach...)
       my $X = shift;
       my $drawable = shift;
-      return pack 'LL*',
+
+      ### DRI2GetBuffers(), num_attach: scalar(@_)
+      ### attaches: (map {$X->num('DRI2Attachment',$_)} @_)
+      ### data: pack 'L*',$drawable,scalar(@_), map {$X->num('DRI2Attachment',$_)} @_
+
+      return pack 'L*',
         $drawable,
           scalar(@_), # num attachments
             map {$X->num('DRI2Attachment',$_)} @_;
     },
-    sub {
-      my ($X, $data) = @_;
-      ### DRI2GetBuffers() reply: length($data), $data
-
-      my ($width, $height, $buffer_count) = unpack 'x8LLL', $data;
-      ### $width
-      ### $height
-      ### $buffer_count
-
-      return ($width, $height,
-              map {
-                # (attach, name, pitch, cpp, flags)
-                [ unpack 'L*', substr($data,12+$_*20,20) ]
-              } 1 .. $buffer_count);
-    },
-   ],
+    \&_reply_get_buffers ],
 
    ['DRI2CopyRegion',  # 6
     \&_request_card32s,  # ($X, $drawable, $region, $dest, $src)
@@ -187,10 +239,23 @@ my $reqs =
    # protocol 1.1
 
    ['DRI2GetBuffersWithFormat',  # 7
-    sub {
-      my ($X, $screen, $colormap) = @_;
-      return pack 'SxxL', $screen, $colormap;
-    }],
+    sub {  # ($X, $drawable, $attach_format...)
+      my $X = shift;
+      my $drawable = shift;
+
+      ### DRI2GetBuffers(), num_attach_formats: scalar(@_)
+
+      return pack 'L*',
+        $drawable,
+          scalar(@_), # num attachments
+            map {
+              my ($attach, $format) = @$_;
+              ($X->num('DRI2Attachment',$attach), $format)
+            } @_;
+    },
+    \&_reply_get_buffers ],
+
+
 
    #------------------------------------
    # protocol 1.2
@@ -198,12 +263,15 @@ my $reqs =
    ['DRI2SwapBuffers',  # 8
     sub {
       my ($X, $drawable, $target_msc, $divisor, $remainder) = @_;
-      return pack 'L*', $drawable,
-        _hilo($target_msc), _hilo($divisor), _hilo($remainder);
+      return pack('L*',
+                  $drawable,
+                  _card64_to_hilo($target_msc),
+                  _card64_to_hilo($divisor),
+                  _card64_to_hilo($remainder));
     },
     sub {
       my ($X, $data) = @_;
-      return _two(unpack 'x8LL', $data); # (swap)
+      return _hilo_to_card64 (unpack 'x8LL', $data); # swap hi/lo
     },
    ],
 
@@ -232,6 +300,25 @@ my $reqs =
      \&_request_card32s,  # ($X, $drawable, $interval)
    ],
   ];
+
+sub _reply_get_buffers {
+  my ($X, $data) = @_;
+  ### _reply_get_buffers(), length: length($data)
+
+  my ($width, $height, $num_buffers) = unpack 'x8LLL', $data;
+  ### $width
+  ### $height
+  ### $num_buffers
+
+  return ($width, $height, _unpack_buffers($X,$data,$num_buffers));
+}
+sub _unpack_buffers {
+  my ($X, $data, $num_buffers) = @_;
+  return map {
+    # (attach, name, pitch, cpp, flags)
+    [ unpack 'L*', substr($data,12+$_*20,20) ]
+  } 1 .. $num_buffers;
+}
 
 sub new {
   my ($class, $X, $request_num, $event_num, $error_num) = @_;
@@ -317,6 +404,9 @@ per L<X11::Protocol/EXTENSIONS>.
 Negotiate a protocol version with the server.  C<$client_major> and
 C<$client_minor> is what the client would like.  The returned
 C<$server_major> and C<$server_minor> is what the server will do.
+
+The current code in this module supports up to 1.2 and the intention would
+be to automatically negotiate in C<init_extension()> if necessary.
 
 =item C<($driver_name, $device_name) = $X-E<gt>DRI2Connect ($window, $driver_type)>
 

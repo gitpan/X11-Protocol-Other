@@ -27,7 +27,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 15;
+$VERSION = 16;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -119,7 +119,7 @@ sub _fake_input_pack {
   my %h = @_;
 
   if ($h{'name'} =~ /^(MotionNotify|(Key|Button)(Press|Release))$/) {
-    local $^W = 0;
+    local $^W = 0; # avoid some undef warnings from pack_event() in 0.56
     return $X->pack_event (detail => 0,  # defaults
                            root_x => 0,
                            root_y => 0,
