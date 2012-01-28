@@ -28,7 +28,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 16;
+$VERSION = 17;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -81,7 +81,7 @@ use constant CLIENT_MINOR_VERSION => 1;
   }
 
   if ($bits >= 64) {
-     eval "#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
+     eval "\n#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
 sub _hilo_to_int64 {
   my ($hi,$lo) = @_;
   ### _hilo_to_int64(): "$hi $lo"
@@ -98,7 +98,7 @@ sub _hilo_to_int64 {
 1;
 HERE
   } else {
-     eval "#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
+     eval "\n#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
 use Math::BigInt;
 sub _hilo_to_int64 {
   my ($hi,$lo) = @_;

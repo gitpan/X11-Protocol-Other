@@ -24,7 +24,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '$_instance';
-$VERSION = 16;
+$VERSION = 17;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;

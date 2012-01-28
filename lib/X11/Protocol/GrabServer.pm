@@ -24,7 +24,7 @@ BEGIN {
   # weaken() if available, which means new enough Perl to have weakening,
   # and Scalar::Util with its XS code
   eval "use Scalar::Util 'weaken'; 1"
-    or eval "#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
+    or eval "\n#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
 sub weaken {} # otherwise noop
 HERE
 }
@@ -33,7 +33,7 @@ HERE
 #use Smart::Comments;
 
 use vars '$VERSION';
-$VERSION = 16;
+$VERSION = 17;
 
 sub new {
   my ($class, $X) = @_;

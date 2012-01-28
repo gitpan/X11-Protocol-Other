@@ -1,6 +1,6 @@
 # MyTestHelpers.pm -- my shared test script helpers
 
-# Copyright 2008, 2009, 2010, 2011 Kevin Ryde
+# Copyright 2008, 2009, 2010, 2011, 2012 Kevin Ryde
 
 # MyTestHelpers.pm is shared by several distributions.
 #
@@ -47,7 +47,8 @@ sub DEBUG { 0 }
   sub nowarnings_handler {
     my ($msg) = @_;
     # don't error out for cpan alpha version number warnings
-    unless ($msg =~ /^Argument "[0-9._]+" isn't numeric in numeric gt/) {
+    unless (defined $msg
+            && $msg =~ /^Argument "[0-9._]+" isn't numeric in numeric gt/) {
       $warning_count++;
       if ($stacktraces_count < 3 && eval { require Devel::StackTrace }) {
         $stacktraces_count++;

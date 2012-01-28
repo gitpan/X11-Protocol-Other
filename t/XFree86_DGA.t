@@ -31,7 +31,7 @@ END { MyTestHelpers::diag ("END"); }
 #use Smart::Comments;
 
 
-my $test_count = (tests => 22)[1];
+my $test_count = (tests => 21)[1];
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -146,9 +146,14 @@ if (! $direct_video_available) {
 
 #------------------------------------------------------------------------------
 # XF86DGAGetVideoLL
+#
+# Have seen an x.org server on solaris give flags=1 from
+# XF86DGAQueryDirectVideo() but then error XF86DGANoDirectVideoMode from an
+# attempt at XF86DGAGetVideoLL().  So watch for an error here, not just from
+# $direct_video_available.
 
 {
-  my $error = '';
+  my $error;
   my $orig_error_handler = $X->{'error_handler'};
   local $X->{'error_handler'} = sub {
     my ($X, $data) = @_;
@@ -160,7 +165,9 @@ if (! $direct_video_available) {
     if ($typename =~ /^XF86DGA/) {
       MyTestHelpers::diag ("XF86DGAGetVideoLL error $typename");
       $error = $typename;
-      die "longjmp";
+      $direct_video_available = 0;
+      $skip_if_no_direct_video = 'error from XF86DGAGetVideoLL';
+      die "longjmp out to eval";
     } else {
       goto $orig_error_handler;
     }
@@ -176,10 +183,11 @@ if (! $direct_video_available) {
       MyTestHelpers::diag ("  in hex ", join(', ',map{sprintf '%X',$_}@ret));
     }
   }
-  skip ($skip_if_no_direct_video,
+  my $skip_if_error = (defined $error
+                       ? 'due to XF86DGAGetVideoLL error reply'
+                       : undef);
+  skip ($skip_if_error,
         scalar(@ret), 4);
-  skip ($skip_if_no_direct_video,
-        $error, '');
 }
 $X->QueryPointer($X->root); # sync
 
@@ -212,8 +220,6 @@ $X->QueryPointer($X->root); # sync
         $page =~ /^\d+$/, 1);
 }
 $X->QueryPointer($X->root); # sync
-
-
 
 
 #------------------------------------------------------------------------------

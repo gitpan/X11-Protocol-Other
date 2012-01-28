@@ -31,7 +31,7 @@ use Carp;
 use Encode ();
 use Encode::Encoding;
 
-our $VERSION = 16;
+our $VERSION = 17;
 our @ISA = ('Encode::Encoding');
 
 # uncomment this to run the ### lines

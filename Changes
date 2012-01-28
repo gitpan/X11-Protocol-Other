@@ -17,6 +17,9 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 17, January 2012
+    - tests more relaxing of XFree86_DGA expectations
+
 Version 16, January 2012
     - tests fixes
 
