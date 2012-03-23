@@ -22,7 +22,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 17;
+$VERSION = 18;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -550,23 +550,23 @@ might be less than requested (but not more than).
 
 The current code in this module supports up to 4.0 and automatically
 negotiates within C<init_extension()>, so direct use of
-C<XFixesQueryVersion> is not necessary.  Asking for higher than the code
+C<XFixesQueryVersion()> is not necessary.  Asking for higher than the code
 supports might be a bad idea.
 
 =item C<($atom, $str) = $X-E<gt>XFixesChangeSaveSet ($window, $mode, $target, $map)>
 
 Insert or delete C<$window> (an XID) from the "save set" of resources to be
 retained on the server when the client disconnects.  This is an extended
-version of the core C<ChangeSaveSet> request.
+version of the core C<ChangeSaveSet()> request.
 
 C<$mode> is either "Insert" or "Delete".
 
 C<$target> is how to reparent C<$window> on client close-down, either
-"Nearest" or "Root".  The core C<ChangeSaveSet> is "Nearest" and means go to
-the next non-client ancestor window.  "Root" means go to the root window.
+"Nearest" or "Root".  The core C<ChangeSaveSet()> is "Nearest" and means go
+to the next non-client ancestor window.  "Root" means go to the root window.
 
 C<$map> is either "Map" or "Unmap" to apply to C<$window> on close-down.
-The core C<ChangeSaveSet> is "Map".
+The core C<ChangeSaveSet()> is "Map".
 
 =item $X-E<gt>XFixesSelectSelectionInput ($window, $selection, $event_mask)>
 
@@ -616,7 +616,7 @@ Return the size and pixel contents of the currently displayed mouse pointer
 cursor.
 
 C<$root_x>,C<$root_y> is the pointer location in root window coordinates
-(similar to C<QueryPointer>).
+(similar to C<QueryPointer()>).
 
 C<$width>,C<$height> is the size of the cursor image.  C<$xhot>,C<$yhot> is
 the "hotspot" position within that, which is the pixel that follows the
@@ -624,8 +624,8 @@ pointer location.
 
 C<$pixels> is a byte string of packed "ARGB" pixel values.  Each is 32-bits
 in client byte order, with C<$width> many in each row and C<$height> such
-rows, with no padding in between, so a total C<4*$width*$height> bytes.
-This can be unpacked with for instance
+rows and no padding in between, so a total C<4*$width*$height> bytes.  This
+can be unpacked with for instance
 
     my @argb = unpack 'L*', $pixels; # each 0xAARRGGBB
 
@@ -638,15 +638,22 @@ This can be unpacked with for instance
 The alpha transparency is pre-multiplied into the RGB components, so if the
 alpha is zero (transparent) then the components are zero too.
 
-The core C<CreateCursor> bitmask makes only alpha=0 full-transparent or
-alpha=255 full-opaque pixels.  The RENDER extension (see
+The core C<CreateCursor()> bitmask always makes alpha=0 transparent or
+alpha=255 opaque pixels.  The RENDER extension (see
 L<X11::Protocol::Ext::RENDER>) can make partially transparent cursors.
 
 There's no direct way to get the image of a cursor by its XID (except
-something dodgy like a C<GrabPointer> to make it the displayed cursor).
+something dodgy like a C<GrabPointer()> to make it the displayed cursor).
 Usually cursor XIDs are only ever created by a client itself so no need to
-read back (and the ID can't be read out of an arbitrary window -- though the
-XTEST extension can do some comparing, see L<X11::Protocol::Ext::XTEST>).
+read back (and the cursor XID can't be read out of an arbitrary window --
+though the XTEST extension can do some comparing, per
+L<X11::Protocol::Ext::XTEST>).
+
+For reference, in the X.org server circa version 1.11, the server may start
+up with no cursor at all, and when that happens an attempt to
+C<XFixesGetCursorImage()> gives a "Cursor" error.  In practice this probably
+only happens using a bare Xvfb or similar, since in normal use xdm or the
+window manager will almost certainly have set a cursor.
 
 See F<examples/xfixes-cursor-image.pl> in the X11-Protocol-Other sources for
 a sample program getting the cursor image with this request.
@@ -727,7 +734,7 @@ Destroy C<$region>.
 
 Set C<$region> to the union of the given rectangles, or empty if none.  Each
 C<$rect> is an arrayref C<[$x,$y,$width,$height]>, as per
-C<XFixesCreateRegion> above.
+C<XFixesCreateRegion()> above.
 
     $X->XFixesSetRegion ($region, [0,0,20,10], [100,100,5,5])
 
@@ -787,7 +794,7 @@ making up the region, in "YX-banded" order.
 Set the clip mask of C<$gc> (an XID) to C<$region> (an XID), and set the
 clip origin to C<$clip_x_origin>,C<$clip_x_origin>.
 
-This is similar to the core C<SetClipRectangles>, but the rectangles are
+This is similar to the core C<SetClipRectangles()>, but the rectangles are
 from C<$region> (and no "ordering" parameter).
 
 =item C<$X-E<gt>XFixesSetWindowShapeRegion ($window, $kind, $x_offset, $y_offset, $region)>
@@ -808,8 +815,8 @@ request gives an error reply.
 Set the clip mask of RENDER C<$picture> (an XID) to C<$region>, and set the
 clip origin to C<$clip_x_origin>,C<$clip_x_origin>.
 
-This is similar to C<RenderSetPictureClipRectangles>, but the rectangles are
-from C<$region>.
+This is similar to C<RenderSetPictureClipRectangles()>, but the rectangles
+are from C<$region>.
 
 Picture objects are from the RENDER extension (see
 L<X11::Protocol::Ext::RENDER>).  The request always exists, but is not useful
@@ -825,7 +832,7 @@ wide chars converted.)
 =item C<($atom, $str) = $X-E<gt>XFixesGetCursorName ($cursor)>
 
 Get the name of mouse pointer cursor C<$cursor> (an XID), as set by
-C<XFixesSetCursorName>.
+C<XFixesSetCursorName()>.
 
 The returned C<$atom> is the name atom (an integer) and C<$str> is the name
 string (which is the atom's name).  If there's no name for C<$cursor> then
@@ -835,7 +842,7 @@ is empty "".
 =item C<($x,$y, $width,$height, $xhot,$yhot, $serial, $pixels, $atom, $str) = $X-E<gt>XFixesGetCursorImageAndName ()>
 
 Get the image and name of the current mouse pointer cursor.  The return is
-per C<XFixesGetCursorImage> plus C<XFixesGetCursorName> described above.
+per C<XFixesGetCursorImage()> plus C<XFixesGetCursorName()> described above.
 
 =item C<$X-E<gt>XFixesChangeCursor ($src, $dst)>
 
@@ -985,7 +992,7 @@ selection was owned.
 
 =item C<XFixesCursorNotify>
 
-This is sent to the client when selected by C<XFixesSelectCursorInput>
+This is sent to the client when selected by C<XFixesSelectCursorInput()>
 above.  It reports when the currently displayed mouse pointer cursor has
 changed.  It has the following event-specific fields,
 
@@ -998,9 +1005,9 @@ changed.  It has the following event-specific fields,
 C<subtype> is "DisplayCursor" when the displayed cursor has changed.  This
 is the only subtype currently.
 
-C<cursor_serial> is a serial number as per C<XFixesGetCursorImage>.
+C<cursor_serial> is a serial number as per C<XFixesGetCursorImage()>.
 A client can use this to notice when the displayed cursor is something it
-has already fetched with C<XFixesGetCursorImage>.
+has already fetched with C<XFixesGetCursorImage()>.
 
 C<cursor_name> is the atom of the name given to the cursor by
 C<XFixesSetCursorName>, or string "None" if no name.  This field is new in

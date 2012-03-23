@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -30,7 +30,7 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-my $test_count = (tests => 8)[1];
+my $test_count = (tests => 19)[1];
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -106,8 +106,8 @@ ok (!!$mit_obj, 1, 'Mit object');
   ok (scalar(@info), 6);
 
   my ($state, $window, $til_or_since, $idle, $event_mask, $kind) = @info;
-  ok ($window ne '0', 1, 'window None if 0');
-  ok ($event_mask, 0, 'event_mask');
+  ok ($window ne '0', 1, 'window should not be 0 ("None" instead)');
+  ok ($event_mask >= 0, 1, 'event_mask');
   ok ($idle >= 0, 1, 'idle milliseconds');
 }
 
@@ -125,37 +125,81 @@ ok (!!$mit_obj, 1, 'Mit object');
 #------------------------------------------------------------------------------
 
 # could fail if another saver running
-# {
-#   $X->MitScreenSaverSetAttributes
-#     ($X->root,
-#      'InputOutput',    # class
-#      0,                # depth, from parent
-#      'CopyFromParent', # visual
-#      0,0,              # x,y
-#      1000,500,         # width,height
-#      0,                # border
-#      background_pixel => $X->white_pixel,
-#     );
-#   $X->QueryPointer($X->root); # sync
-# }
-#
+{
+  my $root_width = $X->width_in_pixels;
+  my $root_height = $X->height_in_pixels;
+
+  my $skip;
+  {
+    my $orig_error_handler = $X->{'error_handler'};
+    local $X->{'error_handler'} = sub {
+      my ($X, $data) = @_;
+      ### error handler
+      ### $data
+
+      my ($type, $seq, $info, $minor_op, $major_op) = unpack 'xCSLSC', $data;
+      if ($X->interp('Error',$type) eq 'Access') {
+        MyTestHelpers::diag ("ignore MitScreenSaverSetAttributes error \"Access\", another saver is running");
+        $skip = 'due to Access error for another screen saver running';
+      } else {
+        goto $orig_error_handler;
+      }
+    };
+
+    $X->MitScreenSaverSetAttributes ($X->root,
+                                     'InputOutput',    # class
+                                     0,                # depth, from parent
+                                     'CopyFromParent', # visual
+                                     0,0,              # x,y
+                                     $root_width, $root_height,
+                                     0,                # border
+                                     background_pixel => $X->white_pixel,
+                                    );
+    $X->QueryPointer($X->root); # sync
+  }
+  ok (1, 1, 'MitScreenSaverSetAttributes');
+
+  my %notify;
+  $X->MitScreenSaverSelectInput ($X->root, 0x03);
+  local $X->{'event_handler'} = sub {
+    my (%h) = @_;
+    ### event_handler: \%h
+
+    if ($h{'name'} eq 'MitScreenSaverNotify') {
+      MyTestHelpers::diag ("MitScreenSaverNotify state=$h{'state'} kind=$h{'kind'} forced=$h{'forced'}");
+      %notify = %h;
+    }
+  };
+
+  $X->ForceScreenSaver ('Activate');
+  $X->QueryPointer($X->root); # sync
+  ok ($notify{'state'}, 'On'); 
+  ok ($notify{'time'} ne '0', 1); 
+  ok ($notify{'window'} > 0, 1); 
+  ok ($notify{'kind'}, 'External');
+  ok ($notify{'forced'}, 1);
+
+  my @info = $X->MitScreenSaverQueryInfo ($X->root);
+  my ($state, $window, $til_or_since, $idle, $event_mask, $kind) = @info;
+  ok ($state, 'On'); 
+  ok ($kind, 'External'); 
+  ok ($event_mask, 3); 
+  ok ($window, $notify{'window'}); 
+
+  $X->ForceScreenSaver ('Reset');
+  $X->QueryPointer($X->root); # sync
+
+  $X->MitScreenSaverUnsetAttributes ($X->root);
+  $X->QueryPointer($X->root); # sync
+
+  ok (1, 1, 'MitScreenSaverUnsetAttributes');
+}
+
 # { my @info = $X->MitScreenSaverQueryInfo ($X->root);
 #   ### @info
 # }
 # $X->QueryPointer($X->root); # sync
 #
-# $X->{'event_handler'} = sub {
-#   my (%h) = @_;
-#   ### event_handler: \%h
-#
-#   if ($h{'name'} eq 'MitScreenSaverNotify') {
-#     my @info = $X->MitScreenSaverQueryInfo ($X->root);
-#     ### @info
-#   }
-# };
-#
-# $X->ForceScreenSaver ('Activate');
-# $X->QueryPointer($X->root); # sync
 #
 #
 # foreach (1 .. 20) {

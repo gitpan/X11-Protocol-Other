@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2010, 2011 Kevin Ryde
+# Copyright 2010, 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -48,6 +48,7 @@ MyMakeMakerExtras::WriteMakefile
    META_MERGE =>
    { resources =>
      { homepage => 'http://user42.tuxfamily.org/x11-protocol-other/index.html',
+       license  => 'http://www.gnu.org/licenses/gpl.html',
      },
      optional_features =>
      {

@@ -16,6 +16,21 @@
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
 
+# ->new (want_frame => 1)
+# ->choose
+#
+# ->start
+# ->handle_input
+# ->is_done
+# ->chosen_frame
+# ->chosen_client
+# ->chosen_window
+
+
+
+
+
+
 # /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
 
 BEGIN { require 5 }
@@ -24,7 +39,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '$_instance';
-$VERSION = 17;
+$VERSION = 18;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -264,10 +279,10 @@ a similar style to the C<xwininfo> or C<xkill> programs.
 
 =head2 Implementation
 
-The method is similar to the C<xwininfo> etc programs.  It's a
-C<GrabPointer> on the root window, waiting for a ButtonPress (and
-corresponding ButtonRelease) from the user, then take the child window in
-that Press event.  The client window as such under the child is found using
+The method here is like the C<xwininfo> etc programs.  It uses a
+C<GrabPointer> on the root window, waits for a ButtonPress and corresponding
+ButtonRelease from the user, then gets the frame window from that Press
+event.  The client window as such under the frame is found using
 C<frame_to_client_window()> from C<X11::Protocol::WM>.
 
 KeyPress events are not used and will go to the focus window in the usual
@@ -277,9 +292,9 @@ option to watch for Esc to cancel or some such.
 
 =head1 FUNCTIONS
 
-The following choose is in class method style with the intention of perhaps
-in the future having objects of type C<X11::Protocol::ChooseWindow> holding
-state and advanced by events supplied by an external main loop.
+The following C<choose()> is in class method style with the intention of
+perhaps in the future having objects of type C<X11::Protocol::ChooseWindow>
+holding state and advanced by events supplied by an external main loop.
 
 =head2 Choosing
 
@@ -318,7 +333,7 @@ startup there might be no initiating event, making "CurrentTime" all that's
 possible.
 
 C<cursor> etc is the mouse pointer cursor to show during the choose as a
-visual indication to the user.  The default is a "crosshair" cursor.
+visual indication to the user.  The default is a "crosshair".
 C<cursor_name> or C<cursor_glyph> are from the usual cursor font.  See
 L<X11::CursorFont> for available names.  For example perhaps the "exchange"
 cursor to choose a window for some sort of swap or flip,

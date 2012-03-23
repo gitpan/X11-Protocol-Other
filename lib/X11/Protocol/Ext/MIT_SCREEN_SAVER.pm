@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 17;
+$VERSION = 18;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -32,6 +32,7 @@ $VERSION = 17;
 # /usr/include/X11/extensions/saver.h
 # /usr/include/X11/extensions/saverproto.h
 #
+# /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
 
 
 # these not documented yet ... and not used as such
@@ -247,9 +248,12 @@ X11::Protocol::Ext::MIT_SCREEN_SAVER - external screen saver support
 The MIT-SCREEN-SAVER extension allows a client screen saver program to draw
 the screen saver.  Any client can listen for screen saver activation too.
 
-See the core C<SetScreenSaver> for the screen idle timeout, saver cycle
+See the core C<SetScreenSaver()> for the screen idle timeout, saver cycle
 period, and the "Blank" or "Internal" builtin saving styles.  And see the
-core C<ForceScreenSaver> to forcibly turn on the screen saver.
+core C<ForceScreenSaver()> to forcibly turn on the screen saver.
+
+See F<examples/mit-screen-saver-external.pl> in the X11-Protocol-Other
+sources for a complete external screen saver program.
 
 =head1 REQUESTS
 
@@ -280,7 +284,7 @@ C<$state> is an enum string "Off", "On", or "Disabled".
 C<$window> is the screen saver window, or "None".  It might exist always, or
 might be created only for "External" kind or only when required, etc.  In
 any case it's an override-redirect child of the root window but does not
-appear in its C<QueryTree> children.
+appear in its C<QueryTree()> children.
 
 C<$til_or_since> is a time in milliseconds.  If C<$state> is "Off" then it's
 how long until the saver will be activated due to idle.  Or if C<$state> is
@@ -315,21 +319,22 @@ for example 0x03 for both.
 
 Setup the screen saver window on the screen of C<$drawable> (an XID).
 
-The arguments are the same as the core C<CreateWindow>, except there's no
+The arguments are the same as the core C<CreateWindow()>, except there's no
 new XID to create and the parent window is always the root window on the
-screen of C<$drawable>.
+screen of C<$drawable> (C<$drawable> could be that root window already).
 
 This setup makes the saver "External" kind on its next activation, but if
 currently active then it's not changed.  The client can listen for
 C<MitScreenSaverNotify> (see L</"EVENTS"> below) to know when the saver is
 activated.  The saver window XID is reported in that Notify and exposures
-can be selected on it to know when to drawn, unless perhaps a background
-pixel or pixmap within this C<MitScreenSaverSetAttributes()> is enough.
+can be selected on it at that time to know when to drawn, unless perhaps a
+background pixel or pixmap in this C<MitScreenSaverSetAttributes()> is
+enough.
 
 Only one client at a time can setup a saver window like this.  If another
 has done so then an Access error results.
 
-=item C<$window = $X-E<gt>MitScreenSaverUnsetAttributes ($drawable)>
+=item C<$X-E<gt>MitScreenSaverUnsetAttributes ($drawable)>
 
 Unset the screen saver window.  If the client did not set it up then do
 nothing.
@@ -338,15 +343,15 @@ This changes the saver from "External" kind back to the server builtin.  If
 the screen saver is currently active then that happens immediately.
 
 At client shutdown an Unset is done automatically, except for
-C<RetainPermanent> closedown mode.
+"RetainPermanent" closedown mode.
 
 =back
 
 =head1 EVENTS
 
 C<MitScreenSaverNotify> events are sent to the client when selected by
-C<MitScreenSaverSelectInput> above.  It reports when the screen saver state
-changes.  The event has the usual fields
+C<MitScreenSaverSelectInput()> above.  It reports when the screen saver
+state changes.  The event has the usual fields
 
     name             "MitScreenSaverNotify"
     synthetic        true if from a SendEvent
@@ -363,7 +368,7 @@ and event-specific fields
     forced        integer 0 or 1
 
 C<state> is "Off" if the saver has turned off or "On" if it turned on.
-C<forced> is 1 if the change was due to a C<ForceScreenSaver> request rather
+C<forced> is 1 if the change was due to a C<ForceScreenSaver()> request rather
 than user activity/inactivity.  On/Off events are selected by NotifyMask to
 C<MitScreenSaverSelectInput()> above.
 
@@ -377,10 +382,10 @@ C<MitScreenSaverQueryInfo()> above.
 =head1 BUGS
 
 In XFree86 and X.org servers through to circa X.org 1.10, if the screen
-saver is activated with a C<ForceScreenSaver> request then the
-C<$til_or_since> from C<MitScreenSaverQueryInfo> is a big number, apparently
-being a negative for the future time when it would have activated due to
-idle.  There's no attempt to do anything about that here.
+saver is activated with a C<ForceScreenSaver()> request then the
+C<$til_or_since> from C<MitScreenSaverQueryInfo()> is a big number,
+apparently being a negative for the future time when it would have activated
+due to idle.  There's no attempt to do anything about that here.
 
 In these servers when the saver is "On" the idle timeout apparently
 continues to fire too, so the "since" of C<$til_or_since> is only since the

@@ -1,4 +1,4 @@
-# ...
+# test ...
 
 
 
@@ -26,7 +26,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 17;
+$VERSION = 18;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -35,20 +35,30 @@ use Smart::Comments;
 
 # Protocol 0.7:
 #   /so/x11r6.4/xc/include/extensions/xf86vmstr.h
+#       protocol
+#
 #   /so/x11r6.4/xc/programs/Xserver/Xext/xf86vmode.c
+#       server
 #
 # Protocol 0.8:
+#   /so/xfree/xfree86-3.3.2.3a/include/extensions/xf86vmstr.h
+#      protocol
+#
+#   /so/xfree/xfree86-3.3.2.3a/programs/Xserver/Xext/xf86vmode.c
+#   /so/xfree/xfree86-3.3.2.3a/programs/Xserver/hw/xfree86/common/xf86Cursor.c
+#      server
+#
 #   /so/xfree/xfree86-3.3.2.3a/lib/Xxf86vm/XF86VMode.c
 #   /so/xfree/xfree86-3.3.2.3a/include/extensions/xf86vmode.h
 #   /so/xfree/xfree86-3.3.2.3a/programs/Xserver/hw/xfree86/doc/man/XF86VM.man
 #      xlib
 #
-#   /so/xfree/xfree86-3.3.2.3a/programs/Xserver/Xext/xf86vmode.c
-#   /so/xfree/xfree86-3.3.2.3a/programs/Xserver/hw/xfree86/common/xf86Cursor.c
-#
 # Protocol 2.0:
 #   /usr/include/X11/extensions/xf86vm.h
 #   /usr/include/X11/extensions/xf86vmproto.h
+#
+#   /so/x86vm/libXxf86vm-1.1.1/src/XF86VMode.c
+#       Xlib
 #
 #   /so/xorg/xorg-server-1.10.0/hw/xfree86/dixmods/extmod/xf86vmode.c
 #       server source
@@ -89,36 +99,71 @@ my $reqs =
 
    ['XF86VidModeGetModeLine',  # 1
     \&_request_screen16,
-    sub {
-      my ($X, $data) = @_;
-      # ($dotclock,
-      #  $hdisplay,$hsyncstart,$hsyncend,$htotal,
-      #  $hskew,$vdisplay,$vsyncstart,$vsyncend,$vtotal,
-      #  $flags)
-      my @data = unpack 'LS9xxL', $data;
-      my $dotclock = shift @data;
-      return ($dotclock, \@data);
+    do {
+      my @fields = (qw(dotclock
+
+                       hdisplay
+                       hsyncstart
+                       hsyncend
+                       htotal
+
+                       vdisplay
+                       vsyncstart
+                       vsyncend
+                       vtotal
+
+                       flags
+                       private_size));
+      sub {
+        my ($X, $data) = @_;
+
+        # use Data::HexDump::XXD;
+        # print scalar(Data::HexDump::XXD::xxd($data));
+        # print "\n";
+
+        my @values = unpack 'x8LS8LL', $data;
+        my $private_size = pop @values;
+        ### @values
+        ### $private_size
+
+        return ((map { ($fields[$_] => $values[$_]) } 0 .. $#values),
+                private => substr($data,32,$private_size*4));;
+      }
     },
    ],
 
    ['XF86VidModeModModeLine',  # 2
-    sub {
-      # ($X, $screen_num,
-      #  $hdisplay,
-      #  $hsyncstart,
-      #  $hsyncend,
-      #  $htotal,
-      #  $hskew,
-      #  $vdisplay,
-      #  $vsyncstart,
-      #  $vsyncend,
-      #  $vtotal,
-      #  $flags)
+    do {
+      my @fields = (qw(dotclock
 
-      shift; # $X
-      # or 'LS9xxLx4' in 0.x protocol ...
-      return pack 'LS9xxLx12x4', @_;
-    }],
+                       hdisplay
+                       hsyncstart
+                       hsyncend
+                       htotal
+
+                       vdisplay
+                       vsyncstart
+                       vsyncend
+                       vtotal
+
+                       flags
+                       private_size));
+      sub {
+        my ($X, $screen_num, %h) = @_;
+        my $private = delete $h{'private'};
+        if (! defined $private) { $private = ''; }
+        $h{'private_size'} = int((length($private)+3)/4);
+
+        my @values = delete @h{@fields}; # hash slice
+        if (%h) {
+          croak "XF86VidModeModModeLine unknown field(s): ",join(',',keys %h);
+        }
+        return pack ('x8LS8LL'.padded($private),
+                     $screen_num,
+                     @values,
+                     $private);
+      }
+    } ],
 
    ['XF86VidModeSwitchMode',  # 3
     sub {
@@ -132,8 +177,14 @@ my $reqs =
     sub {
       my ($X, $data) = @_;
 
-      # bandwidth new in protocol version X.X
-      my ($vendor_len, $model_len, $num_hsync, $num_vsync, $bandwidth)
+        use Data::HexDump::XXD;
+        print scalar(Data::HexDump::XXD::xxd($data));
+        print "\n";
+
+      # There was a "bandwidth" field in protocol 0.7 and 0.8 headers, but
+      # the server never sent it and Xlib never used it.
+      #
+      my ($vendor_len, $model_len, $num_hsync, $num_vsync)
         = unpack 'x8C4L', $data;
 
       my $pos = 32;
@@ -155,7 +206,7 @@ my $reqs =
       $pos += $vendor_len + X11::Protocol::padding($vendor_len);
       my $model = substr ($data, $pos, $model_len);
 
-      return $vendor, $model, \@hsyncs, \@vsyncs, $bandwidth;
+      return $vendor, $model, \@hsyncs, \@vsyncs;
     },
    ],
 
@@ -446,7 +497,7 @@ per L<X11::Protocol/EXTENSIONS>.
 
 Return the DGA protocol version implemented by the server.
 
-=item C<($dotclock, $modeline) = $X-E<gt>XF86VidModeGetModeLine ($screen_num)>
+=item C<%h = $X-E<gt>XF86VidModeGetModeLine ($screen_num)>
 
 Get the current mode of C<$screen_num> (integer 0 upwards).  The return is a
 list of key/value pairs,
@@ -456,14 +507,52 @@ list of key/value pairs,
     hsyncstart => integer, horizontal sync start
     hsyncend   => integer, horizontal sync end
     htotal     => integer, horizontal total pixels
-    hskew      => integer
     vdisplay   => integer, vertical visible pixels
     vsyncstart => integer, vertical sync start
     vsyncend   => integer, vertical sync end
     vtotal     => integer, vertical total pixels
     flags      => integer
+    private    => byte string
 
-=item C<@fields = $X-E<gt>XF86VidModeSwitchMode ($screen_num, $zoom)>
+They can be put into a hash for access to a particular value,
+
+    my %h = $X->XF86VidModeGetModeLine(0);
+    print $h{'hskew'},"\n";
+
+C<private> is extra data from the driver on the screen.  Usually it's an
+empty string, but for example in the past the S3 Virge driver had some extra
+flags and blank delay there.  In the current code this is always just a byte
+string, no attempt at a decode.
+
+=item C<$X-E<gt>XF86VidModeModModeLine ($screen_num, key=E<gt>value,...)>
+
+Modify the current mode of C<$screen_num> (integer 0 upwards).  Key/value
+parameters are as per C<XF86VidModeGetModeLine()> above.
+
+All fields are mandatory, except for C<private> which is treated as an empty
+string if omitted.
+
+Any mode values can be given (not just those listed by
+C<XF86VidModeGetAllModeLines()>) but it's generally the caller's
+responsibility to ensure they don't exceed the capabilities of the monitor.
+
+=item C<($vendor, $model, $hsyncs_aref, $vsyncs_aref) = $X-E<gt>XF86VidModeGetMonitor ($screen_num)>
+
+Get information on the monitor and its capabilities.
+
+C<$vendor> and C<$model> are strings.  C<$hsyncs_aref> and C<$hsyncs_aref>
+are arrayrefs containing in turn arrayref pairs of low,high permitted sync
+amounts,
+
+    [ [ 3000, 4500 ],
+      [ 7200, 8200 ]
+    ]
+
+For reference, past versions of the protocol headers and Xlib docs had a
+"bandwidth" field here, but the server never sent it and Xlib never looked
+at it.
+
+=item C<$X-E<gt>XF86VidModeSwitchMode ($screen_num, $zoom)>
 
 Switch to the next or previous mode on C<$screen_num> (integer 0 upwards).
 If C<$zoom> is 1 (or more) to switch to the next mode, or 0 to switch to the

@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 17;
+$VERSION = 18;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -295,7 +295,7 @@ might be less than requested (but not more).
 
 The current code supports up to 1.1.  If asking for higher then be careful
 that it's upwardly compatible.  The module code negotiates a version in
-C<init_extension()> so an explicit C<DamageQueryVersion> is normally not
+C<init_extension()> so an explicit C<DamageQueryVersion()> is normally not
 needed.
 
 =item C<$X-E<gt>DamageCreate ($damage, $drawable, $level)>
@@ -386,7 +386,7 @@ and event-specific fields
     area          arrayref [$x,$y,$width,$height]
     geometry      arrayref [$rootx,$rooty,$width,$height]
 
-C<drawable> and C<level> are as from the C<DamageCreate> which made the
+C<drawable> and C<level> are as from the C<DamageCreate()> which made the
 C<damage> object.
 
 C<more> is true if there's further C<DamageNotify> events on the way for
@@ -446,10 +446,10 @@ Error type "Damage" is a bad C<$damage> resource XID in a request.
 
 =head1 BUGS
 
-The server extension version number is queried in the C<init_extension>, but
-not yet made available as such.  The version determines whether C<DamageAdd>
-ought to work.  Currently that request is always setup, but presumably
-generates an Opcode error if the server doesn't have it.
+The server extension version number is queried in the C<init_extension()>,
+but not yet made available as such.  The version determines whether
+C<DamageAdd()> ought to work.  Currently that request is always setup, but
+presumably generates an Opcode error if the server doesn't have it.
 
 =head1 SEE ALSO
 

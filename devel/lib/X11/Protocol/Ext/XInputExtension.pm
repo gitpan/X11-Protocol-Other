@@ -26,7 +26,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 17;
+$VERSION = 18;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -41,6 +41,9 @@ use Smart::Comments;
 # /usr/include/X11/extensions/XInput2.h
 #
 # /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
+#
+# xinput dumper programs
+#
 
 
 # these not documented yet ...

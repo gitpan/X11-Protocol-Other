@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 17;
+$VERSION = 18;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -249,8 +249,9 @@ X11::Protocol::Ext::Composite - off-screen window contents
 =head1 DESCRIPTION
 
 The Composite extension holds the full pixel contents of windows in
-off-screen storage, ready for things like C<CopyArea>.  Normally the server
-only keeps the visible parts of a window, not areas overlapped or obscured.
+off-screen storage, ready for things like C<CopyArea()>.  Normally the
+server only keeps the visible parts of a window, not areas overlapped or
+obscured.
 
 In "Automatic" mode the visible parts of a window are displayed on screen as
 normal.  The off-screen storage is then a little like the backing store
@@ -288,7 +289,7 @@ Actually the X.org server circa 1.10 will return a higher minor version than
 the client requests.
 
 The current code supports up to 0.3 and the intention is to automatically
-negotiate in C<init_extension> if/when necessary.
+negotiate in C<init_extension()> if/when necessary.
 
 =item C<$X-E<gt>CompositeRedirectWindow ($window, $update)>
 
@@ -300,7 +301,7 @@ negotiate in C<init_extension> if/when necessary.
 
 Enable or disable a redirect of C<$window> to off-screen storage.
 
-C<Window> acts on just the given C<$window>.  C<Subwindows> acts on
+C<Window()> acts on just the given C<$window>.  C<Subwindows()> acts on
 C<$window> and also any subwindows it has now or in the future.  The root
 window cannot be redirected.
 
@@ -321,7 +322,7 @@ whatnot.
 
 Region objects are from XFIXES 2.0 (L<X11::Protocol::Ext::XFIXES>).
 C<CompositeCreateRegionFromBorderClip()> can be used without
-C<init_extension> of XFIXES, but there's not much which can be done with a
+C<init_extension()> of XFIXES, but there's not much which can be done with a
 region except through XFIXES.
 
 =back
@@ -339,11 +340,11 @@ be redirected (by any client).
     my $pixmap = $X->new_rsrc;
     $X->CompositeNameWindowPixmap ($window, $pixmap);
 
-C<$pixmap> is released with C<FreePixmap> in the usual way.  If C<$window>
+C<$pixmap> is released with C<FreePixmap()> in the usual way.  If C<$window>
 or a parent is unmapped then C<$pixmap> continues to exist, but it's
 association with C<$window> is lost.  If C<$window> is mapped and redirected
 again later then it has a new off-screen storage and a new
-C<CompositeNameWindowPixmap> must be called to get a new pixmap for it.
+C<CompositeNameWindowPixmap()> must be called to get a new pixmap for it.
 
 =back
 
@@ -356,9 +357,9 @@ C<CompositeNameWindowPixmap> must be called to get a new pixmap for it.
 Return the composite overlay window for the screen of C<$window>.
 
 This window covers the whole screen and is always above ordinary windows but
-below any screen saver, and doesn't appear in a C<QueryTree>.  It's created
-when the first client asks for it, and shared by any further clients who
-ask.
+below any screen saver, and doesn't appear in a C<QueryTree()>.  It's
+created when the first client asks for it, and shared by any further clients
+who ask.
 
 =item C<$X-E<gt>CompositeReleaseOverlayWindow ($window)>
 

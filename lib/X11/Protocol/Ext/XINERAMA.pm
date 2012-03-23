@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 17;
+$VERSION = 18;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -268,15 +268,15 @@ number 4 than the C<XineramaIsActive> of Xinerama 1.1 above.
     http://blogs.sun.com/alanc/entry/xinerama_protocol_clashes_on_solaris
 
 There's no attempt to do anything about this here, as yet.  If
-C<PanoramiXQueryVersion> reports 1.0 then you shouldn't use
-C<XineramaIsActive> anyway, so no clash.  If you do and it's the C<Xsun>
+C<PanoramiXQueryVersion()> reports 1.0 then you shouldn't use
+C<XineramaIsActive()> anyway, so no clash.  If you do and it's the C<Xsun>
 server then expect either a Length error reply, or the server to adapt
 itself to the request length and behave as C<XineramaIsActive>.
 
-=head2 C<PanoramiXGetScreenSize> Buffer Overrun
+=head2 C<PanoramiXGetScreenSize()> Buffer Overrun
 
 Early server code such as X11R6.4 might not range check the monitor number
-in C<PanoramiXGetScreenSize>.  Did big values read out fragments of
+in C<PanoramiXGetScreenSize()>.  Did big values read out fragments of
 arbitrary memory, or cause a segfault?  Don't do that.
 
     X.org some time post 1.5.x,

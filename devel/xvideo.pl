@@ -33,6 +33,7 @@ my $X = X11::Protocol->new (':0');
 $X->init_extension('XVideo') or die $@;
 
 {
+  require UUID;
   my @version = $X->XVideoQueryExtension;
   ### @version
 
@@ -40,15 +41,32 @@ $X->init_extension('XVideo') or die $@;
   my @adaptors = $X->XVideoQueryAdaptors($window);
   ### @adaptors
 
-  my $port = $adaptors[0]->{'base_id'};
-  my @encodings = $X->XVideoQueryEncodings($port);
-  ### @encodings
 
-  my @attributes = $X->XVideoQueryPortAttributes($port);
-  ### @attributes
+  foreach my $adaptor (@adaptors) {
+    foreach my $port ($adaptor->{'port_base'}
+                      .. $adaptor->{'port_base'} + $adaptor->{'num_ports'}-1) {
+      ### $port
 
-  my @formats = $X->XVideoListImageFormats($port);
-  ### @formats
+      my @encodings = $X->XVideoQueryEncodings($port);
+      ### @encodings
+      
+      my @formats = $X->XVideoListImageFormats($port);
+      ### @formats
+      foreach my $format (@formats) {
+        my $bytes = $format->{'guid'};
+        my $uuidstr;
+        UUID::unparse($bytes, $uuidstr);
+        ### $uuidstr
+      }
+
+      my @attributes = $X->XVideoQueryPortAttributes($port);
+      ### @attributes
+      
+      my $value = $X->XVideoGetPortAttribute($port, $X->atom('XV_ENCODING'));
+      ### $value
+      
+    }
+  }
 
   exit 0;
 }

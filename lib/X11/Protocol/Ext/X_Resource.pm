@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION';
-$VERSION = 17;
+$VERSION = 18;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -272,7 +272,7 @@ Current client connections and their XID ranges.
 
 =item *
 
-How many windows, pixmaps, GCs, etc are in use by a given client.
+How many windows, pixmaps, GCs, etc in use by a given client.
 
 =item *
 
@@ -327,8 +327,9 @@ C<$xid_mask> 0x1FFFFF, meaning 0xA00000 through 0xBFFFFF is this client.
       printf "client base %X mask %X\n", $xid_base, $xid_mask;
     }
 
-The given C<$X> connection itself is included in the return.  This will be
-C<$X-E<gt>{'resource_id_base'}> and C<$X-E<gt>{'resource_id_mask'}>.
+The given C<$X> connection itself is included in the return.  Its base and
+mask are per C<$X-E<gt>{'resource_id_base'}> and
+C<$X-E<gt>{'resource_id_mask'}>.
 
 =item C<($atom,$count,...) = $X-E<gt>XResourceQueryClientResources ($xid)>
 
@@ -340,8 +341,8 @@ XID range and doesn't have to be currently allocated or created.  For
 example to enquire about the current client use
 C<$X-E<gt>{'resource_id_base'}>.
 
-The return is a list of resource type (as an atom integer) and count of
-those things,
+The return is a list of resource type (an atom integer) and count of those
+things,
 
     ($atom, $count, $atom, $count, ...)
 
@@ -368,7 +369,7 @@ Or put the list into a hash to lookup a particular resource type,
     print "using $windows many windows, and $grabs passive grabs";
 
 C<List::Pairwise> has C<mapp()> and other things to work with this sort of
-two-at-a-time list too.  See F<examples/xresource-pairwise.pl> in the
+two-at-a-time list.  See F<examples/xresource-pairwise.pl> in the
 C<X11-Protocol-Other> sources for a complete program.
 
 Generally a count entry is only present when the client has 1 or more of the
@@ -382,7 +383,7 @@ like "Unregistered resource 30" (an atom with that name), which is something
 or other.
 
 If the given C<$xid> is not a connected client then a BadValue error
-results.  Be careful of that if querying resources of another client since
+results.  Be careful of that when querying resources of another client since
 the client might disconnect at any time.  C<$X-E<gt>robust_req()> is good,
 or maybe C<GrabServer> to hold connections between
 C<XResourceQueryClients()> and C<XResourceQueryClientResources()>.
@@ -391,7 +392,7 @@ C<XResourceQueryClients()> and C<XResourceQueryClientResources()>.
 
 Return the total bytes of memory on the server used by all the pixmaps of a
 given client.  Pixmaps which only exist as window backgrounds or GC tiles or
-stipples are included (or should be).  If the client has no pixmaps at all
+stipples are included, or should be.  If the client has no pixmaps at all
 the return is 0.
 
 The client is identified by an C<$xid> as per
@@ -408,11 +409,14 @@ client's XID range, allocated or not.
     my $bytes = $X->XResourceQueryClientPixmapBytes ($xid);
     print "total of all pixmaps is $bytes bytes of memory\n";
 
-The return is a 64-bit value.  On a 32-bit system currently a value bigger
-than 32 bits is returned as floating point, or bigger than 53 bit float as
-C<Math::BigInt>.  Most of the time 32-bits is enough, since that would be 4
-Gbytes of pixmaps, or 53-bit float should be plenty, that being about 8192
-terabytes!
+The return is a 64-bit value.  On a 32-bit Perl a bigger than 32 bits is
+returned as floating point, or bigger than 53 bit float as C<Math::BigInt>.
+Most of the time 32 bits is enough, since that would be 4 Gbytes of pixmaps,
+and or 53-bit float should be plenty, that being about 8192 terabytes!
+
+For reference, the X.org server circa version 1.11.4 had a bug where it
+didn't count space used by pixmaps of depth less than 8 (including depth 1
+bitmaps) in the bytes returned.
 
 =back
 

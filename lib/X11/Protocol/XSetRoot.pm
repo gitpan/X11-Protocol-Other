@@ -15,6 +15,48 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
+
+# Window Manager Notes:
+#
+# ctwm does it's workspaces by moving windows or unmapping or something.
+# There's no virtual root but it does draw the root window to a
+# per-workspace colour on each change which overwrites anything put there in
+# xsetroot style.
+#
+# evilwm desktop workspaces done by hiding/mapping windows.
+#
+# tvtwm comes with an ssetroot which looks at __SWM_VROOT.
+#
+# awesome does desktops by hiding/mapping and a task bar across the top.
+
+
+# X11::Protocol::XSetRoot->kill_current($X,$root)
+# X11::Protocol::XSetRoot->kill_current(X=>$X,root=>$root)
+
+
+# Maybe read /usr/include/X11/bitmaps/gray like xsetroot -grey.
+# Or /usr/include/X11/bitmaps/root_weave which is the server default.
+# Those files are bitmaps so foreground,background colours.
+#
+# bitmap_filename => '/blah...'
+# bitmap_usr_include => 'gray'
+# bitmap_include => 'gray'
+# bitmap_type => 'gray','root_weave','default' builtins
+# mod => x,y
+# reverse_colors
+# color => 
+# background =>
+# bitmap_foreground => 
+# bitmap_background =>
+#
+#
+# root=>
+# virtual_root=> no look at root SWM_VROOT
+#
+
+
+
+
 BEGIN { require 5 }
 package X11::Protocol::XSetRoot;
 use strict;
@@ -23,7 +65,7 @@ use X11::AtomConstants;
 use X11::Protocol::Other 3;  # v.3 for hexstr_to_rgb()
 
 use vars '$VERSION';
-$VERSION = 17;
+$VERSION = 18;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -57,6 +99,15 @@ sub set_background {
   }
   if (! defined $screen_number) {
     $screen_number = X11::Protocol::Other::root_to_screen($X,$root);
+
+    # Secret undocumented allowance for root=>$xid being something not an
+    # actual root window.  Maybe a window_to_screen() checking among the
+    # roots and then QueryTree.
+    #
+    if (! defined $screen_number) {
+      my ($actual_root) = $X->QueryTree ($root);
+      $screen_number = X11::Protocol::Other::root_to_screen($X,$actual_root);
+    }
   }
   ### $root
 
@@ -64,12 +115,12 @@ sub set_background {
   my $visual_is_dynamic = X11::Protocol::Other::visual_is_dynamic($X,$visual);
   my $allocated;
 
-  my @change;
+  my @window_attributes;
   my $pixmap;
   if (defined ($pixmap = $option{'pixmap'})) {
     ### $pixmap
     $pixmap = _num_none($pixmap);
-    @change = (background_pixmap => $pixmap);
+    @window_attributes = (background_pixmap => $pixmap);
     $allocated = $option{'pixmap_allocated_colors'};
 
   } else {
@@ -86,15 +137,14 @@ sub set_background {
     } else {
       croak "No color, pixel or pixmap for background";
     }
-    @change = (background_pixel => $pixel);
+    @window_attributes = (background_pixel => $pixel);
 
     $allocated = $visual_is_dynamic
       && ! ($pixel == $screen_info->{'black_pixel'}
             || $pixel == $screen_info->{'white_pixel'}
             || _tog_cup_pixel_is_reserved($X,$screen_number,$pixel));
   }
-  ### $root
-  ### @change
+  ### @window_attributes
 
   if ($allocated) {
     if ($visual_is_dynamic) {
@@ -106,18 +156,21 @@ sub set_background {
     }
   }
 
+  # follow any __SWM_VROOT
+  $root = _root_to_virtual_root($X,$root);
+
   # atomic replacement of _XSETROOT_ID
   require X11::Protocol::GrabServer;
   my $grab = X11::Protocol::GrabServer->new ($X);
 
   _kill_current ($class, $X, $root);
 
-  $X->ChangeWindowAttributes ($root, @change);
+  $X->ChangeWindowAttributes ($root, @window_attributes);
   if ($pixmap) { # and also don't free $pixmap==0 "None"
     ### FreePixmap: $pixmap
     $X->FreePixmap($pixmap);
   }
-  $X->ClearArea ($root, 0,0,0,0);
+  $X->ClearArea ($root, 0,0,0,0); # whole window
 
   if ($allocated) {
     my $id_pixmap = $X->new_rsrc;
@@ -128,7 +181,7 @@ sub set_background {
                       1,1);  # width,height
     $X->ChangeProperty($root,
                        $X->atom('_XSETROOT_ID'),
-                       X11::AtomConstants::PIXMAP,
+                       X11::AtomConstants::PIXMAP(),
                        32,  # format
                        'Replace',
                        pack ('L', $id_pixmap));
@@ -163,11 +216,11 @@ sub _tog_cup_pixel_is_reserved {
 #
 # =item C<X11::Protocol::XSetRoot-E<gt>kill_current ($X, $root)>
 #
-# Kill any existing C<_XSETROOT_ID> on the given C<$root> XID.  If
-# C<$root> is C<undef> or omitted then the C<$X> default root is used.
+# Kill any existing C<_XSETROOT_ID> on the given C<$root> XID.  If C<$root>
+# is C<undef> or omitted then the C<$X-E<gt>root> default is used.
 #
-# This is normally only wanted when replacing C<_XSETROOT_ID> in the way
-# C<set_background> above does.
+# This is normally only used when changing or replacing the background in
+# the way C<set_background()> above does.
 #
 sub _kill_current {
   my ($class, $X, $root) = @_;
@@ -181,7 +234,7 @@ sub _kill_current {
                       0,  # offset
                       1,  # length
                       1); # delete
-  if ($type == X11::AtomConstants::PIXMAP && $format == 32) {
+  if ($type == X11::AtomConstants::PIXMAP() && $format == 32) {
     my $xid = unpack 'L', $value;
     ### $value
     ### kill id_pixmap: sprintf('%#X', $xid)
@@ -213,6 +266,37 @@ sub _num_none {
   }
 }
 
+# ENHANCE-ME: Could do all the GetProperty checks in parallel.
+# Could intern the VROOT atom during the QueryTree too.
+#
+# this probably move to X11::Protocol::WM when ready
+sub _root_to_virtual_root {
+  my ($X,$root) = @_;
+  ### root_to_virtual_root(): $root
+
+  my ($root_root, $root_parent, @toplevels) = $X->QueryTree($root);
+  foreach my $toplevel (@toplevels) {
+    ### $toplevel
+    my @ret = $X->robust_req ('GetProperty',
+                              $toplevel,
+                              $X->atom('__SWM_VROOT'),
+                              X11::AtomConstants::WINDOW(),  # type
+                              0,  # offset
+                              1,  # length x 32bits
+                              0); # delete;
+    ### @ret
+    next unless ref $ret[0]; # ignore errors from toplevels destroyed etc
+
+    my ($value, $type, $format, $bytes_after) = @{$ret[0]};
+    if (my $vroot = unpack 'L', $value) {
+      ### found: $vroot
+      return $vroot;
+    }
+  }
+  return $root;
+}
+
+
 1;
 __END__
 
@@ -240,9 +324,9 @@ X11::Protocol::XSetRoot -- set root window background
 This module sets the X root window background in the style of the
 C<xsetroot> program.
 
-The simplest use is a named colour, or a 1 to 4 digit hex string like
+The simplest use is a named colour or a 1 to 4 digit hex string like
 "#RRGGBB" or "#RRRRGGGGBBBB".  Named colours are interpreted by the server's
-usual C<AllocNamedColor()> etc.
+usual C<AllocNamedColor()>.
 
     X11::Protocol::XSetRoot->set_background
                                (color => 'green');
@@ -250,8 +334,8 @@ usual C<AllocNamedColor()> etc.
     X11::Protocol::XSetRoot->set_background
                                (color => '#FF0000'); # red
 
-A pattern can be set with a pixmap.  Or a complete background picture with a
-big pixmap the size of the whole screen.
+A pattern can be set with a pixmap.  A complete background picture can be
+set with a pixmap the size of the whole screen.
 
     # draw to $pixmap with black_pixel and white_pixel,
     # then ...
@@ -278,31 +362,45 @@ be indicated with the C<pixmap_allocated_colors> option,
                                 pixmap_allocated_colors => 1);
     # don't use $X any more
 
-The way allocated colour retention works means that the C<$X> connection
+The way allocated colour retention is done means that the C<$X> connection
 cannot be used any more in this case, and likewise if the C<color> or
 C<pixel> options are an allocated colour.
 
 The easiest thing is to close an C<$X> connection immediately after a
 C<set_background()>.  Perhaps there could be a return value to say whether a
-retain was done and the connection cannot be used again.  Or if in the
-future there's an explicit C<$X-E<gt>close> of some sort then that could be
-used here, and would indicate whether the connection is still good.
+retain was done and the connection cannot be used again.  Or perhaps if in
+the future there's an explicit C<$X-E<gt>close> of some sort then that could
+be used here, and would indicate whether the connection is still good.
 
 Allocated colours in the root colormap are preserved using
 C<SetCloseDownMode('RetainPermanent')> and putting a client XID in the
 C<_XSETROOT_ID> property on the root window.  A subsequent C<xsetroot> or
-compatible program does a C<KillClient()> to free those pixels.  This kill
-could happen any time after setting, perhaps immediately.
+compatible program does a C<KillClient()> on that XID to free the pixels.
+Such a kill could happen any time after stored, perhaps immediately.
 
 For a static visual such as C<TrueColor> there's no colour allocation
 (C<AllocColor()> is just a lookup) and in that case C<set_background()>
-knows there's never any need for C<RetainPermanent>.
+knows there's no need for C<RetainPermanent>.
 
-Also if the C<color> given results in the screen C<black_pixel> or
-C<white_pixel> then there's no a C<RetainPermanent> since those pixels are
-fixed in the root colormap.  If the server has the TOG-CUP extension (see
-L<X11::Protocol::Ext::TOG_CUP>) then the reserved pixels it lists are
+Also, if the C<color> given results in the screen C<black_pixel> or
+C<white_pixel> then there's no C<RetainPermanent> since those pixels are
+permanent in the root colormap.  If the server has the TOG-CUP extension
+(see L<X11::Protocol::Ext::TOG_CUP>) then the reserved pixels it lists are
 treated similarly.
+
+=head1 Virtual Root
+
+C<XSetRoot> looks for C<__SWM_VROOT> virtual root window and acts on that
+when applicable.  Such a virtual root is used by amiwm, swm and tvtwm window
+managers and by the xscreensaver program.
+
+There's nothing for EWMH C<_NET_VIRTUAL_ROOTS> as yet.  Do any window
+managers use it?  Is C<_NET_CURRENT_DESKTOP> an index into that virtual
+roots list?
+
+The enlightenment window manager uses a background window covering the root
+window.  This stops most root window programs from working, including
+XSetRoot here.
 
 =head1 FUNCTIONS
 
@@ -325,7 +423,7 @@ parameters are
     pixmap_allocated_colors => boolean, default false
 
 The server is given by an C<X> connection object, or a C<display> name to
-connect to, otherwise the C<DISPLAY> environment variable.
+connect to, or the default is the C<DISPLAY> environment variable.
 
 The root window is given by C<root> or C<screen>, or otherwise the current
 C<choose_screen()> on C<$X>, or the default screen coming from the display
@@ -335,15 +433,15 @@ The background to show is given by a colour name or pixel, or a pixmap.
 C<color> can be anything understood by the server C<AllocNamedColor()>, plus
 1 to 4 digit hex
 
-    "blue"
-    "#RGB"
-    "#RRGGBB"
-    "#RRRGGGBBB"
-    "#RRRRGGGGBBBB"
+    blue              named colours
+    #RGB              hex digits
+    #RRGGBB
+    #RRRGGGBBB
+    #RRRRGGGGBBBB
 
 C<pixel> is an integer pixel value in the root window colormap.  It's
 automatically recognised as allocated or not (the screen pre-defined black
-or white or TOG-CUP reserved pixels).
+or white and TOG-CUP reserved pixels).
 
 C<pixmap> is an XID integer.  C<set_background()> takes ownership of this
 pixmap and will C<FreePixmap()> once installed.  "None" or 0 means no
@@ -354,16 +452,17 @@ C<pixmap_allocated_colors> should be true if any of the pixels in C<pixmap>
 were allocated with C<AllocColor()> etc, as opposed to just the screen
 pre-defined black and white pixels (and any TOG-CUP reserved).
 
-When an allocated pixel or pixmap with allocated pixels is set as the
+When an allocated pixel or a pixmap with allocated pixels is set as the
 background the C<_XSETROOT_ID> mechanism described above means the C<$X>
-connection could be killed by another C<xsetroot> at any time, so should not
-be used any more.  The easiest thing is to make C<set_background()> the last
-thing done on C<$X>.
+connection could be killed by another C<xsetroot> at any time, perhaps
+almost immediately, and so should not be used any more.  The easiest thing
+is to make C<set_background()> the last thing done on C<$X>.
 
-Setting a C<pixel> or C<pixmap> can only be done on an C<X> connection as
+Setting a C<pixel> or C<pixmap> can only be done on a C<$X> connection as
 such, not from the C<display> option.  This is because retaining the colours
 with the C<_XSETROOT_ID> mechanism can only be done from the client
-connection which created them, not a new separate client connection.
+connection which created the resources, not a new separate client
+connection.
 
 =back
 

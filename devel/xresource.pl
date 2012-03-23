@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -29,6 +29,24 @@ use X11::Protocol::Ext::X_Resource;
 use Smart::Comments;
 
 
+{
+  my $display = $ENV{'DISPLAY'} || ':0';
+  my $X = X11::Protocol->new ($display);
+  $X->init_extension('X-Resource') or die $@;
+
+  my $pixmap;
+  foreach (1 .. 1) {
+    $pixmap = $X->new_rsrc;
+    $X->CreatePixmap ($pixmap,
+                      $X->root,
+                      8,
+                      1000,1000);  # width,height
+  }
+
+  my $bytes = $X->XResourceQueryClientPixmapBytes ($pixmap);
+  print "PixmapBytes $bytes\n";
+  exit 0;
+}
 
 {
   my $display = $ENV{'DISPLAY'} || ':0';
@@ -117,7 +135,8 @@ use Smart::Comments;
 }
 
 {
-  my $X = X11::Protocol->new (':0');
+  $ENV{'DISPLAY'} ||= ':0';
+  my $X = X11::Protocol->new;
   $X->init_extension('X-Resource') or die $@;
   my $clients = [ $X->XResourceQueryClients ];
   ### $clients

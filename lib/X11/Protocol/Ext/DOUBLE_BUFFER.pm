@@ -22,7 +22,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 17;
+$VERSION = 18;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -255,7 +255,7 @@ be done.
 If C<$window> is already double buffered then C<$buffer> becomes another
 reference to that back buffer.
 
-If C<$window> is destroyed (C<DestroyWindow>) before C<$buffer> then
+If C<$window> is destroyed (C<DestroyWindow()>) before C<$buffer> then
 C<$buffer> continues to exist and should still be deallocated (below) but
 attempting to draw into it gives a C<Resource> error reply.
 

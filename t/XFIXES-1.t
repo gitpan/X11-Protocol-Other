@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -35,6 +35,8 @@ plan tests => $test_count;
 
 require X11::Protocol;
 MyTestHelpers::diag ("X11::Protocol version ", X11::Protocol->VERSION);
+MyTestHelpers::diag ("DISPLAY is ",
+                     defined $ENV{'DISPLAY'} ? $ENV{'DISPLAY'} : 'undef');
 
 my $display = $ENV{'DISPLAY'};
 if (! defined $display) {
@@ -219,11 +221,41 @@ $X->QueryPointer($X->root); # sync
 # XFixesGetCursorImage
 
 {
-  my ($root_x,$root_y, $width,$height, $xhot,$yhot, $serial, $pixels) = $X->XFixesGetCursorImage ();
+  # Set a cursor before attempting to read back the image.  With xvfb of
+  # x.org 1.11.4 at startup an attempt to XFixesGetCursorImage() or
+  # XFixesGetCursorImageAndName() before a cursor has been set results in a
+  # BadCursor error.  Sounds like a server bug or misfeature, but force it
+  # as a workaround.
+
+  my $cursor_font = $X->new_rsrc;
+  $X->OpenFont ($cursor_font, "cursor");
+  my $cursor = $X->new_rsrc;
+  $X->CreateGlyphCursor ($cursor,
+                         $cursor_font,  # cursor font
+                         $cursor_font,  # mask font
+                         0,  # X_cursor glyph
+                         1,  # X_cursor mask
+                         0,0,0,
+                         0xFFFF, 0xFFFF, 0xFFFF);
+  $X->CloseFont ($cursor_font);
+  $X->QueryPointer($X->root); # sync
+
+  foreach my $screen_info (@{$X->{'screens'}}) {
+    $X->ChangeWindowAttributes ($screen_info->{'root'},
+                                cursor => $cursor);
+  }
+  $X->FreeCursor ($cursor);
+  $X->QueryPointer($X->root); # sync
+}
+
+{
+  my ($root_x,$root_y, $width,$height, $xhot,$yhot, $serial, $pixels)
+    = $X->XFixesGetCursorImage ();
   $X->QueryPointer($X->root); # sync
 
   ok (length($pixels), 4*$width*$height);
 }
 
 
+#------------------------------------------------------------------------------
 exit 0;

@@ -22,7 +22,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 17;
+$VERSION = 18;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -231,8 +231,8 @@ for very big images.
 
 Byte order, padding, etc, required or generated in images is specified by
 the server C<$X-E<gt>{'image_byte_order'}>, C<$X-E<gt>{'pixmap_formats'}>,
-etc, the same as for the core C<GetImage> and C<PutImage>.  It's up to the
-client to adapt to the server's layout, which can be a bit of a chore.
+etc, the same as for the core C<GetImage()> and C<PutImage()>.  It's up to
+the client to adapt to the server's layout, which can be a bit of a chore.
 
 =head2 Shm from Perl
 
@@ -267,7 +267,7 @@ world-readable (or world read-writable) segments.
 You can make a shm segment world-readable to ensure the server can read it.
 If the data for a PutImage etc is already from a world-readable file or is
 public then it doesn't matter who else reads the segment.  Remember to ask
-for read-only in the C<MitShmAttach> so the server doesn't want writable
+for read-only in the C<MitShmAttach()> so the server doesn't want writable
 too.
 
 There's probably no need to risk relaxing permissions for writing.  Chances
@@ -306,7 +306,7 @@ C<$uid> and C<$gid> (integers) are the server's effective user ID and group
 ID (C<geteuid()> and C<getegid()>).  Zero means root.
 
 C<$shared_pixmaps> is non-zero if pixmaps in shared memory are supported
-(see C<MitShmCreatePixmap> below).  C<$pixmap_format> (an ImageFormat) is
+(see C<MitShmCreatePixmap()> below).  C<$pixmap_format> (an ImageFormat) is
 "XYPixmap" or "ZPixmap" for the layout required in such a pixmap.
 
 =item C<$X-E<gt>MitShmAttach ($shmseg, $shmid, $readonly)>
@@ -321,8 +321,8 @@ C<$shmid> is the shared memory ID to attach, as obtained from C<shmget()>
 (see L<perlfunc/shmget>).
 
 C<$readonly> is 1 to have the server attach read-only, or 0 for read-write.
-Read-only suffices for C<MitShmPutImage>, but read-write is needed for
-C<MitShmGetImage> and C<MitShmCreatePixmap>.
+Read-only suffices for C<MitShmPutImage()>, but read-write is needed for
+C<MitShmGetImage()> and C<MitShmCreatePixmap()>.
 
 =item C<$X-E<gt>MitShmDetach ($shmseg)>
 
@@ -334,7 +334,7 @@ XID.
 =item C<$X-E<gt>MitShmPutImage ($drawable, $gc, $depth, $total_width, $total_height, $src_x, $src_y, $src_width, $src_height, $dst_x, $dst_y, $format, $send_event, $shmseg, $offset)>
 
 Put image data from C<$shmseg> (an XID) to C<$drawable>.  The parameters are
-similar to the core C<PutImage>.
+similar to the core C<PutImage()>.
 
 C<$depth> is the depth of the image.  For C<$format> "Bitmap" this must be 1
 and the foreground and background colours of C<$gc> are then drawn.  For
@@ -357,7 +357,7 @@ C<$offset> is a byte offset into the shared memory where the image starts.
 =item C<($depth, $visual, $size) = $X-E<gt>MitShmGetImage ($drawable, $x, $y, $width, $height, $planemask, $format, $shmseg, $offset)>
 
 Copy an image from C<$drawable> to shared memory C<$shmseg> (an XID).  The
-parameters are similar to the core C<GetImage>.
+parameters are similar to the core C<GetImage()>.
 
 C<$x>,C<$y>, C<$width>,C<$height> are the part of C<$drawable> to get.
 C<$planemask> is a bit mask for which bit planes of the pixels are wanted.
@@ -370,7 +370,7 @@ The returned C<$depth> (an integer) is the depth of C<$drawable>.
 C<$visual> (integer ID) is its visual for a window, or "None" for a pixmap.
 C<$size> is how many bytes were written.
 
-C<$shmseg> must be attached read-write in the C<MitShmAttach> or an Access
+C<$shmseg> must be attached read-write in the C<MitShmAttach()> or an Access
 error results.
 
 =item C<$X-E<gt>MitShmCreatePixmap ($pixmap, $drawable, $depth, $width, $height, $shmseg, $offset)>
@@ -378,7 +378,7 @@ error results.
 Create C<$pixmap> (a new XID) as a pixmap with contents in shared memory
 C<$shmseg> (an XID).  When the client reads or writes that memory it changes
 the pixmap contents.  The parameters are similar to the core
-C<CreatePixmap>.
+C<CreatePixmap()>.
 
     my $pixmap = $X->new_rsrc;
     $X->MitShmCreatePixmap ($pixmap,         # new XID
@@ -388,7 +388,7 @@ C<CreatePixmap>.
                             $shmseg,
                             0);      # byte offset into shm
 
-The C<MitShmQueryVersion> request above reports whether shared memory
+The C<MitShmQueryVersion()> request above reports whether shared memory
 pixmaps are supported, and if so whether they're "XYPixmap" or "ZPixmap"
 layout.
 
@@ -399,8 +399,8 @@ will begin.
 If damage objects from the DAMAGE extension (see
 L<X11::Protocol::Ext::DAMAGE>) are monitoring a shared C<$pixmap> then
 client writes to the shared memory generally don't produce C<DamageNotify>
-events.  The client can use C<DamageAdd> requests (in Damage version 1.1) to
-tell the server about changes made, which it will broadcast to interested
+events.  The client can use C<DamageAdd()> requests (in Damage version 1.1)
+to tell the server about changes made, which it will broadcast to interested
 damage objects.  It's probably unusual to have damage objects listening to a
 shared pixmap though.
 
@@ -409,8 +409,8 @@ shared pixmap though.
 =head1 EVENTS
 
 C<MitShmCompletionEvent> is sent to the client when requested in an
-C<MitShmPutImage>.  It says the server has finished reading the memory.  The
-event has the usual fields
+C<MitShmPutImage()>.  It says the server has finished reading the memory.
+The event has the usual fields
 
     name             "MitShmCompletionEvent"
     synthetic        true if from a SendEvent
@@ -426,9 +426,9 @@ and event-specific fields
     minor_opcode   integer, 3 for MitShmPutImage
 
 C<major_opcode> and C<minor_opcode> are the codes of the originating
-C<MitShmPutImage>.  These fields are similar to the core C<GraphicsExposure>
-and C<NoExposure> events, but here there's only one request
-(C<MitShmPutImage>) which gives a completion event.
+C<MitShmPutImage()>.  These fields are similar to the core
+C<GraphicsExposure> and C<NoExposure> events, but here there's only one
+request (C<MitShmPutImage()>) which gives a completion event.
 
 =head1 ERRORS
 

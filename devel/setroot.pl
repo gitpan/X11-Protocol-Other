@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2010, 2011 Kevin Ryde
+# Copyright 2010, 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -25,18 +25,33 @@ use X11::AtomConstants;
 
 use Smart::Comments;
 
+
 {
   require X11::Protocol::XSetRoot;
   X11::Protocol::XSetRoot->set_background
       (
-       # color_name => '#F0FF00FFF0FF',
+       root => 0xC00003,
+      color => '#F0FF00FFF0FF',
        # pixel => 0xFFFFFF,
        # pixel => 0xFF0000,
        # allocated_pixels => 1,
-       pixmap => 0,
+       # pixmap => 0,
       );
   # now don't use $X11_protocol_object connection any more
   exit 0;
+}
+
+
+
+
+{
+  my $X = X11::Protocol->new;
+  my $root = $X->root;
+  ### $root
+  my $vroot = root_to_virtual_root($X,$root);
+  ### $vroot
+  exit 0;
+
 }
 {
   my $X = X11::Protocol->new;

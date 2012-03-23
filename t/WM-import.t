@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -50,6 +50,8 @@ use X11::Protocol::WM
   'pack_wm_size_hints',
   'pack_motif_wm_hints',
   'unpack_wm_state',
+  'iconify',
+  'withdraw',
   ;
 
 require X11::Protocol;
@@ -134,6 +136,11 @@ pack_motif_wm_hints($X);
 pack_wm_hints($X);
 pack_wm_size_hints($X);
 unpack_wm_state($X, pack('LL',0,0));
+
+iconify($X,$window);
+iconify($X,$window,$X->root);
+withdraw($X,$window);
+withdraw($X,$window,$X->root);
 
 $X->QueryPointer($X->{'root'});  # sync
 ok (1, 1);

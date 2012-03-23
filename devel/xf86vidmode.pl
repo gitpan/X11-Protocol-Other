@@ -49,6 +49,7 @@ $ENV{'DISPLAY'} ||= ':0';
     my @monitor = $X->XF86VidModeGetMonitor(0);
     ### @monitor
     # my ($vendor, $model, $hsyncs, $vsyncs, $bandwidth) = @monitor;
+    exit 0;
   }
   {
     my @modeline = $X->XF86VidModeGetAllModeLines(0);

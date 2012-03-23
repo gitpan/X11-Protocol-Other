@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = (tests => 169)[1];
+my $test_count = (tests => 174)[1];
 plan tests => $test_count;
 
 require X11::Protocol::WM;
@@ -65,7 +65,6 @@ $X->CreateWindow ($window,
                   0);               # border
 $X->MapWindow ($window);
 $X->QueryPointer($X->{'root'});  # sync
-sleep 1;
 
 my $window2 = $X->new_rsrc;
 $X->CreateWindow ($window2,
@@ -87,7 +86,7 @@ sub to_hex {
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 17;
+my $want_version = 18;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');
@@ -896,6 +895,101 @@ X11::Protocol::WM::set_net_wm_window_type ($X, $window, 'NORMAL');
     $count_found += (defined $client_window);
   }
   MyTestHelpers::diag ("frame_window_to_client() found $count_found clients out of ",scalar(@toplevels)," toplevels");
+}
+
+
+#------------------------------------------------------------------------------
+# iconify() and withdraw() transitions
+
+{
+  my $toplevel = $X->new_rsrc;
+  $X->CreateWindow($toplevel,
+                   $X->root,           # parent
+                   'InputOutput',      # class
+                   $X->root_depth,     # depth
+                   'CopyFromParent',   # visual
+                   0,0,                # x,y
+                   100,100,            # width,height
+                   10,                 # border
+                   background_pixel => $X->{'white_pixel'},
+                   event_mask       => $X->pack_event_mask('PropertyChange'));
+  $X->MapWindow($toplevel);
+
+  my $skip;
+  my $wm_state = wait_for_wm_state($X,$toplevel);
+  if (! $wm_state) {
+    $skip = 'due to no window manager running, it seems';
+  }
+  skip ($skip, $wm_state, 'NormalState');
+
+  X11::Protocol::WM::iconify($X,$toplevel);
+  unless ($skip) { $wm_state = wait_for_wm_state($X,$toplevel); }
+  skip ($skip, $wm_state, 'IconicState');
+
+  X11::Protocol::WM::withdraw($X,$toplevel);
+  unless ($skip) { $wm_state = wait_for_wm_state($X,$toplevel); }
+  skip ($skip, $wm_state, 'WithdrawnState');
+
+  $X->MapWindow($toplevel);
+  unless ($skip) { $wm_state = wait_for_wm_state($X,$toplevel); }
+  skip ($skip, $wm_state, 'NormalState');
+
+  X11::Protocol::WM::withdraw($X,$toplevel);
+  unless ($skip) { $wm_state = wait_for_wm_state($X,$toplevel); }
+  skip ($skip, $wm_state, 'WithdrawnState');
+
+  $X->DestroyWindow($toplevel);
+  $X->QueryPointer($X->root);  # sync
+}
+
+sub wait_for_wm_state {
+  my ($X, $window) = @_;
+  $X->flush;
+  my $WM_STATE = $X->atom('WM_STATE');
+  my $found = 0;
+  local $X->{'event_handler'} = sub {
+    my (%h) = @_;
+    ### event_handler: \%h
+    if ($h{'name'} eq 'PropertyNotify'
+        && $h{'window'} == $window
+        && $h{'atom'} == $WM_STATE) {
+      $found = 1;
+    }
+  };
+
+  foreach my $attempt (1 .. 4) {
+    if (wait_for_readable ($X->{'connection'}->fh)) {
+      ### X handle_input ...
+      while (fh_readable ($X->{'connection'}->fh)) {
+        $X->handle_input;
+      }
+    }
+    if ($found) {
+      my ($wm_state, $icon_window)
+        = X11::Protocol::WM::get_wm_state ($X, $window);
+      return $wm_state;
+    }
+  }
+  return '';
+}
+
+sub wait_for_readable {
+  my ($fh) = @_;
+  my $read_bits = '';
+  vec($read_bits,fileno($fh),1) = 1;
+  my $err_bits = $read_bits;
+
+  my ($nfound, $timeleft) = select($read_bits, '', $err_bits, 1);
+  return $nfound;
+}
+
+sub fh_readable {
+  my ($fh) = @_;
+  require IO::Select;
+  my $s = IO::Select->new;
+  $s->add($fh);
+  my @ready = $s->can_read(1);
+  return scalar(@ready);
 }
 
 #------------------------------------------------------------------------------

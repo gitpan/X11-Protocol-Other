@@ -21,7 +21,7 @@ use strict;
 use Exporter;
 use vars '$VERSION', '@ISA', '@EXPORT_OK', '%EXPORT_TAGS';
 
-$VERSION = 17;
+$VERSION = 18;
 @ISA = ('Exporter');
 %EXPORT_TAGS = (all => \@EXPORT_OK);
 
@@ -178,7 +178,7 @@ use constant LAST_PREDEFINED => 68;
 1;
 __END__
 
-=for stopwords X11-Protocol-Other Ryde pre-defined subrs Xlib PIXMAP
+=for stopwords X11-Protocol-Other Ryde pre-defined Xlib PIXMAP
 
 =head1 NAME
 
@@ -198,8 +198,8 @@ X11::AtomConstants -- predefined X11 atoms
 
 =head1 DESCRIPTION
 
-This is the X11 pre-defined atoms as Perl constant subrs.  For example
-C<PIXMAP> is 20, the "PIXMAP" atom.
+This is the X11 pre-defined atoms as Perl constants.  For example C<PIXMAP>
+is 20, the PIXMAP atom.
 
     my $atom_id = X11::AtomConstants::PIXMAP;  # $atom_id is 20
     my $name = $X->GetAtomName($atom_id);      # $name is "PIXMAP"

@@ -62,6 +62,7 @@ devel/SYNC-31.t
 devel/sync-info.pl
 devel/SYNC.t
 devel/tog-cup.pl
+devel/view-root.pl
 devel/wm-icon-size.pl
 devel/WM-maybe.pl
 devel/wm-size-hints.pl
@@ -71,6 +72,7 @@ devel/xf86dga.pl
 devel/xf86vidmode.pl
 devel/xfixes-barrier.pl
 devel/xfixes.pl
+devel/XFree86_VidModeExtension.t
 devel/xi-info.pl
 devel/xinerama.pl
 devel/XInputExtension.t
@@ -83,6 +85,7 @@ examples/cursor-font-anim.pl
 examples/damage-duplicate.pl
 examples/dbe-info.pl
 examples/dbe-swap.pl
+examples/mit-screen-saver-external.pl
 examples/xfixes-cursor-image.pl
 examples/xfixes-selection.pl
 examples/xinerama-info.pl
@@ -171,4 +174,14 @@ xt/0-Test-YAML-Meta.t
 xt/Encode-round.t
 xt/Encode-X11-emacs.el
 xt/Encode-X11-emacs.t
+xtools/my-check-copyright-years.sh
+xtools/my-check-file-part-of.sh
+xtools/my-check-spelling.sh
+xtools/my-deb.sh
+xtools/my-diff-prev.sh
+xtools/my-kwalitee.sh
+xtools/my-manifest.sh
+xtools/my-pc.sh
+xtools/my-tags.sh
+xtools/my-wunused.sh
 META.yml                                 Module meta-data (added by MakeMaker)

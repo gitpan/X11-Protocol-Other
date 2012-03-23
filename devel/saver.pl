@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -26,6 +26,47 @@ use lib 'devel', '.';
 use Smart::Comments;
 
 {
+  # MitScreenSaverSetAttributes() initial window contents
+
+  my $X = X11::Protocol->new (':0');
+  $X->init_extension('MIT-SCREEN-SAVER') or die;
+
+  $X->MitScreenSaverSelectInput ($X->root, 0x03);
+  $X->QueryPointer($X->root); # sync
+
+  $X->MitScreenSaverSetAttributes
+    ($X->root,
+     'InputOutput',    # class
+     0,                # depth, from parent
+     'CopyFromParent', # visual
+     100,100,          # x,y
+     1000,500,         # width,height
+     0,                # border
+     # background_pixmap => "None",
+      background_pixel => $X->white_pixel,
+    );
+  $X->QueryPointer($X->root); # sync
+
+  $X->{'event_handler'} = sub {
+    my (%h) = @_;
+    ### event_handler: \%h
+
+    if ($h{'name'} eq 'MitScreenSaverNotify') {
+      ### %h
+    }
+  };
+
+  $X->ForceScreenSaver ('Activate');
+  for (;;) {
+    $X->handle_input;
+  }
+
+  exit 0;
+}
+
+{
+  # MitScreenSaverSetAttributes()
+
   my $X = X11::Protocol->new (':0');
   $X->init_extension('MIT-SCREEN-SAVER') or die;
 
@@ -57,6 +98,41 @@ use Smart::Comments;
   for (;;) {
     $X->handle_input;
   }
+
+  exit 0;
+}
+
+{
+  # conflicting MitScreenSaverSetAttributes()
+
+  my $X1 = X11::Protocol->new (':0');
+  my $X2 = X11::Protocol->new (':0');
+  $X1->init_extension('MIT-SCREEN-SAVER') or die;
+  $X2->init_extension('MIT-SCREEN-SAVER') or die;
+
+  $X1->MitScreenSaverSetAttributes
+    ($X1->root,
+     'InputOutput',    # class
+     0,                # depth, from parent
+     'CopyFromParent', # visual
+     0,0,              # x,y
+     1000,500,         # width,height
+     0,                # border
+     background_pixel => $X1->white_pixel,
+    );
+  $X1->QueryPointer($X1->root); # sync
+
+  $X2->MitScreenSaverSetAttributes
+    ($X2->root,
+     'InputOutput',    # class
+     0,                # depth, from parent
+     'CopyFromParent', # visual
+     0,0,              # x,y
+     1000,500,         # width,height
+     0,                # border
+     background_pixel => $X2->white_pixel,
+    );
+  $X2->QueryPointer($X2->root); # sync
 
   exit 0;
 }

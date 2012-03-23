@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -24,6 +24,67 @@ use X11::Protocol::WM;
 
 # uncomment this to run the ### lines
 use Smart::Comments;
+
+
+{
+  # _NET_VIRTUAL_ROOTS
+
+  my $X = X11::Protocol->new;
+  my $atom = $X->atom('_NET_VIRTUAL_ROOTS');
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($X->root, $atom,
+                       0,    # AnyPropertyType
+                       0,    # offset
+                       999,  # length
+                       0);   # delete;
+  ### $value, $type, $format, $bytes_after)
+  ### $value
+  ### $type
+  ### $format
+  ### $bytes_after
+  exit 0;
+}
+
+{
+  # WM_CHANGE_STATE exists
+  my $X = X11::Protocol->new;
+  my $atom = $X->InternAtom("WM_CHANGE_STATE",1);
+  ### $atom
+  exit 0;
+}
+
+{
+  my $X = X11::Protocol->new;
+
+  my $event = $X->pack_event (name           => 'UnmapNotify',
+                              event          => $X->root,
+                              window         => $X->root,
+                              from_configure => 0);
+  ### $event
+
+  my $window = $X->new_rsrc;
+  $X->CreateWindow ($window,
+                    $X->root,         # parent
+                    'InputOutput',
+                    0,                # depth, from parent
+                    'CopyFromParent', # visual
+                    0,0,              # x,y
+                    100,100,          # width,height
+                    0,                # border
+                    background_pixel => $X->black_pixel,
+                   );
+  $X->MapWindow ($window);
+  $X->QueryPointer($X->root); # sync
+  sleep 1;
+  iconify($X,$window);
+  $X->QueryPointer($X->root); # sync
+  sleep 1;
+  withdraw($X,$window);
+  $X->QueryPointer($X->root); # sync
+  sleep 1;
+
+  exit 0;
+}
 
 {
   # get_net_frame_extents()

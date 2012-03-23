@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -26,6 +26,51 @@ use lib 'devel', '.';
 use Smart::Comments;
 
 
+
+{
+  $ENV{'DISPLAY'} = ':1';
+  my $X = X11::Protocol->new ($ENV{'DISPLAY'} || ':0');
+  $X->init_extension('XFIXES') or die;
+
+  my $cursor_font = $X->new_rsrc;
+  $X->OpenFont ($cursor_font, "cursor");
+  my $cursor = $X->new_rsrc;
+  $X->CreateGlyphCursor ($cursor,
+                         $cursor_font,
+                         'None',  # mask font
+                         3,
+                         0,
+                         0xFFFF, 0xFFFF, 0xFFFF,
+                         0,0,0);
+  $X->CloseFont ($cursor_font);
+  $X->QueryPointer($X->root); # sync
+
+  $X->ChangeWindowAttributes ($X->root,
+                              cursor => $cursor);
+  $X->QueryPointer($X->root); # sync
+
+  my ($rootx,$rooty, $width,$height, $xhot,$yhot, $serial, $pixels)
+    = $X->XFixesGetCursorImage ();
+
+  # {
+  #   my @bytes = unpack 'C*', $pixels;
+  #   foreach my $y (0 .. $height-1) {
+  #     my @row = splice @bytes, 0,$width*4;
+  #     print map {sprintf '%02X ',$_} @row;
+  #     print "\n";
+  #   }
+  # }
+  {
+    my @words = unpack 'L*', $pixels;
+    foreach my $y (0 .. $height-1) {
+      my @row = splice @words, 0,$width;
+      delete @row[5 .. $#row];
+      print map {sprintf '%08X ',$_} @row;
+      print "\n";
+    }
+  }
+  exit 0;
+}
 
 {
   my $display = $ENV{'DISPLAY'} || ':0';
@@ -109,30 +154,7 @@ use Smart::Comments;
   exit 0;
 }
 
-{
-  my $X = X11::Protocol->new (':0');
-  $X->init_extension('XFIXES') or die;
-  my ($rootx,$rooty, $width,$height, $xhot,$yhot, $serial, $pixels)
-    = $X->XFixesGetCursorImage ();
-  # {
-  #   my @bytes = unpack 'C*', $pixels;
-  #   foreach my $y (0 .. $height-1) {
-  #     my @row = splice @bytes, 0,$width*4;
-  #     print map {sprintf '%02X ',$_} @row;
-  #     print "\n";
-  #   }
-  # }
-  {
-    my @words = unpack 'L*', $pixels;
-    foreach my $y (0 .. $height-1) {
-      my @row = splice @words, 0,$width;
-      delete @row[5 .. $#row];
-      print map {sprintf '%08X ',$_} @row;
-      print "\n";
-    }
-  }
-  exit 0;
-}
+
 
 {
   my $X = X11::Protocol->new (':0');
