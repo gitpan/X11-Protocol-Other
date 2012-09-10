@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 18;
+$VERSION = 19;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -230,7 +230,7 @@ sub _interp_none {
 1;
 __END__
 
-=for stopwords XID arrayrefs Ryde enum pixmap closedown NotifyMask CycleMask XFree86 builtin
+=for stopwords XID arrayrefs Ryde enum pixmap closedown NotifyMask CycleMask XFree86 builtin bitvals
 
 =head1 NAME
 
@@ -343,7 +343,7 @@ This changes the saver from "External" kind back to the server builtin.  If
 the screen saver is currently active then that happens immediately.
 
 At client shutdown an Unset is done automatically, except for
-"RetainPermanent" closedown mode.
+C<RetainPermanent> closedown mode.
 
 =back
 

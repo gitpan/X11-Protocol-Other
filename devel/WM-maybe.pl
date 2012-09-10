@@ -1,4 +1,9 @@
-# Copyright 2011 Kevin Ryde
+# set_text_property()
+
+
+
+
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -155,7 +160,8 @@ sub _net_wm_allowed_action_to_atom {
     my ($flags, @values) = unpack ($format, $bytes);
     my $bit = 1;
     my @ret;
-    foreach my $i (0 .. $#keys) {
+    my $i;
+    foreach $i (0 .. $#keys) {
       my $value = $values[$i];
       if (! defined $value) {
         next;

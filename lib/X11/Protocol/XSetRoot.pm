@@ -62,10 +62,11 @@ package X11::Protocol::XSetRoot;
 use strict;
 use Carp;
 use X11::AtomConstants;
-use X11::Protocol::Other 3;  # v.3 for hexstr_to_rgb()
+use X11::Protocol::Other;
+use X11::Protocol::WM;
 
 use vars '$VERSION';
-$VERSION = 18;
+$VERSION = 19;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -157,7 +158,7 @@ sub set_background {
   }
 
   # follow any __SWM_VROOT
-  $root = _root_to_virtual_root($X,$root);
+  $root = (X11::Protocol::WM::root_to_virtual_root($X,$root) || $root);
 
   # atomic replacement of _XSETROOT_ID
   require X11::Protocol::GrabServer;
@@ -202,7 +203,8 @@ sub _tog_cup_pixel_is_reserved {
 
   if ($X->{'ext'}->{'TOG_CUP'}
       || $X->init_extension('TOG-CUP')) {
-    foreach my $c ($X->CupGetReservedColormapEntries($screen_number)) {
+    my $c;
+    foreach $c ($X->CupGetReservedColormapEntries($screen_number)) {
       if ($c->[0] == $pixel) {
         return 1;
       }
@@ -266,41 +268,10 @@ sub _num_none {
   }
 }
 
-# ENHANCE-ME: Could do all the GetProperty checks in parallel.
-# Could intern the VROOT atom during the QueryTree too.
-#
-# this probably move to X11::Protocol::WM when ready
-sub _root_to_virtual_root {
-  my ($X,$root) = @_;
-  ### root_to_virtual_root(): $root
-
-  my ($root_root, $root_parent, @toplevels) = $X->QueryTree($root);
-  foreach my $toplevel (@toplevels) {
-    ### $toplevel
-    my @ret = $X->robust_req ('GetProperty',
-                              $toplevel,
-                              $X->atom('__SWM_VROOT'),
-                              X11::AtomConstants::WINDOW(),  # type
-                              0,  # offset
-                              1,  # length x 32bits
-                              0); # delete;
-    ### @ret
-    next unless ref $ret[0]; # ignore errors from toplevels destroyed etc
-
-    my ($value, $type, $format, $bytes_after) = @{$ret[0]};
-    if (my $vroot = unpack 'L', $value) {
-      ### found: $vroot
-      return $vroot;
-    }
-  }
-  return $root;
-}
-
-
 1;
 __END__
 
-=for stopwords Ryde pixmap colormap RetainPermanent pre-defined lookup XID Pixmap
+=for stopwords Ryde pixmap colormap RetainPermanent pre-defined lookup XID Pixmap XSetRoot recognised
 
 =head1 NAME
 
@@ -390,13 +361,10 @@ treated similarly.
 
 =head1 Virtual Root
 
-C<XSetRoot> looks for C<__SWM_VROOT> virtual root window and acts on that
-when applicable.  Such a virtual root is used by amiwm, swm and tvtwm window
-managers and by the xscreensaver program.
-
-There's nothing for EWMH C<_NET_VIRTUAL_ROOTS> as yet.  Do any window
-managers use it?  Is C<_NET_CURRENT_DESKTOP> an index into that virtual
-roots list?
+C<XSetRoot> looks for C<__SWM_VROOT> using C<X11::Protocol::WM>
+C<root_to_virtual_root()> and acts on that when applicable.  Such a virtual
+root is used by C<amiwm>, C<swm> and C<tvtwm> window managers, and as used
+the C<xscreensaver> program.
 
 The enlightenment window manager uses a background window covering the root
 window.  This stops most root window programs from working, including

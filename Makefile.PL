@@ -20,8 +20,6 @@
 use 5.004;
 use strict;
 use ExtUtils::MakeMaker;
-use lib 'inc';
-use MyMakeMakerExtras;
 
 my %encode_modules =
   (
@@ -30,7 +28,7 @@ my %encode_modules =
    'Encode::HanExtra' => 0.06,  # 0.06 for cns11643-*
   );
 
-MyMakeMakerExtras::WriteMakefile
+WriteMakefile
   (NAME         => 'X11-Protocol-Other',
    ABSTRACT     => 'Miscellaneous helpers for X11::Protocol connections.',
    VERSION_FROM => 'lib/X11/Protocol/Other.pm',
@@ -39,9 +37,7 @@ MyMakeMakerExtras::WriteMakefile
    SIGN         => 1,
    PREREQ_PM    => {
                     'X11::Protocol' => 0,
-
-                    # only for testing
-                    'Test' => 0,
+                    'Test' => 0,  # only for testing
                    },
    MIN_PERL_VERSION => '5.004',
 
@@ -50,6 +46,8 @@ MyMakeMakerExtras::WriteMakefile
      { homepage => 'http://user42.tuxfamily.org/x11-protocol-other/index.html',
        license  => 'http://www.gnu.org/licenses/gpl.html',
      },
+     no_index => { directory=>['devel','xt'] },
+
      optional_features =>
      {
       maximum_interoperation =>
@@ -66,9 +64,10 @@ MyMakeMakerExtras::WriteMakefile
       },
      },
    },
-
-   MyMakeMakerExtras_Pod_Coverage => [ 'X11::Protocol::Other',
-                                       'X11::Protocol::GrabServer',
-                                       'X11::Protocol::WM',
-                                     ],
   );
+
+
+# MyMakeMakerExtras_Pod_Coverage => [ 'X11::Protocol::Other',
+#                                     'X11::Protocol::GrabServer',
+#                                     'X11::Protocol::WM',
+#                                   ],

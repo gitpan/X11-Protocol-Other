@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 18;
+$VERSION = 19;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -151,7 +151,7 @@ sub _ext_requests_install {
 1;
 __END__
 
-=for stopwords Colormap colormap arrayref RGB Ryde
+=for stopwords Colormap colormap colormaps arrayref RGB Ryde pre-allocated shareable
 
 =head1 NAME
 

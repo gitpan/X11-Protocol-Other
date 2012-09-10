@@ -240,7 +240,8 @@ $X->QueryPointer($X->root); # sync
   $X->CloseFont ($cursor_font);
   $X->QueryPointer($X->root); # sync
 
-  foreach my $screen_info (@{$X->{'screens'}}) {
+  my $screen_info;
+  foreach $screen_info (@{$X->{'screens'}}) {
     $X->ChangeWindowAttributes ($screen_info->{'root'},
                                 cursor => $cursor);
   }

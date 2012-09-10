@@ -31,7 +31,7 @@ use Carp;
 use Encode ();
 use Encode::Encoding;
 
-our $VERSION = 18;
+our $VERSION = 19;
 our @ISA = ('Encode::Encoding');
 
 # uncomment this to run the ### lines
@@ -91,12 +91,12 @@ my @esc = (
 # xfree86 utf8 in compound: ESC % G --UTF-8-BYTES-- ESC % @
 #                              25 47                    25 40
 
-# return true if any of @coding is able to encode $str
+# return true if any of the @coding encodings is able to encode $str
 sub _encodable_char {
   my ($str) = @_;
   foreach my $coding (@coding) {
     my $input = $str;
-    my $bytes = Encode::encode ($coding, $input, Encode::FB_QUIET());
+    Encode::encode ($coding, $input, Encode::FB_QUIET());
     if (! length($input)) {
       return 1;
     }
@@ -229,7 +229,7 @@ my %esc_to_coding =
  (
   # esc[] table above
   (map { $esc[$_] => $coding[$_] } 0 .. $#coding),
- 
+
   "\x1B\x28\x4A" => 'jis0201-raw', # jis0201 GL ascii except 0x7E
   "\x1B\x29\x49" => 'jis0201-raw', # jis0201 right GR japanese
 
@@ -237,17 +237,17 @@ my %esc_to_coding =
   # right only in GR
   "\x1B\x28\x49" => 'ascii',       # jis0201 GL
   "\x1B\x29\x4A" => 'iso-8859-1',  # jis0201 GR
-  
+
   "\x1B\x28\x42" => 'ascii',
-  
+
   # "\x1B\x2D\x44" => 'jis0212-raw', # GL 1-bytes 96 chars
-  
+
   # \x24 means 2-bytes per char
   # "\x1B\x24\x28\x41" => 'gb2312',
   # "\x1B\x24\x28\x42" => 'jis0208-raw',# 208-1983 or 208-1990
   "\x1B\x24\x28\x43" => 'ksc5601-raw',
   "\x1B\x24\x28\x44" => 'jis0212-raw',# 212-1990
-  
+
   # http://www.itscj.ipsj.or.jp/ISO-IR/2-4.htm
   "\x1B\x24\x28\x47" => 'cns11643-1', # Encode::HanExtra
   "\x1B\x24\x28\x48" => 'cns11643-2',
@@ -274,7 +274,7 @@ my %esc_to_coding =
   # Emacs mule viscii ?
   # "\x1B\x2D\x31" => 'viscii-lower',
   # "\x1B\x2D\x32" => 'viscii-upper',
-  
+
  );
 
 my %coding_is_lo = ('ascii' => 1,
@@ -425,7 +425,7 @@ sub decode {
 1;
 __END__
 
-=for stopwords X11-Protocol-Other Ryde
+=for stopwords X11-Protocol-Other Ryde encodings ICCCM charsets JIS KSC there'll latin-N jis ksc gb utf-8 recognise cns11643 Xlib libX11 HanExtra oopery
 
 =head1 NAME
 
@@ -457,7 +457,7 @@ charsets latin-N, jis, ksc and gb for the benefit of older X clients, then
 the newer utf-8 encoding if necessary.
 
 The decode is meant to recognise anything, but may be a bit limited yet.
-Perhaps it could be just a full iso-2022 decode, if/when that might exist,
+Perhaps it could be just a full ISO-2022 decode, if/when that might exist,
 but for now it's done explicitly and might potentially cope with X11
 specifics.
 

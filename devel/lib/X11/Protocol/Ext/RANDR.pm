@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 18;
+$VERSION = 19;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -338,7 +338,8 @@ sub _event_update_X {
   } else {
     return;
   }
-  foreach my $p ($X, @{$X->{'screens'}}) {
+  my $p;
+  foreach $p ($X, @{$X->{'screens'}}) {
     if ($window == $p->{'root'}) {
       $p->{'width_in_pixels'} = $event{'width'};
       $p->{'height_in_pixels'} = $event{'height'};

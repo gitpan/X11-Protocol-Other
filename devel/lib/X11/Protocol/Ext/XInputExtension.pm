@@ -26,7 +26,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 18;
+$VERSION = 19;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -146,7 +146,8 @@ my $reqs =
         push @ret, $deviceid => $info;
       }
 
-      foreach my $info (@infos) {
+      my $info;
+      foreach $info (@infos) {
         my $num_classes = $info->{'num_classes'};
 
         my @classes;

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -37,6 +37,17 @@ if ($] < 5.008) {
   MyTestHelpers::diag ("This not applicable in perl < 5.8.0, have perl $]");
   foreach (1 .. $test_count) {
     skip ("not perl 5.8", 1, 1);
+  }
+  exit 0;
+}
+
+# should have Encode.pm in perl 5.8 and up, but allow for it hidden by
+# Module::Mask::Deps during development testing
+unless (eval { require Encode }) {
+  my $err = $@;
+  MyTestHelpers::diag ("Encode module not available: ",$err);
+  foreach (1 .. $test_count) {
+    skip ("no Encode module", 1, 1);
   }
   exit 0;
 }
@@ -85,7 +96,7 @@ sub to_hex {
   my $name = "\x{03B1}";  # lower case alpha
   my $compound = "\x1B\x2D\x46\xE1";  # alpha 0xE1 in iso-8859-7
 
-  # MyTestHelpers::diag ("name is_utf8 '",utf8::is_utf8($name), "'");
+   MyTestHelpers::diag ("name is_utf8 '",utf8::is_utf8($name), "'");
 
   X11::Protocol::WM::set_wm_name ($X, $window, $name);
   my ($value, $type, $format, $bytes_after)

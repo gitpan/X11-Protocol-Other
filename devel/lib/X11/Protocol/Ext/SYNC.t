@@ -146,7 +146,8 @@ sub big_leftshift {
   my $value = $X->SyncQueryCounter ($counter);
   ok ($value, 123);
 
-  foreach my $value (0, 1, -1,
+  my $value;
+  foreach $value (0, 1, -1,
                      big_leftshift(1,32),
                      - big_leftshift(1,32),
                      big_leftshift(1,63) - 1,

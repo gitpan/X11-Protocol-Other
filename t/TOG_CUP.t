@@ -93,7 +93,8 @@ $X->QueryPointer($X->root); # sync
   my $screen_num = 0;
   my @colours = $X->CupGetReservedColormapEntries ($screen_num);
   my $bad = 0;
-  foreach my $c (@colours) {
+  my $c;
+  foreach $c (@colours) {
     if (scalar(@$c) != 5) {
       MyTestHelpers::diag ("oops, bad colour length: ", scalar(@$c));
       last if ++$bad > 10;
@@ -107,16 +108,19 @@ $X->QueryPointer($X->root); # sync
 
 my $visual;
 my $visual_is_colour;
-foreach my $v (sort {$a<=>$b} keys %{$X->{'visuals'}}) {
-  my $info = $X->{'visuals'}->{$v};
-  my $class = $X->interp('VisualClass',$info->{'class'});
-  MyTestHelpers::diag ("visual $v $class depth=$info->{'depth'}");
-  if ($class eq 'GrayScale'
-      || $class eq 'PseudoColor'
-      || $class eq 'DirectColor') {
-    $visual_is_colour = ($class ne 'GrayScale');
-    $visual = $v;
-    last if $visual_is_colour;
+{
+  my $v;
+  foreach $v (sort {$a<=>$b} keys %{$X->{'visuals'}}) {
+    my $info = $X->{'visuals'}->{$v};
+    my $class = $X->interp('VisualClass',$info->{'class'});
+    MyTestHelpers::diag ("visual $v $class depth=$info->{'depth'}");
+    if ($class eq 'GrayScale'
+        || $class eq 'PseudoColor'
+        || $class eq 'DirectColor') {
+      $visual_is_colour = ($class ne 'GrayScale');
+      $visual = $v;
+      last if $visual_is_colour;
+    }
   }
 }
 

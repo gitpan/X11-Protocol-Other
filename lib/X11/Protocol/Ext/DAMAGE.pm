@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 18;
+$VERSION = 19;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -220,7 +220,7 @@ sub _num_time {
 1;
 __END__
 
-=for stopwords drawables pixmaps XFIXES DamageNotify XID subwindows enum unhandled GL arrayref umm pixmap Ryde Opcode DamageReportLevel MIT-SHM
+=for stopwords drawables pixmaps XFIXES DamageNotify XID subwindows enum unhandled GL arrayref umm pixmap Ryde Opcode DamageReportLevel MIT-SHM drawable
 
 =head1 NAME
 

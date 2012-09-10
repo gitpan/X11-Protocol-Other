@@ -27,7 +27,7 @@ use Exporter;
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-$VERSION = 18;
+$VERSION = 19;
 
 %CURSOR_GLYPH
   = (
@@ -126,7 +126,7 @@ $#CURSOR_NAME |= 1;   # odd number of entries
 1;
 __END__
 
-=for stopwords Xlib Xmu glyph Ryde
+=for stopwords Xlib Xmu glyph glyphs Ryde RGB multi-colour
 
 =head1 NAME
 

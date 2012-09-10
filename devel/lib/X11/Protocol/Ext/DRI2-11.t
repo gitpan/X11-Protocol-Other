@@ -111,10 +111,11 @@ $X->QueryPointer($X->root); # sync
                     1,     # depth
                     32,32);  # width,height
 
-  foreach my $args_list ([ ],
-                         [ ['BackLeft',0] ],
-                         [ ['BackLeft',0],['Accum',1] ],
-                        ) {
+  my $args_list;
+  foreach $args_list ([ ],
+                      [ ['BackLeft',0] ],
+                      [ ['BackLeft',0],['Accum',1] ],
+                     ) {
     my $num_attach = scalar(@$args_list);
     my @ret = $X->robust_req ('DRI2GetBuffersWithFormat',
                               $drawable,@$args_list);

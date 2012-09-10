@@ -26,6 +26,21 @@ use Smart::Comments;
 
 $ENV{'DISPLAY'} ||= ':0';
 
+
+{
+  # version 2.0
+  my $X = X11::Protocol->new;
+
+  $X->init_extension('XFree86-DGA') or die $@;
+  $X->QueryPointer($X->{'root'}); # sync
+  ### init_extension() ok ...
+
+  {
+    my @modes = $X->XDGAQueryModes(0);
+    ### @modes
+  }
+  exit 0;
+}
 {
   my $X = X11::Protocol->new;
 
@@ -57,20 +72,6 @@ $ENV{'DISPLAY'} ||= ':0';
   exit 0;
 }
 
-{
-  # version 2.0
-  my $X = X11::Protocol->new;
-
-  $X->init_extension('XFree86-DGA') or die $@;
-  $X->QueryPointer($X->{'root'}); # sync
-  ### init_extension() ok ...
-
-  {
-    my @modes = $X->XDGAQueryModes(0);
-    ### @modes
-  }
-  exit 0;
-}
 
 {
   my $X = X11::Protocol->new;

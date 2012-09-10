@@ -28,7 +28,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 18;
+$VERSION = 19;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -389,7 +389,8 @@ my $reqs =
     my ($X, $alarm, %h) = @_;
     my $mask = 0;
     my @args;
-    foreach my $i (0 .. $#keys) {
+    my $i;
+    foreach $i (0 .. $#keys) {
       my $key = $keys[$i];
       next unless exists $h{$key};;
 

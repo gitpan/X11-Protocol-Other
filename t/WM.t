@@ -86,7 +86,7 @@ sub to_hex {
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 18;
+my $want_version = 19;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');
@@ -105,31 +105,34 @@ ok (! eval { X11::Protocol::WM->VERSION($check_version); 1 },
 #------------------------------------------------------------------------------
 # _aspect_to_num_den()
 
-foreach my $elem ([1, 1,1],
-                  [2, 2,1],
-                  ['0.5', 5,10],
-                  ['0.33', 33,100],
-                  ['.33', 33,100],
-                  ['12.34', 1234,100],
-                  ['7/17', 7,17],
+{
+  my $elem;
+  foreach $elem ([1, 1,1],
+                 [2, 2,1],
+                 ['0.5', 5,10],
+                 ['0.33', 33,100],
+                 ['.33', 33,100],
+                 ['12.34', 1234,100],
+                 ['7/17', 7,17],
 
-                  # current code grows in decimal ...
-                  ['7.5/17', 75,170],
-                  ['7.5/1.0', 75,10],
-                  ['1.23/4.5', 123,450],
-                  ['12.3/4.56', 1230,456],
+                 # current code grows in decimal ...
+                 ['7.5/17', 75,170],
+                 ['7.5/1.0', 75,10],
+                 ['1.23/4.5', 123,450],
+                 ['12.3/4.56', 1230,456],
 
-                  # chopped down to maximum
-                  [0x8000_0000, 0x7FFF_FFFF,1],
+                 # chopped down to maximum
+                 [0x8000_0000, 0x7FFF_FFFF,1],
 
-                  # not sure about this one
-                  ['4294967296/4', 0x7FFF_FFFF,2],
-                 ) {
-  my ($aspect, $want_num, $want_den) = @$elem;
-  my ($got_num, $got_den) = X11::Protocol::WM::_aspect_to_num_den($aspect);
+                 # not sure about this one
+                 ['4294967296/4', 0x7FFF_FFFF,2],
+                ) {
+    my ($aspect, $want_num, $want_den) = @$elem;
+    my ($got_num, $got_den) = X11::Protocol::WM::_aspect_to_num_den($aspect);
 
-  ok ($got_num, $want_num);
-  ok ($got_den, $want_den);
+    ok ($got_num, $want_num);
+    ok ($got_den, $want_den);
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -956,8 +959,7 @@ sub wait_for_wm_state {
       $found = 1;
     }
   };
-
-  foreach my $attempt (1 .. 4) {
+  foreach (1 .. 4) {  # attempts
     if (wait_for_readable ($X->{'connection'}->fh)) {
       ### X handle_input ...
       while (fh_readable ($X->{'connection'}->fh)) {

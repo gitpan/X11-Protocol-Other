@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION';
-$VERSION = 18;
+$VERSION = 19;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -238,7 +238,7 @@ sub _ext_request_num_fill {
 1;
 __END__
 
-=for stopwords pixmap pixmaps GCs XID XIDs arrayref 0xA00000 0x1FFFFF 0xBFFFFF lookup BadValue GC Gbytes Ryde
+=for stopwords pixmap pixmaps GCs XID XIDs arrayref 0xA00000 0x1FFFFF 0xBFFFFF lookup BadValue GC Gbytes Ryde enquire
 
 =head1 NAME
 

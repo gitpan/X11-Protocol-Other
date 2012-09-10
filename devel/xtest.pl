@@ -57,14 +57,19 @@ sleep 1;
 
 {
   $X->WarpPointer ('None', $window, 0,0,0,0, 10,10);
-  ### ButtonPress ...
-  $X->SetPointerMapping(3, 2, 1, 4 .. 10);
+  ### fake ButtonPress ...
+  my @pointer_mapping = $X->GetPointerMapping;
+  my $last_button = scalar(@pointer_mapping);
+
+  $X->SetPointerMapping(3, 2, 1, 4 .. $last_button);
+  ### with buttons remapped ...
   $X->XTestFakeInput ([ name   => 'ButtonPress',
                         detail => 1 ]);
   $X->XTestFakeInput (name   => 'ButtonRelease',
                       time   => 2000,
                       detail => 1);
-  $X->SetPointerMapping(1 .. 10);
+  ### restore buttons mapping ...
+  $X->SetPointerMapping(1 .. $last_button);
   for (;;) {
     $X->handle_input;
   }
@@ -73,11 +78,11 @@ sleep 1;
 
 {
   ### MotionNotify ...
-  $X->XTestFakeInput ({ name   => 'MotionNotify',
-                        detail => 0,
-                        root_x => 20,
-                        root_y => 20,
-                      });
+  $X->XTestFakeInput (name   => 'MotionNotify',
+                      detail => 0,
+                      root_x => 20,
+                      root_y => 20,
+                     );
   for (;;) {
     $X->handle_input;
   }

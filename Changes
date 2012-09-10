@@ -17,6 +17,11 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 19, September 2012
+    - new X11::Protocol::Ext::XTEST (protocol version 2.2)
+    - X11::Protocol::WM new root_to_virtual_root()
+    - X11::Protocol::ChooseWindow use virtual root
+
 Version 18, March 2012
     - X11::Protocol::WM new iconify() and withdraw()
     - X11::Protocol::XSetRoot act on __SWM_VROOT

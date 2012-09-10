@@ -22,7 +22,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 18;
+$VERSION = 19;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -183,7 +183,7 @@ sub _interp_none {
 1;
 __END__
 
-=for stopwords XID arrayrefs Ryde pixmap deallocated XIDs enum arrayref arrayrefs drawable's
+=for stopwords XID arrayrefs Ryde pixmap Deallocate deallocated XIDs enum arrayref arrayrefs drawable drawable's recognise drawables enquiring XFree86 Xlib
 
 =head1 NAME
 

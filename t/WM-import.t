@@ -30,6 +30,7 @@ plan tests => $test_count;
 
 use X11::Protocol::WM
   'frame_window_to_client',
+  'root_to_virtual_root',
   'get_wm_state',
   'get_net_frame_extents',
   'set_wm_class',
@@ -100,6 +101,7 @@ $X->CreateWindow ($window2,
 
 
 { my $client_window = frame_window_to_client($X,$window); }
+{ my $vroot = root_to_virtual_root($X,$X->root); }
 { my ($state, $icon_window) = get_wm_state($X,$window); }
 { my ($left,$right,$top,$bottom) = get_wm_state($X,$window); }
 set_wm_class($X,$window,"foo","Foo");

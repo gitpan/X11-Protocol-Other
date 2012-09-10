@@ -22,7 +22,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 18;
+$VERSION = 19;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -495,7 +495,7 @@ sub _ext_const_error_install {
 1;
 __END__
 
-=for stopwords XFIXES XID reparent Unmap arrayref AARRGGBB GG pre-multiplied pixmap RENDER ShapeKind subwindow Ryde hotspot ARGB GC ie latin-1 DisplayCursor RGB bitmask XIDs YX-banded
+=for stopwords XFIXES XID reparent Unmap arrayref AARRGGBB GG pre-multiplied pixmap RENDER ShapeKind subwindow Ryde hotspot ARGB GC ie latin-1 DisplayCursor RGB bitmask XIDs YX-banded subtypes XTEST Xvfb xdm Xlib Xinerama subtype
 
 =head1 NAME
 

@@ -22,7 +22,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 18;
+$VERSION = 19;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -215,8 +215,13 @@ my $reqs =
                   $pos += 72;
                   ### %h
 
+                  # name_len a multiple of 4, string \0 nul-terminated
+                  # within that length
                   my $name_len = delete $h{'name_len'};
-                  $h{'name'} = unpack 'Z*', substr($data, $pos, $name_len);
+                  ($h{'name'} = substr($data, $pos, $name_len))
+                    =~ s/\0.*//;
+                  # cf unpack 'Z', new in perl 5.6
+                  # $h{'name'} = unpack 'Z*', substr($data, $pos, $name_len);
                   $pos += $name_len;
                   ### $name_len
                   ### name: $h{'name'}
@@ -397,7 +402,7 @@ sub _ext_const_error_install {
 1;
 __END__
 
-=for stopwords XID Ryde
+=for stopwords XID Ryde XFree86 DGA XFree86-DGA eg viewport colormap multi-buffering N-multi-buffering
 
 =head1 NAME
 
@@ -531,7 +536,7 @@ and can be higher for multi-buffering.
 
 L<X11::Protocol>
 
-README.DGA
+F<README.DGA>
 
 =head1 HOME PAGE
 

@@ -1,4 +1,4 @@
-# 1.0,1.1 exercise GetBuffers
+# 1.0, 1.1 exercise GetBuffers
 
 # 1.2 counters as 64-bit
 
@@ -28,7 +28,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 18;
+$VERSION = 19;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines

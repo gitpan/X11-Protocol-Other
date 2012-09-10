@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               X11-Protocol-Other
-version:            18
+version:            19
 abstract:           Miscellaneous helpers for X11::Protocol connections.
 author:
     - Kevin Ryde <user42@zip.com.au>
@@ -21,9 +21,8 @@ no_index:
     directory:
         - t
         - inc
-        - xt
         - devel
-        - examples
+        - xt
 generated_by:       ExtUtils::MakeMaker version 6.57_05
 meta-spec:
     url:      http://module-build.sourceforge.net/META-spec-v1.4.html

@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 18;
+$VERSION = 19;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -177,7 +177,7 @@ sub _num_none {
 1;
 __END__
 
-=for stopwords XINERAMA Xinerama XID arrayrefs Ryde multi-monitor PanoramiX natively
+=for stopwords XINERAMA Xinerama XID arrayrefs Ryde multi-monitor PanoramiX natively enquire
 
 =head1 NAME
 

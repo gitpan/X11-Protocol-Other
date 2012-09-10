@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 18;
+$VERSION = 19;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -229,7 +229,7 @@ sub _num_none {
 1;
 __END__
 
-=for stopwords subwindows unredirect unredirected BadValue XID umm XFIXES Ryde pixmap
+=for stopwords subwindows unredirect unredirected BadValue XID umm XFIXES Ryde pixmap viewable unmapped
 
 =head1 NAME
 

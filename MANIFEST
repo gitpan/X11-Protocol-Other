@@ -18,9 +18,7 @@ devel/cursor-transparent.pl
 devel/damage.pl
 devel/dbe.pl
 devel/dpms.pl
-devel/DRI2-11.t
 devel/dri2.pl
-devel/DRI2.t
 devel/encode-all.el
 devel/encode-all.pl
 devel/encode-dump.c
@@ -40,12 +38,15 @@ devel/frame-to-client.pl
 devel/grab.pl
 devel/icon-window.pl
 devel/kill-client.pl
+devel/lib/X11/Protocol/Ext/DRI2-11.t
 devel/lib/X11/Protocol/Ext/DRI2.pm
+devel/lib/X11/Protocol/Ext/DRI2.t
 devel/lib/X11/Protocol/Ext/RANDR.pm
+devel/lib/X11/Protocol/Ext/SYNC-31.t
 devel/lib/X11/Protocol/Ext/SYNC.pm
+devel/lib/X11/Protocol/Ext/SYNC.t
 devel/lib/X11/Protocol/Ext/XFree86_VidModeExtension.pm
 devel/lib/X11/Protocol/Ext/XInputExtension.pm
-devel/lib/X11/Protocol/Ext/XTEST.pm
 devel/lib/X11/Protocol/Ext/XVideo.pm
 devel/magnifier.pl
 devel/Makefile
@@ -58,9 +59,7 @@ devel/saver.pl
 devel/setroot.pl
 devel/shm-id.pl
 devel/shm.pl
-devel/SYNC-31.t
 devel/sync-info.pl
-devel/SYNC.t
 devel/tog-cup.pl
 devel/view-root.pl
 devel/wm-icon-size.pl
@@ -79,7 +78,6 @@ devel/XInputExtension.t
 devel/xresource.pl
 devel/xsettings.pl
 devel/xtest.pl
-devel/XTEST.t
 devel/xvideo.pl
 examples/cursor-font-anim.pl
 examples/damage-duplicate.pl
@@ -108,6 +106,7 @@ lib/X11/Protocol/Ext/X_Resource.pm
 lib/X11/Protocol/Ext/XFIXES.pm
 lib/X11/Protocol/Ext/XFree86_DGA.pm
 lib/X11/Protocol/Ext/XINERAMA.pm
+lib/X11/Protocol/Ext/XTEST.pm
 lib/X11/Protocol/GrabServer.pm
 lib/X11/Protocol/Other.pm
 lib/X11/Protocol/WM.pm
@@ -162,6 +161,7 @@ t/XINERAMA-10.t
 t/XINERAMA-11.t
 t/XINERAMA-use.t
 t/XSetRoot.t
+t/XTEST.t
 xt/0-examples-xrefs.t
 xt/0-file-is-part-of.t
 xt/0-META-read.t

@@ -28,9 +28,6 @@
 
 
 
-
-
-
 # /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
 
 BEGIN { require 5 }
@@ -39,7 +36,10 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '$_instance';
-$VERSION = 18;
+$VERSION = 19;
+
+use X11::Protocol::WM;
+
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -73,7 +73,6 @@ sub choose {
   {
     my $old_event_handler = $X->{'event_handler'};
     local $X->{'event_handler'} = sub {
-      my (%h) = @_;
       $self->handle_event (@_);
       goto $old_event_handler;
     };
@@ -99,14 +98,12 @@ sub client_window {
   my ($self) = @_;
   if (! exists $self->{'client_window'}) {
     my $frame_window = $self->{'frame_window'};
-    ### $frame_window
+    ### frame_window: $frame_window.sprintf('  0x%X',$frame_window)
     $self->{'client_window'}
       = (defined $frame_window && _num_none($frame_window) != 0
-         ? do {
-           require X11::Protocol::WM;
-           X11::Protocol::WM::frame_window_to_client(_X($self),$frame_window);
-         }
+         ? X11::Protocol::WM::frame_window_to_client(_X($self),$frame_window)
          : undef);
+    ### client_window: $self->{'client_window'}
   }
   return $self->{'client_window'};
 }
@@ -161,6 +158,9 @@ sub start {
     }
   }
   ### $root
+
+  # follow any __SWM_VROOT
+  $root = (X11::Protocol::WM::root_to_virtual_root($X,$root) || $root);
 
   my $time = $self->{'time'} || $self->{'event'}->{'time'} || 'CurrentTime';
   ### $time
@@ -259,122 +259,8 @@ sub _num_none {
 1;
 __END__
 
-=for stopwords Ryde ChooseWindow
 
-=head1 NAME
-
-X11::Protocol::ChooseWindow -- user click to choose window
-
-=for test_synopsis my ($X)
-
-=head1 SYNOPSIS
-
- use X11::Protocol::ChooseWindow;
- my $client_window = X11::Protocol::ChooseWindow->choose (X => $X);
-
-=head1 DESCRIPTION
-
-This spot of code lets the user click on a toplevel window to choose it in
-a similar style to the C<xwininfo> or C<xkill> programs.
-
-=head2 Implementation
-
-The method here is like the C<xwininfo> etc programs.  It uses a
-C<GrabPointer> on the root window, waits for a ButtonPress and corresponding
-ButtonRelease from the user, then gets the frame window from that Press
-event.  The client window as such under the frame is found using
-C<frame_to_client_window()> from C<X11::Protocol::WM>.
-
-KeyPress events are not used and will go to the focus window in the usual
-way.  This can be good in a command line program since it lets the user
-press ^C (SIGINT) in an C<xterm>.  Perhaps in the future there could be an
-option to watch for Esc to cancel or some such.
-
-=head1 FUNCTIONS
-
-The following C<choose()> is in class method style with the intention of
-perhaps in the future having objects of type C<X11::Protocol::ChooseWindow>
-holding state and advanced by events supplied by an external main loop.
-
-=head2 Choosing
-
-=over 4
-
-=item C<$window = X11::Protocol::ChooseWindow-E<gt>choose (key=E<gt>value,...)>
-
-Read a user button press to choose a toplevel window.  The key/value options
-are as follows,
-
-    X        => X11::Protocol object
-    display  => string ":0:0" etc
-
-    screen   => integer, eg. 0
-    root     => XID of root window
-
-    time     => integer server timestamp initiating the choose
-    event    => hashref of event initiating the choose
-
-    cursor       => XID of cursor
-    cursor_glyph => integer glyph for cursor font
-    cursor_name  => string name from cursor font
-
-C<X> or C<display> gives the server, or the default is to open the
-C<DISPLAY> environment variable.  An C<X11::Protocol> object is usual, but
-sometimes it can make sense to open a new connection just to choose.
-
-C<root> or C<screen> gives the root window to choose on, or the default is
-the current "chosen" screen of C<$X> (and which in turn defaults to the
-screen part of the display name).
-
-C<time> or the time field within C<event> is a server timestamp for the
-C<GrabPointer>.  This protects against stealing a grab from another client
-if badly lagged.  Omitted means "CurrentTime".  In a command line program at
-startup there might be no initiating event, making "CurrentTime" all that's
-possible.
-
-C<cursor> etc is the mouse pointer cursor to show during the choose as a
-visual indication to the user.  The default is a "crosshair".
-C<cursor_name> or C<cursor_glyph> are from the usual cursor font.  See
-L<X11::CursorFont> for available names.  For example perhaps the "exchange"
-cursor to choose a window for some sort of swap or flip,
-
-    X11::Protocol::ChooseWindow-E<gt>choose
-          (X => $X,
-           cursor_name => "exchange");
-
-=back
-
-=head1 SEE ALSO
-
-L<X11::Protocol>,
-L<X11::Protocol::WM>,
-L<X11::CursorFont>
-
-L<xwininfo(1)>, L<xkill(1)>, and their F<dsimple.c> C<Select_Window()> code
-
-=head1 HOME PAGE
-
-http://user42.tuxfamily.org/x11-protocol-other/index.html
-
-=head1 LICENSE
-
-Copyright 2010, 2011 Kevin Ryde
-
-X11-Protocol-Other is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by the
-Free Software Foundation; either version 3, or (at your option) any later
-version.
-
-X11-Protocol-Other is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-more details.
-
-You should have received a copy of the GNU General Public License along with
-X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
-
-=cut
-
+# Not quite yet.
 
 # =head2 Chooser Object
 # 
@@ -435,3 +321,127 @@ X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 # manager or it doesn't use frame windows then the immediate child is the
 # client window already and C<want_frame_window> has no effect.
 
+
+
+
+
+=for stopwords Ryde ChooseWindow toplevel timestamp startup crosshair
+
+=head1 NAME
+
+X11::Protocol::ChooseWindow -- user click to choose window
+
+=for test_synopsis my ($X)
+
+=head1 SYNOPSIS
+
+ use X11::Protocol::ChooseWindow;
+ my $client_window = X11::Protocol::ChooseWindow->choose (X => $X);
+
+=head1 DESCRIPTION
+
+This spot of code lets the user click on a toplevel window to choose it, in
+a similar style to the C<xwininfo> or C<xkill> programs.
+
+=head2 Implementation
+
+The method is similar to the C<xwininfo> etc programs.  It consists of a
+C<GrabPointer> on the root window, waits for a C<ButtonPress> and
+corresponding C<ButtonRelease> from the user, get the frame window is from
+the Press event, then the client window under there from
+C<frame_to_client_window()> in C<X11::Protocol::WM>.
+
+C<KeyPress> events are not used and go to the focus window in the usual way.
+This can be good in a command line program since it lets the user press
+C<^C> (C<SIGINT>) in an C<xterm> or similar.  Perhaps in the future there
+could be an option to watch for C<Esc> to cancel or some such.
+
+A virtual root per C<root_to_virtual_root()> in C<X11::Protocol::WM> is used
+if present.  This helps C<ChooseWindow> work with C<amiwm> and similar
+virtual root window managers.
+
+=head1 FUNCTIONS
+
+The following C<choose()> is in class method style with the intention of
+perhaps in the future having objects of type C<X11::Protocol::ChooseWindow>
+holding state and advanced by events supplied by an external main loop.
+
+=head2 Choosing
+
+=over 4
+
+=item C<$window = X11::Protocol::ChooseWindow-E<gt>choose (key=E<gt>value,...)>
+
+Read a user button press to choose a toplevel window.  The key/value options
+are as follows,
+
+    X        => X11::Protocol object
+    display  => string ":0:0" etc
+
+    screen   => integer, eg. 0
+    root     => XID of root window
+
+    time     => integer server timestamp initiating the choose
+    event    => hashref of event initiating the choose
+
+    cursor       => XID of cursor
+    cursor_glyph => integer glyph for cursor font
+    cursor_name  => string name from cursor font
+
+C<X> or C<display> gives the server, or the default is to open the
+C<DISPLAY> environment variable.  An C<X11::Protocol> object is usual, but
+sometimes it can make sense to open a new connection just to choose.
+
+C<root> or C<screen> gives the root window to choose on, or the default is
+the current screen of C<$X> (which in turn defaults to the screen part of
+the display name).  If there's a virtual root on the root window then that's
+used as necessary.
+
+C<time> or the time field in C<event> is a server timestamp for the
+C<GrabPointer()>.  This guards against stealing a grab from another client
+if badly lagged.  Omitted means C<CurrentTime>.  In a command line program
+at startup there might be no initiating event, making C<CurrentTime> all
+that's possible.
+
+C<cursor> etc is the mouse pointer cursor to show during the choose, as a
+visual indication to the user.  The default is a "crosshair".
+C<cursor_name> or C<cursor_glyph> are from the usual cursor font.  See
+L<X11::CursorFont> for available names.  For example perhaps the "exchange"
+cursor to choose a window for some sort of swap or flip,
+
+    $window = X11::Protocol::ChooseWindow->choose
+                (X => $X,
+                 cursor_name => "exchange");
+
+=back
+
+=head1 SEE ALSO
+
+L<X11::Protocol>,
+L<X11::Protocol::WM>,
+L<X11::CursorFont>
+
+L<xwininfo(1)>, L<xkill(1)>, and their F<dsimple.c> C<Select_Window()> code
+
+=head1 HOME PAGE
+
+http://user42.tuxfamily.org/x11-protocol-other/index.html
+
+=head1 LICENSE
+
+Copyright 2010, 2011, 2012 Kevin Ryde
+
+X11-Protocol-Other is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 3, or (at your option) any later
+version.
+
+X11-Protocol-Other is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+more details.
+
+You should have received a copy of the GNU General Public License along with
+X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

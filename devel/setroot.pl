@@ -27,6 +27,15 @@ use Smart::Comments;
 
 
 {
+  require X11::Protocol::WM;
+  my $X = X11::Protocol->new;
+  my $root = $X->root;
+  ### $root
+  my $vroot = X11::Protocol::WM::root_to_virtual_root($X,$root);
+  ### $vroot
+  exit 0;
+}
+{
   require X11::Protocol::XSetRoot;
   X11::Protocol::XSetRoot->set_background
       (
@@ -41,18 +50,6 @@ use Smart::Comments;
   exit 0;
 }
 
-
-
-
-{
-  my $X = X11::Protocol->new;
-  my $root = $X->root;
-  ### $root
-  my $vroot = root_to_virtual_root($X,$root);
-  ### $vroot
-  exit 0;
-
-}
 {
   my $X = X11::Protocol->new;
   $X->FreePixmap(0);

@@ -152,7 +152,8 @@ $X->QueryPointer($X->root); # sync
 
 {
   my $window = $X->root;
-  foreach my $driver_type ('DRI','VDPAU') {
+  my $driver_type;
+  foreach $driver_type ('DRI','VDPAU') {
     my @ret = $X->DRI2Connect ($window,'DRI');
     ok (scalar(@ret), 2);
 
@@ -177,7 +178,8 @@ $X->QueryPointer($X->root); # sync
 
 {
   my $drawable = $X->root;
-  foreach my $attach_list ([ ],
+  my $attach_list;
+  foreach $attach_list ([ ],
                            [ 'BackLeft' ],
                            [ 'BackLeft','Accum' ],
                           ) {

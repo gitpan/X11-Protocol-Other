@@ -51,7 +51,7 @@ foreach my $frame (@toplevels) {
 
 $X->flush;
 $X->QueryPointer($root); # sync
-sleep 1;
+sleep 5;
 
 ### @remap
 foreach my $window (@remap) {

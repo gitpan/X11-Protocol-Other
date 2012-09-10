@@ -17,12 +17,6 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use lib 'devel/lib';
-$ENV{'DISPLAY'} ||= ":0";
-
-
-
 BEGIN { require 5 }
 use strict;
 use X11::Protocol;
@@ -36,7 +30,7 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-my $test_count = (tests => 12)[1];
+my $test_count = (tests => 16)[1];
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -150,12 +144,116 @@ $X->QueryPointer($X->root); # sync
 
 
 #------------------------------------------------------------------------------
+# _fake_input_pack()
+
+{
+  my $packet = X11::Protocol::Ext::XTEST::_fake_input_pack
+    ($X,
+     name   => 'MotionNotify',
+     root_x => 200,
+     root_y => 500);
+  ok (length($packet), 32);
+}
+{
+  my $packet = X11::Protocol::Ext::XTEST::_fake_input_pack
+    ($X,
+     name   => 'MotionNotify',
+     root   => 'None',
+     root_x => 200,
+     root_y => 500);
+  ok (length($packet), 32);
+}
+{
+  my $packet = X11::Protocol::Ext::XTEST::_fake_input_pack
+    ($X,
+     name   => 'ButtonPress',
+     detail => 1,
+     time   => 'CurrentTime');
+  ok (length($packet), 32);
+}
+{
+  my $packet = X11::Protocol::Ext::XTEST::_fake_input_pack
+    ($X,
+     name   => 'ButtonRelease',
+     detail => 3,
+     time   => 0);
+  ok (length($packet), 32);
+}
+
+#------------------------------------------------------------------------------
+# XTestFakeInput() -- mouse motion
+{
+  my %old = $X->QueryPointer($X->root);
+  my $root = $old{'root'};
+  $X->XTestFakeInput (name   => 'MotionNotify',
+                      detail => 1,  # relative
+                      root   => $root,
+                      root_x => 200,
+                      root_y => 500,
+                     );
+  # $X->flush;
+  # sleep 1;
+
+  # restore
+  $X->XTestFakeInput ([ name   => 'MotionNotify',
+                        detail => 0,   # absolute
+                        root   => $root,
+                        root_x => $old{'root_x'},
+                        root_y => $old{'root_y'},
+                      ]);
+  $X->QueryPointer($X->root); # sync
+}
+
+#------------------------------------------------------------------------------
+# XTestFakeInput() -- key press/release
+{
+  my $first_keycode = $X->min_keycode;
+  my $count_keycodes = $X->max_keycode - $first_keycode + 1;
+  ### $first_keycode
+  ### $count_keycodes
+  my @keysyms = $X->GetKeyboardMapping ($first_keycode, $count_keycodes);
+  ### keysyms length: scalar(@keysyms)
+
+  # $keysym is an integer.
+  # Return keycode (an integer), or undef if $keysym not on the keyboard.
+  sub keysym_to_keycode {
+    my ($keysym) = @_;
+    my $i;
+    foreach $i (0 .. $#keysyms) {
+      my $aref = $keysyms[$i];
+      my $j;
+      foreach $j (0 .. $#$aref) {
+        if ($aref->[$j] == $keysym) {
+          return $i + $first_keycode;
+        }
+      }
+    }
+    return undef;
+  }
+
+  my $keycode = keysym_to_keycode(0xFFE1); # "Shift_L"
+  # $keycode = keysym_to_keycode(0x05A); # "Z"
+  # MyTestHelpers::diag ("keycode is ", $keycode);
+  if (defined $keycode) {
+    $X->XTestFakeInput (name   => 'KeyPress',
+                        detail => $keycode,
+                       );
+    # $X->flush;
+    # sleep 1;
+    $X->XTestFakeInput (name   => 'KeyRelease',
+                        detail => $keycode,
+                       );
+    $X->QueryPointer($X->root); # sync
+  }
+}
+
+#------------------------------------------------------------------------------
 # XTestGrabControl()
 
 {
   my $X2 = X11::Protocol->new ($display);
-
-  foreach my $impervious (undef, 1, 0, 1, 0) {
+  my $impervious;
+  foreach $impervious (undef, 1, 0, 1, 0) {
     ### $impervious
     if (defined $impervious) {
       $X->XTestGrabControl ($impervious);
@@ -192,6 +290,7 @@ $X->QueryPointer($X->root); # sync
   }
 }
 
+# return true if file handle $fh has data ready to read
 sub fh_readable {
   my ($fh) = @_;
   require IO::Select;
@@ -200,60 +299,6 @@ sub fh_readable {
   my @ready = $s->can_read(1);
   return scalar(@ready);
 }
-
-
-
-# #------------------------------------------------------------------------------
-# # XTestNotify event
-#
-# {
-#   my $aref = $X->{'ext'}->{'XTEST'};
-#   my ($request_num, $event_num, $error_num, $obj) = @$aref;
-#
-#   my $more;
-#   foreach $more (0, 1) {
-#     my $time;
-#     foreach $time ('CurrentTime', 103) {
-#       my %input = (# can't use "name" on an extension event, at least in 0.56
-#                    # name      => "XTestNotify",
-#                    synthetic => 1,
-#                    code      => $event_num,
-#                    sequence_number => 100,
-#                    damage   => 101,
-#                    drawable => 102,
-#                    level    => 'BoundingBox',
-#                    more     => $more,
-#                    time     => $time,
-#                    area     => [-104,-105,106,107],
-#                    geometry => [108,109,110,111]);
-#       my $data = $X->pack_event(%input);
-#       ok (length($data), 32);
-#
-#       my %output = $X->unpack_event($data);
-#       ### %output
-#
-#       ok ($output{'code'},      $input{'code'});
-#       ok ($output{'name'},      'XTestNotify');
-#       ok ($output{'synthetic'}, $input{'synthetic'});
-#       ok ($output{'damage'},    $input{'damage'});
-#       ok ($output{'drawable'},  $input{'drawable'});
-#       ok ($output{'level'},     $input{'level'});
-#       ok ($output{'more'},      $input{'more'});
-#       ok ($output{'time'},      $input{'time'});
-#
-#       ok ($output{'area'}->[0], $input{'area'}->[0]);
-#       ok ($output{'area'}->[1], $input{'area'}->[1]);
-#       ok ($output{'area'}->[2], $input{'area'}->[2]);
-#       ok ($output{'area'}->[3], $input{'area'}->[3]);
-#
-#       ok ($output{'geometry'}->[0], $input{'geometry'}->[0]);
-#       ok ($output{'geometry'}->[1], $input{'geometry'}->[1]);
-#       ok ($output{'geometry'}->[2], $input{'geometry'}->[2]);
-#       ok ($output{'geometry'}->[3], $input{'geometry'}->[3]);
-#     }
-#   }
-# }
-
 
 #------------------------------------------------------------------------------
 

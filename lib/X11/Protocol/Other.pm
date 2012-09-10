@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 18;
+$VERSION = 19;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -166,7 +166,7 @@ sub hexstr_to_rgb {
 1;
 __END__
 
-=for stopwords Ryde XID colormap colormaps ie PseudoColor VisualClass RGB rgb 0xFFFF FFF FFFF Xcms
+=for stopwords Ryde XID colormap colormaps ie PseudoColor VisualClass RGB rgb 0xFFFF FFF FFFF Xcms recognised unrecognised recognising
 
 =head1 NAME
 

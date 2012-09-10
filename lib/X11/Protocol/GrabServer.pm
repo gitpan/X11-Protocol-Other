@@ -33,7 +33,7 @@ HERE
 #use Smart::Comments;
 
 use vars '$VERSION';
-$VERSION = 18;
+$VERSION = 19;
 
 sub new {
   my ($class, $X) = @_;
@@ -73,7 +73,7 @@ sub grab {
 }
 
 sub ungrab {
-  my ($self, $value) = @_;
+  my ($self) = @_;
   ### GrabServer-object ungrab()
   if (delete $self->{'grabbed'}) {
     my $X = $self->{'X'} || return;
@@ -180,14 +180,14 @@ representing a grab of the C<$X> server.
 If this new C<$g> is the first new grab on C<$X> then an
 C<$X-E<gt>GrabServer> is done.
 
-=item C<$g-E<gt>ungrab>
+=item C<$g-E<gt>ungrab ()>
 
 Ungrab the C<$g> object.  An ungrab is done automatically when C<$g>
 is destroyed, but C<$g-E<gt>ungrab()> can do it sooner.
 
 If C<$g> was already ungrabbed this way then do nothing.
 
-=item C<$g-E<gt>grab>
+=item C<$g-E<gt>grab ()>
 
 Re-grab with the C<$g> object.  This can be used after a
 C<$g-E<gt>ungrab> to grab again using the same object, the same as if
@@ -195,10 +195,10 @@ newly created.
 
 If C<$g> is already grabbing, then do nothing.
 
-=item C<$bool = $g-E<gt>is_grabbed>
+=item C<$bool = $g-E<gt>is_grabbed ()>
 
 Return true C<$g> is grabbing.  This is true when first created, or false
-after a C<$g-E<gt>ungrab>.
+after a C<$g-E<gt>ungrab()>.
 
 =back
 
