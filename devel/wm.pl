@@ -26,6 +26,44 @@ use X11::Protocol::WM;
 use Smart::Comments;
 
 
+
+{
+  # withdraw()
+
+  my $X = X11::Protocol->new;
+
+  my $event = $X->pack_event (name           => 'UnmapNotify',
+                              event          => $X->root,
+                              window         => $X->root,
+                              from_configure => 0);
+  ### $event
+
+  my $window = $X->new_rsrc;
+  $X->CreateWindow ($window,
+                    $X->root,         # parent
+                    'InputOutput',
+                    0,                # depth, from parent
+                    'CopyFromParent', # visual
+                    0,0,              # x,y
+                    100,100,          # width,height
+                    0,                # border
+                    background_pixel => $X->black_pixel,
+                   );
+  $X->MapWindow ($window);
+  $X->QueryPointer($X->root); # sync
+  sleep 1;
+  print "iconify\n";
+  X11::Protocol::WM::iconify($X,$window);
+  $X->QueryPointer($X->root); # sync
+  sleep 1;
+  print "withdraw\n";
+  X11::Protocol::WM::withdraw($X,$window);
+  $X->QueryPointer($X->root); # sync
+  sleep 1;
+
+  exit 0;
+}
+
 {
   # _NET_VIRTUAL_ROOTS
 
@@ -53,38 +91,6 @@ use Smart::Comments;
   exit 0;
 }
 
-{
-  my $X = X11::Protocol->new;
-
-  my $event = $X->pack_event (name           => 'UnmapNotify',
-                              event          => $X->root,
-                              window         => $X->root,
-                              from_configure => 0);
-  ### $event
-
-  my $window = $X->new_rsrc;
-  $X->CreateWindow ($window,
-                    $X->root,         # parent
-                    'InputOutput',
-                    0,                # depth, from parent
-                    'CopyFromParent', # visual
-                    0,0,              # x,y
-                    100,100,          # width,height
-                    0,                # border
-                    background_pixel => $X->black_pixel,
-                   );
-  $X->MapWindow ($window);
-  $X->QueryPointer($X->root); # sync
-  sleep 1;
-  iconify($X,$window);
-  $X->QueryPointer($X->root); # sync
-  sleep 1;
-  withdraw($X,$window);
-  $X->QueryPointer($X->root); # sync
-  sleep 1;
-
-  exit 0;
-}
 
 {
   # get_net_frame_extents()

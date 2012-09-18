@@ -15,17 +15,6 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-BEGIN { require 5 }
-package X11::Protocol::Ext::Composite;
-use strict;
-use X11::Protocol;
-
-use vars '$VERSION', '@CARP_NOT';
-$VERSION = 19;
-@CARP_NOT = ('X11::Protocol');
-
-# uncomment this to run the ### lines
-#use Smart::Comments;
 
 # /usr/share/doc/x11proto-composite-dev/compositeproto.txt.gz
 # http://cgit.freedesktop.org/xorg/proto/compositeproto/plain/compositeproto.txt
@@ -40,7 +29,19 @@ $VERSION = 19;
 #     http://cgit.freedesktop.org/xorg/xserver/tree/composite/compext.c
 #
 
-### Composite.pm loads
+
+BEGIN { require 5 }
+package X11::Protocol::Ext::Composite;
+use strict;
+use X11::Protocol;
+
+use vars '$VERSION', '@CARP_NOT';
+$VERSION = 20;
+@CARP_NOT = ('X11::Protocol');
+
+# uncomment this to run the ### lines
+#use Smart::Comments;
+
 
 # these not documented yet ...
 use constant CLIENT_MAJOR_VERSION => 0;

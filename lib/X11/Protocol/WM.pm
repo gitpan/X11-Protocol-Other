@@ -15,6 +15,11 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
+
+# /usr/share/doc/xorg-docs/specs/ICCCM/icccm.txt.gz
+# /usr/share/doc/xorg-docs/specs/CTEXT/ctext.txt.gz
+
+
 BEGIN { require 5 }
 package X11::Protocol::WM;
 use strict;
@@ -22,7 +27,7 @@ use Carp;
 use X11::AtomConstants;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 19;
+$VERSION = 20;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -38,6 +43,7 @@ use Exporter;
                  set_wm_command
                  set_wm_hints
                  set_wm_name
+
                  set_wm_normal_hints
                  set_wm_icon_name
                  set_wm_protocols
@@ -53,6 +59,7 @@ use Exporter;
                  pack_wm_size_hints
                  pack_motif_wm_hints
                  unpack_wm_state
+                 aspect_to_num_den
 
                  iconify
                  withdraw
@@ -60,10 +67,6 @@ use Exporter;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
-
-
-# /usr/share/doc/xorg-docs/specs/ICCCM/icccm.txt.gz
-# /usr/share/doc/xorg-docs/specs/CTEXT/ctext.txt.gz
 
 
 #------------------------------------------------------------------------------
@@ -134,7 +137,19 @@ sub _str_to_text {
           Encode::encode ('x11-compound-text', $str, Encode::FB_WARN()));
 }
 
-sub _set_single_property {
+# Set a property on $window to a CARD32 value.
+# $window (integer XID) is the target window.
+# $prop is the property (integer atom ID).
+# $type is the property type (integer atom ID).
+# $value is a 32-bit integer to store, or undef to delete the property.
+#
+# The ICCCM or similar specification will usually say what type of value
+# should be in a property.  Often there's only one type, but in any case the
+# $type atom indicates what has been stored.  This might be for example
+# X11::AtomConstants::PIXMAP() if $value is a pixmap XID.  Things which are
+# counts or numbers are usually X11::AtomConstants::CARDINAL().
+#
+sub _set_card32_property {
   my ($X, $window, $prop, $type, $value) = @_;
   if (defined $value) {
     $X->ChangeProperty ($window,
@@ -564,7 +579,11 @@ sub iconify {
   }
   ### $root
 
-  _send_to_wm ($X, $root,
+  # The icccm spec doesn't seem to say any particular event mask for this
+  # ClientMessage, but follow Xlib Iconify.c and send
+  # SubstructureRedirect+SubstructureNotify.
+  #
+  _send_event_to_wm ($X, $root,
                name   => 'ClientMessage',
                window => $window,
                type   => $X->atom('WM_CHANGE_STATE'),
@@ -584,14 +603,26 @@ sub withdraw {
   ### $root
 
   $X->UnmapWindow ($window);
-  _send_to_wm ($X, $root,
+  _send_event_to_wm ($X, $root,
                name   => 'UnmapNotify',
                event  => $root,
                window => $window,
                from_configure => 0);
 }
 
-sub _send_to_wm {
+# _send_event_to_wm ($X, $root, name=>$str,...)
+#
+# Sent an event to the window manager by a $X->SendEvent() to the given
+# $root window (integer XID of a root window).
+#
+# The key/value pairs specify the event as for $X->pack_event().  Often this
+# is a ClientMessage event, but any type can be sent.  For example
+# withdraw() sends a synthetic UnmapNotify.
+#
+# cf. event-mask=ColormapChange for own colormap install setups ...
+# cf. event-mask=StructureNotify for "manager" acquiring resource ...
+#
+sub _send_event_to_wm {
   my $X = shift;
   my $root = shift;
   $X->SendEvent ($root,
@@ -607,20 +638,22 @@ sub _send_to_wm {
 
 # $transient_for eq 'None' supported for generality, but not yet documented
 # since not sure such a property value would be ICCCM compliant
+#
 sub set_wm_transient_for {
   my ($X, $window, $transient_for) = @_;
-  _set_single_property ($X, $window,
-                        X11::AtomConstants::WM_TRANSIENT_FOR,  # prop name
-                        X11::AtomConstants::WINDOW,            # type
+  _set_card32_property ($X, $window,
+                        X11::AtomConstants::WM_TRANSIENT_FOR(),  # prop name
+                        X11::AtomConstants::WINDOW(),            # type
                         _num_none ($transient_for));
 }
 
+# not sure about this, might be only used by window manager, not a client
 # =item C<$transient_for = X11::Protocol::WM::get_wm_transient_for ($X, $window)>
-# not sure about this yet
 # sub get_wm_transient_for {
 #   my ($X, $window) = @_;
-#   _get_single_property ($X, $window,
-#                         X11::AtomConstants::WM_TRANSIENT_FOR, X11::AtomConstants::WINDOW);
+#   _get_card32_property ($X, $window,
+#                         X11::AtomConstants::WM_TRANSIENT_FOR(),
+#                         X11::AtomConstants::WINDOW());
 # }
 
 
@@ -710,8 +743,11 @@ sub get_net_frame_extents {
 sub set_net_wm_pid {
   my ($X, $window, $pid) = @_;
   if (@_ < 3) { $pid = $$; }
-  _set_single_property ($X, $window, $X->atom('_NET_WM_PID'),
-                        X11::AtomConstants::CARDINAL, $pid);
+  _set_card32_property ($X,
+                        $window,
+                        $X->atom('_NET_WM_PID'),
+                        X11::AtomConstants::CARDINAL(),
+                        $pid);
 }
 
 #------------------------------------------------------------------------------
@@ -719,9 +755,10 @@ sub set_net_wm_pid {
 
 sub set_net_wm_window_type {
   my ($X, $window, $window_type) = @_;
-  _set_single_property ($X, $window,
+  _set_card32_property ($X,
+                        $window,
                         $X->atom('_NET_WM_WINDOW_TYPE'),
-                        X11::AtomConstants::ATOM,
+                        X11::AtomConstants::ATOM(),
                         _net_wm_window_type_to_atom ($X, $window_type));
 }
 
@@ -750,8 +787,11 @@ sub _net_wm_window_type_to_atom {
 
 sub set_net_wm_user_time {
   my ($X, $window, $time) = @_;
-  _set_single_property ($X, $window, $X->atom('_NET_WM_USER_TIME'),
-                        X11::AtomConstants::CARDINAL, $time);
+  _set_card32_property ($X,
+                        $window,
+                        $X->atom('_NET_WM_USER_TIME'),
+                        X11::AtomConstants::CARDINAL(),
+                        $time);
 }
 
 #------------------------------------------------------------------------------
@@ -822,13 +862,13 @@ sub set_wm_normal_hints {
 sub _aspect {
   my ($hint, $which) = @_;
   if (defined (my $aspect = $hint->{"${which}_aspect"})) {
-    return _aspect_to_num_den($aspect);
+    return aspect_to_num_den($aspect);
   } else {
     return ($hint->{"${which}_aspect_num"} || 0,
             $hint->{"${which}_aspect_den"} || 0);
   }
 }
-sub _aspect_to_num_den {
+sub aspect_to_num_den {
   my ($aspect) = @_;
   ### $aspect
 
@@ -893,6 +933,9 @@ sub _aspect_to_num_den {
   return (_round_nz($num), _round_nz($den));
 }
 
+# Return $x rounded to the nearest integer.
+# If $x is not zero then the return is not zero too, ie. $x<0.5 is rounded
+# up to return 1.
 sub _round_nz {
   my ($x) = @_;
   my $nz = ($x != 0);
@@ -904,8 +947,8 @@ sub _round_nz {
   }
 }
 
-# $x is > 0x7FFF_FFFF, reduce it to 0x7FFF_FFFF and reduce $y in proportion
-# if $y!=0 then it's not reduced to a minimum 1, not to 0
+# $x is > 0x7FFF_FFFF.  Reduce it to 0x7FFF_FFFF and reduce $y in proportion.
+# If $y!=0 then it's reduced to a minimum 1, not to 0.
 sub _aspect_reduce {
   my ($x,$y) = @_;
   my $nz = ($y != 0);
@@ -929,13 +972,13 @@ __END__
 # not documented ...
 # sub _get_net_wm_window_type_atom {
 #   my ($X, $window) = @_;
-#   _get_single_property ($X, $window,
+#   _get_card32_property ($X, $window,
 #                         $X->atom('_NET_WM_WINDOW_TYPE'),
 #                         X11::AtomConstants::ATOM);
 # }
 
 # not documented ...
-# sub _get_single_property {
+# sub _get_card32_property {
 #   my ($X, $window, $prop, $type) = @_;
 #   my ($value, $got_type, $format, $bytes_after)
 #     = $X->GetProperty ($window,
@@ -946,7 +989,8 @@ __END__
 #                        0); # delete
 #   if ($format == 32) {
 #     $ret = scalar(unpack 'L', $value);
-#     if ($type == X11::AtomConstants::WINDOW || $type == X11::AtomConstants::PIXMAP) {
+#     if ($type == X11::AtomConstants::WINDOW()
+#         || $type == X11::AtomConstants::PIXMAP()) {
 #       if ($ret == 0 && $X->{'do_interp'}) {
 #         $ret = 'None';
 #       }
@@ -1245,8 +1289,8 @@ C<base_width>,C<base_height>, or if base not given then to the whole window
 size.
 
 C<min_aspect_num>,C<min_aspect_den> and C<max_aspect_num>,C<max_aspect_den>
-set numerator and denominator values directly (integers up to 0x7FFFFFFF).
-Or C<min_aspect> and C<max_aspect> for convenience accept a single value in
+set numerator and denominator values directly (INT32, so maximum
+0x7FFF_FFFF).  Or C<min_aspect> and C<max_aspect> accept a single value in
 various forms which are turned into num/den values.
 
     2         integer
@@ -1278,6 +1322,13 @@ described above.
 
 The C<$X> parameter is used to interpret C<win_gravity> enum values.
 There's no communication with the server.
+
+=item C<($num,$den) = X11::Protocol::WM::aspect_to_num_den ($aspect)>
+
+Return a pair of INT32 integers 0 to 0x7FFF_FFFF for the given aspect ratio
+C<$aspect>.  This is the conversion applied to C<min_aspect> and
+C<max_aspect> above.  C<$aspect> can be any of the integer, decimal or
+fraction forms described.
 
 =back
 
@@ -1681,9 +1732,10 @@ F<dmsimple.c> C<Select_Window()> or Xlib C<XmuClientWindow()>.
 
 Some window managers use a "virtual root" window covering the entire screen.
 Application windows (or frame windows) are then children of that virtual
-root.  This can help the WM implement multiple desktops, though it tends to
-fail in subtle ways with various root-window oriented programs, including
-for example the C<xwininfo> and C<xprop> click-to-select.
+root.  This can help the WM implement a large desktop, or multiple desktops,
+though it tends to fail in subtle ways with various root-window oriented
+programs, including for example C<xsetroot> or the C<xwininfo> and C<xprop>
+click-to-select.
 
 =over
 

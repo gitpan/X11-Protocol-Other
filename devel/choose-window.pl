@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -32,17 +32,26 @@ use Smart::Comments;
 my $X = X11::Protocol->new (':0');
 # my $chooser = X11::Protocol::ChooseWindow->new (X => $X);
 
-my $frame = X11::Protocol::ChooseWindow->choose (
-                                                 # X => $X,
-                                                 screen => 0,
-                                                 # display => ':2',
-                                                 # want_frame_window => 0,
-                                                 cursor => 'None',
-                                                );
-printf "%s 0x%X\n", $frame, ($frame eq 'None' ? 0 : $frame);
+my $window = X11::Protocol::ChooseWindow->choose (
+                                                  # X => $X,
+                                                  screen => 0,
+                                                  # display => ':2',
+                                                  # want_frame_window => 0,
+                                                  # cursor => 'None',
+                                                 );
+printf "%s 0x%X\n", $window, ($window eq 'None' ? 0 : $window);
 
-if ($frame ne 'None') {
-  my $client_window = X11::Protocol::WM::frame_window_to_client ($X, $frame);
+{
+  my ($str, $type, $format, $bytes_after) = $X->GetProperty ($window, $X->atom('WM_NAME'), $X->atom('STRING'), 0, 999, 0);
+  print "WM_NAME $str\n";
+}
+{
+  my ($str, $type, $format, $bytes_after) = $X->GetProperty ($window, $X->atom('WM_CLASS'), $X->atom('STRING'), 0, 999, 0);
+  print "WM_CLASS $str\n";
+}
+
+if ($window ne 'None') {
+  my $client_window = X11::Protocol::WM::frame_window_to_client ($X, $window);
   printf "%s 0x%X\n", $client_window, $client_window;
 }
 

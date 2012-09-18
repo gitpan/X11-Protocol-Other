@@ -15,17 +15,6 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-BEGIN { require 5 }
-package X11::Protocol::Ext::DAMAGE;
-use strict;
-use X11::Protocol;
-
-use vars '$VERSION', '@CARP_NOT';
-$VERSION = 19;
-@CARP_NOT = ('X11::Protocol');
-
-# uncomment this to run the ### lines
-#use Smart::Comments;
 
 # /usr/share/doc/x11proto-damage-dev/damageproto.txt.gz
 #     http://cgit.freedesktop.org/xorg/proto/damageproto/tree/damageproto.txt
@@ -39,7 +28,18 @@ $VERSION = 19;
 #
 
 
-### DAMAGE.pm loads
+BEGIN { require 5 }
+package X11::Protocol::Ext::DAMAGE;
+use strict;
+use X11::Protocol;
+
+use vars '$VERSION', '@CARP_NOT';
+$VERSION = 20;
+@CARP_NOT = ('X11::Protocol');
+
+# uncomment this to run the ### lines
+#use Smart::Comments;
+
 
 # these not documented yet ...
 use constant CLIENT_MAJOR_VERSION => 1;

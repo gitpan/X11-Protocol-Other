@@ -28,7 +28,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 19;
+$VERSION = 20;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -239,7 +239,7 @@ my $reqs =
    # protocol 1.1
 
    ['DRI2GetBuffersWithFormat',  # 7
-    sub {  # ($X, $drawable, $attach_format...)
+    sub {  # ($X, $drawable, $attach_format,...)
       my $X = shift;
       my $drawable = shift;
 

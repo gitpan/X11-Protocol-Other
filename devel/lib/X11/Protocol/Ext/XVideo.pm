@@ -5,6 +5,7 @@
 # XVideoImageOrder enum
 
 
+
 # Copyright 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
@@ -29,7 +30,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 19;
+$VERSION = 20;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines

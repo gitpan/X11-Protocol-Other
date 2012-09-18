@@ -66,7 +66,7 @@ use X11::Protocol::Other;
 use X11::Protocol::WM;
 
 use vars '$VERSION';
-$VERSION = 19;
+$VERSION = 20;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;

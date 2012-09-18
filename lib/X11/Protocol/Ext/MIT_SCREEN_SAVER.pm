@@ -15,17 +15,6 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-BEGIN { require 5 }
-package X11::Protocol::Ext::MIT_SCREEN_SAVER;
-use strict;
-use X11::Protocol;
-
-use vars '$VERSION', '@CARP_NOT';
-$VERSION = 19;
-@CARP_NOT = ('X11::Protocol');
-
-# uncomment this to run the ### lines
-#use Smart::Comments;
 
 # /usr/share/doc/x11proto-scrnsaver-dev/saver.txt.gz
 #
@@ -33,6 +22,19 @@ $VERSION = 19;
 # /usr/include/X11/extensions/saverproto.h
 #
 # /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
+
+
+BEGIN { require 5 }
+package X11::Protocol::Ext::MIT_SCREEN_SAVER;
+use strict;
+use X11::Protocol;
+
+use vars '$VERSION', '@CARP_NOT';
+$VERSION = 20;
+@CARP_NOT = ('X11::Protocol');
+
+# uncomment this to run the ### lines
+#use Smart::Comments;
 
 
 # these not documented yet ... and not used as such
@@ -246,14 +248,19 @@ X11::Protocol::Ext::MIT_SCREEN_SAVER - external screen saver support
 =head1 DESCRIPTION
 
 The MIT-SCREEN-SAVER extension allows a client screen saver program to draw
-the screen saver.  Any client can listen for screen saver activation too.
+a screen saver.  Any client can listen for screen saver activation too.
 
-See the core C<SetScreenSaver()> for the screen idle timeout, saver cycle
-period, and the "Blank" or "Internal" builtin saving styles.  And see the
-core C<ForceScreenSaver()> to forcibly turn on the screen saver.
+A screen saver program registers itself and desired window attributes with
+C<MitScreenSaverSetAttributes()> and selects saver notify events with
+C<MitScreenSaverSelectInput()>.  There can only be one external saver
+program at any one time.
 
 See F<examples/mit-screen-saver-external.pl> in the X11-Protocol-Other
-sources for a complete external screen saver program.
+sources for a complete screen saver program.
+
+See the core C<SetScreenSaver()> for the usual screen idle timeout, saver
+cycle period, and the "Blank" or "Internal" builtin saver styles.  And see
+the core C<ForceScreenSaver()> to forcibly turn on the screen saver.
 
 =head1 REQUESTS
 
@@ -277,26 +284,26 @@ automatically negotiate within C<init_extension()> if/when necessary.
 =item C<($state, $window, $til_or_since, $idle, $event_mask, $kind) = $X-E<gt>MitScreenSaverQueryInfo ($drawable)>
 
 Return information about the screen saver on the screen of C<$drawable> (an
-XID).
+integer XID).
 
 C<$state> is an enum string "Off", "On", or "Disabled".
 
-C<$window> is the screen saver window, or "None".  It might exist always, or
-might be created only for "External" kind or only when required, etc.  In
-any case it's an override-redirect child of the root window but does not
-appear in its C<QueryTree()> children.
+C<$window> is the screen saver window, or "None".  The server creates this
+as an override-redirect child of the root window but it doesn't appear in
+the C<QueryTree()> children of the root.  The window might not exist until
+required for an activated External saver.
 
-C<$til_or_since> is a time in milliseconds.  If C<$state> is "Off" then it's
-how long until the saver will be activated due to idle.  Or if C<$state> is
-"On" then how long in milliseconds since the saver was activated.  (But see
-L</"BUGS"> below.)
+C<$til_or_since> is a period in milliseconds.  If C<$state> is "Off" then
+it's how long until the saver will be activated due to idle.  If C<$state>
+is "On" then it's how long in milliseconds since the saver was activated.
+But see L</"BUGS"> below.
 
 C<$idle> is how long in milliseconds the screen has been idle.
 
 C<$event_mask> is the current client's mask as set by
 C<MitScreenSaverSelectInput()> below.
 
-C<$kind> is an enum string for how the saver is being done now, or how it
+C<$kind> is an enum string for how the saver is being done now or how it
 will be done when next activated,
 
     "Blanked"     video output turned off
@@ -321,14 +328,14 @@ Setup the screen saver window on the screen of C<$drawable> (an XID).
 
 The arguments are the same as the core C<CreateWindow()>, except there's no
 new XID to create and the parent window is always the root window on the
-screen of C<$drawable> (C<$drawable> could be that root window already).
+screen of C<$drawable> (C<$drawable> could be the root window already).
 
-This setup makes the saver "External" kind on its next activation, but if
-currently active then it's not changed.  The client can listen for
+This setup makes the saver "External" kind on its next activation.  If the
+saver is currently active then it's not changed.  The client can listen for
 C<MitScreenSaverNotify> (see L</"EVENTS"> below) to know when the saver is
 activated.  The saver window XID is reported in that Notify and exposures
-can be selected on it at that time to know when to drawn, unless perhaps a
-background pixel or pixmap in this C<MitScreenSaverSetAttributes()> is
+etc can be selected on it at that time to know when to drawn, unless perhaps
+a background pixel or pixmap in this C<MitScreenSaverSetAttributes()> is
 enough.
 
 Only one client at a time can setup a saver window like this.  If another
@@ -336,14 +343,14 @@ has done so then an Access error results.
 
 =item C<$X-E<gt>MitScreenSaverUnsetAttributes ($drawable)>
 
-Unset the screen saver window.  If the client did not set it up then do
+Unset the screen saver window.  If the client did not set the window then do
 nothing.
 
 This changes the saver from "External" kind back to the server builtin.  If
 the screen saver is currently active then that happens immediately.
 
-At client shutdown an Unset is done automatically, except for
-C<RetainPermanent> closedown mode.
+At client shutdown an Unset is done automatically, unless C<RetainPermanent>
+closedown mode.
 
 =back
 

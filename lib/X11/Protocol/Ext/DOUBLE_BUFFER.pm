@@ -15,19 +15,6 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-BEGIN { require 5 }
-package X11::Protocol::Ext::DOUBLE_BUFFER;
-use strict;
-use Carp;
-use X11::Protocol;
-
-use vars '$VERSION', '@CARP_NOT';
-$VERSION = 19;
-@CARP_NOT = ('X11::Protocol');
-
-# uncomment this to run the ### lines
-#use Smart::Comments;
-
 
 # /usr/share/doc/x11proto-xext-dev/dbe.txt.gz
 # /usr/include/X11/extensions/dbe.h
@@ -41,6 +28,20 @@ $VERSION = 19;
 # /so/xfree/xfree86-3.3.2.3a/programs/Xserver/dbe/dbe.c
 # /so/xorg/xorg-server-1.10.0/dbe/dbe.c
 #    Server.
+
+
+BEGIN { require 5 }
+package X11::Protocol::Ext::DOUBLE_BUFFER;
+use strict;
+use Carp;
+use X11::Protocol;
+
+use vars '$VERSION', '@CARP_NOT';
+$VERSION = 20;
+@CARP_NOT = ('X11::Protocol');
+
+# uncomment this to run the ### lines
+#use Smart::Comments;
 
 
 # these not documented yet ...

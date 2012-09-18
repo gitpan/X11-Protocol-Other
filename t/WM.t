@@ -86,7 +86,7 @@ sub to_hex {
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 19;
+my $want_version = 20;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');
@@ -103,7 +103,7 @@ ok (! eval { X11::Protocol::WM->VERSION($check_version); 1 },
     "VERSION class check $check_version");
 
 #------------------------------------------------------------------------------
-# _aspect_to_num_den()
+# aspect_to_num_den()
 
 {
   my $elem;
@@ -128,7 +128,7 @@ ok (! eval { X11::Protocol::WM->VERSION($check_version); 1 },
                  ['4294967296/4', 0x7FFF_FFFF,2],
                 ) {
     my ($aspect, $want_num, $want_den) = @$elem;
-    my ($got_num, $got_den) = X11::Protocol::WM::_aspect_to_num_den($aspect);
+    my ($got_num, $got_den) = X11::Protocol::WM::aspect_to_num_den($aspect);
 
     ok ($got_num, $want_num);
     ok ($got_den, $want_den);

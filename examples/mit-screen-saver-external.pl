@@ -37,11 +37,11 @@
 # desired time.  When the saver is off there's no timeout, just wait for
 # events.
 #
-# Actually the timeout ought to be the time from now until the next draw is
-# due, and in theory if the frame rate is higher than the pixel resolution
-# then the minimum time would be the period to move one pixel.  But it's
-# much easier to draw on every select() and doing so is normally fine since
-# there shouldn't be many events from the server.
+# The timeout ought to be the time from now until the next draw is due, and
+# in theory the time ought to be only until the blob moves by a whole pixel.
+# But it's much easier to consider a draw every select().  This is normally
+# fine since there shouldn't be many events from the server and so most
+# selects end for time not for input.
 #
 # The main loop also listens to STDIN for "f" from the user to force the
 # screen saver on, so you don't have to wait to see the demo.  In a real
@@ -52,9 +52,10 @@
 # When the saver turns off the saver window cannot be used and drawing to it
 # results in Drawable or Window errors.
 #
-# Errors from drawing can't be avoided by checking the saver state.  Even if
-# it's on when the drawing requests are sent out it might be off by the time
-# they reach the server.
+# An error handler is necessary.  Errors from drawing can't be avoided by
+# checking the saver state.  Even if the saver is On when the drawing
+# requests are sent out it might be off by the time those requests reach the
+# server.
 #
 # The drawing isn't very sophisticated, but does try to reduce flashing by
 # clearing only the newly revealed background part of the window when moving
@@ -74,18 +75,18 @@
 # MitScreenSaverSetAttributes() which occurs if there's another external
 # saver program running already.  MitScreenSaverSetAttributes() doesn't have
 # a reply when successful, so only the error packet says it didn't work.
-# A round-trip QueryPointer ensures the error, if it occurs, is detected
-# before going into the main loop.
+# A round-trip QueryPointer ensures any error is detected before going into
+# the main loop.
 #
 # Xlib XScreenSaverSaverRegister() has a scheme where a running saver
 # program identifies itself by an XID stored in an "_MIT_SCREEN_SAVER_ID"
 # property on the root window.  That allows an existing saver to be forcibly
-# killed ($X->KillClient) if desired, though whether that's a good idea when
-# starting a new saver is another matter.  There's nothing in
-# X11::Protocol::Ext::MIT_SCREEN_SAVER for that as yet.  (Some care might be
+# killed ($X->KillClient()) if desired, though whether that's a good idea
+# when starting a new saver is another matter.  There's nothing in
+# X11::Protocol::Ext::MIT_SCREEN_SAVER for that as yet.  Some care might be
 # needed when owning that property not to leave behind a bogus XID if killed
-# (because it could be reused by another client).  Perhaps SetCloseDownMode
-# to preserve an identifying pixmap.
+# (because that XID could be assigned to another client).  Perhaps
+# SetCloseDownMode() to preserve an identifying pixmap.
 #
 #
 # Other Ways to Do It:
@@ -101,12 +102,12 @@
 # Apparently xscreensaver struck server bugs in the MIT-SCREEN-SAVER
 # extension and for that reason recommends XIdle or SGI SCREEN_SAVER in its
 # config.h.in.  Recent X.org servers don't seem to crash, and the note in
-# config.h.in about "fade" with MIT-SCREEN-SAVER might be due to setting a
-# background_pixel colour in the way done in the code here.  If you omit
-# that then like other windows the saver window leaves existing screen
-# content unchanged when it's mapped.  (And from there could be manipulated
-# with colormap trickery, or perhaps RENDER extension merging, or even some
-# GetImage/PutImage.)
+# config.h.in about trouble "fading" with MIT-SCREEN-SAVER might be due to
+# setting a background_pixel colour in the way done in the code here.  If
+# you omit that then like other windows the saver window leaves existing
+# screen content unchanged when it's mapped.  (And from there could be
+# manipulated with colormap trickery, or perhaps RENDER extension merging,
+# or even some GetImage/PutImage.)
 #
 
 use strict;

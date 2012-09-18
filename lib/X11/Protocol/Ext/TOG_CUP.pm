@@ -15,18 +15,6 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-BEGIN { require 5 }
-package X11::Protocol::Ext::TOG_CUP;
-use strict;
-use Carp;
-
-use vars '$VERSION', '@CARP_NOT';
-$VERSION = 19;
-@CARP_NOT = ('X11::Protocol');
-
-# uncomment this to run the ### lines
-#use Smart::Comments;
-
 
 # /usr/share/doc/x11proto-xext-dev/tog-cup.txt.gz
 #
@@ -48,7 +36,18 @@ $VERSION = 19;
 # /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
 
 
-### TOG_CUP.pm loads
+BEGIN { require 5 }
+package X11::Protocol::Ext::TOG_CUP;
+use strict;
+use Carp;
+
+use vars '$VERSION', '@CARP_NOT';
+$VERSION = 20;
+@CARP_NOT = ('X11::Protocol');
+
+# uncomment this to run the ### lines
+#use Smart::Comments;
+
 
 # these not documented yet ...
 use constant CLIENT_MAJOR_VERSION => 1;

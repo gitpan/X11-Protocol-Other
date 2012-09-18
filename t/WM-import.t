@@ -51,6 +51,7 @@ use X11::Protocol::WM
   'pack_wm_size_hints',
   'pack_motif_wm_hints',
   'unpack_wm_state',
+  'aspect_to_num_den',
   'iconify',
   'withdraw',
   ;
@@ -138,6 +139,7 @@ pack_motif_wm_hints($X);
 pack_wm_hints($X);
 pack_wm_size_hints($X);
 unpack_wm_state($X, pack('LL',0,0));
+aspect_to_num_den('1/3');
 
 iconify($X,$window);
 iconify($X,$window,$X->root);
