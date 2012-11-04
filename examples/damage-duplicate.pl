@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -174,6 +174,7 @@ X11::Protocol::WM::set_wm_class ($X, $window,
 X11::Protocol::WM::set_wm_name ($X, $window, 'Duplicate Window'); # title
 X11::Protocol::WM::set_wm_icon_name ($X, $window, 'Duplicate');
 X11::Protocol::WM::set_wm_client_machine_from_syshostname ($X, $window);
+X11::Protocol::WM::set_net_wm_pid ($X, $window);
 X11::Protocol::WM::set_net_wm_user_time($X, $window, $popup_time);
 $X->MapWindow ($window);
 

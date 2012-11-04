@@ -26,9 +26,8 @@
 # ->chosen_client
 # ->chosen_window
 
-
-
 # /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
+
 
 BEGIN { require 5 }
 package X11::Protocol::ChooseWindow;
@@ -36,7 +35,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '$_instance';
-$VERSION = 20;
+$VERSION = 21;
 
 use X11::Protocol::WM;
 
@@ -349,7 +348,7 @@ The method is similar to the C<xwininfo> etc programs.  It consists of a
 C<GrabPointer> on the root window, waits for a C<ButtonPress> and
 corresponding C<ButtonRelease> from the user, get the frame window is from
 the Press event, then the client window under there from
-C<frame_to_client_window()> in C<X11::Protocol::WM>.
+C<frame_window_to_client()> in C<X11::Protocol::WM>.
 
 C<KeyPress> events are not used and go to the focus window in the usual way.
 This can be good in a command line program since it lets the user press
@@ -381,7 +380,7 @@ are as follows,
     screen   => integer, eg. 0
     root     => XID of root window
 
-    time     => integer server timestamp initiating the choose
+    time     => integer server timestamp
     event    => hashref of event initiating the choose
 
     cursor       => XID of cursor
@@ -389,18 +388,19 @@ are as follows,
     cursor_name  => string name from cursor font
 
 C<X> or C<display> gives the server, or the default is to open the
-C<DISPLAY> environment variable.  An C<X11::Protocol> object is usual, but
-sometimes it can make sense to open a new connection just to choose.
+C<DISPLAY> environment variable.  C<X> for an C<X11::Protocol> object is
+usual, but sometimes it can make sense to open a new connection just to
+choose.
 
 C<root> or C<screen> gives the root window to choose on, or the default is
-the current screen of C<$X> (which in turn defaults to the screen part of
-the display name).  If there's a virtual root on the root window then that's
-used as necessary.
+the current screen of C<$X>, which in turn defaults to the screen part of
+the display name.  If there's a window manager virtual root then that's
+automatically used as necessary.
 
 C<time> or the time field in C<event> is a server timestamp for the
 C<GrabPointer()>.  This guards against stealing a grab from another client
-if badly lagged.  Omitted means C<CurrentTime>.  In a command line program
-at startup there might be no initiating event, making C<CurrentTime> all
+if badly lagged.  Omitted or C<undef> means C<CurrentTime>.  In a command
+line program there might be no initiating event, making C<CurrentTime> all
 that's possible.
 
 C<cursor> etc is the mouse pointer cursor to show during the choose, as a

@@ -1,8 +1,3 @@
-# set_text_property()
-
-
-
-
 # Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
@@ -122,69 +117,6 @@ sub _net_wm_allowed_action_to_atom {
 {
   my $format = 'LLLLLllLL';
 
-  sub _get_wm_hints {
-    my ($X, $window) = @_;
-    my ($value, $type, $format, $bytes_after)
-      = $X->GetProperty ($window,
-                         X11::AtomConstants::WM_HINTS, # prop name
-                         X11::AtomConstants::WM_HINTS, # type
-                         0,             # offset
-                         9,             # length($format), of CARD32
-                         0);            # no delete
-    if ($format == 32) {
-      return _unpack_wm_hints ($X, $value);
-    } else {
-      return;
-    }
-  }
-
-  # X11R2 Xlib had a bug were XSetWMHints() set a WM_HINTS property to only
-  # 8 CARD32s, chopping off the window_group field.  In Xatomtype.h
-  # NumPropWMHintsElements was 8 instead of 9.  Ignore any window_group bit
-  # in the flags in that case, and don't return a window_group field.
-  # (X11R2 source available at http://ftp.x.org/pub/X11R2/X.V11R2.tar.gz)
-  #
-  my @keys = ('input',
-              'initial_state',
-              'icon_pixmap',
-              'icon_window',
-              'icon_x',
-              'icon_y',
-              'icon_mask',
-              'window_group',
-              # 'message_hint',  # in the code, obsolete ...
-              # 'urgency',       # in the code
-             );
-  sub _unpack_wm_hints {
-    my ($X, $bytes) = @_;
-    my ($flags, @values) = unpack ($format, $bytes);
-    my $bit = 1;
-    my @ret;
-    my $i;
-    foreach $i (0 .. $#keys) {
-      my $value = $values[$i];
-      if (! defined $value) {
-        next;
-      }
-      if ($flags & $bit) {
-        my $key = $keys[$i];
-        if ($key eq 'initial_state') {
-          $value = X11::Protocol::WM::_wmstate_interp($X, $value);
-        }
-        push @ret, $key, $value;
-      }
-      if ($i != 4) {
-        $bit <<= 1;
-      }
-    }
-    if ($flags & 128) {
-      push @ret, message_hint => 1;
-    }
-    if ($flags & 256) {
-      push @ret, urgency => 1;
-    }
-    return @ret;
-  }
 }
 
 #------------------------------------------------------------------------------

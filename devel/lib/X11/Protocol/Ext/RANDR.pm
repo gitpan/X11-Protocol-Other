@@ -1,3 +1,9 @@
+# pack bits for rotate+reflect ?
+# RRSetScreenSize() update millimetres in $X ?
+
+# RRGetScreenInfo not right
+
+
 # Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
@@ -18,16 +24,19 @@
 BEGIN { require 5 }
 package X11::Protocol::Ext::RANDR;
 use strict;
+use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 20;
+$VERSION = 21;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
 use Smart::Comments;
 
+
 # /usr/share/doc/x11proto-randr-dev/randrproto.txt.gz
+# /so/xorg/xorg-server-1.10.0/randr/rrscreen.c
 #
 # /usr/include/X11/extensions/randr.h
 # /usr/include/X11/extensions/randrproto.h
@@ -40,23 +49,23 @@ use Smart::Comments;
 
 # these not documented yet ...
 use constant CLIENT_MAJOR_VERSION => 1;
-use constant CLIENT_MINOR_VERSION => 0;
+use constant CLIENT_MINOR_VERSION => 2;
 
 #------------------------------------------------------------------------------
 # symbolic constants
 
 my %const_arrays
   = (
-     RandrState => ['NewValue', 'Deleted'],
-     RandrNotifySubtype => ['CrtcChangeNotify',
-                            'OutputChangeNotify',
-                            'OutputPropertyNotify'],
-     RandrSubPixel => ['Unknown',
-                       'HorizontalRGB',
-                       'HorizontalBGR',
-                       'VerticalRGB',
-                       'VerticalBGR',
-                       'None'],
+     RRState => ['NewValue', 'Deleted'],
+     RRNotifySubtype => ['CrtcChangeNotify',
+                         'OutputChangeNotify',
+                         'OutputPropertyNotify'],
+     RRSubPixel => ['Unknown',
+                    'HorizontalRGB',
+                    'HorizontalBGR',
+                    'VerticalRGB',
+                    'VerticalBGR',
+                    'None'],
     );
 
 my %const_hashes
@@ -66,7 +75,7 @@ my %const_hashes
 #------------------------------------------------------------------------------
 # events
 
-my $RandrScreenChangeNotify_event
+my $RRScreenChangeNotify_event
   = [ 'xCxxLLLLSSSSS',
       'rotation',
       'time',
@@ -74,7 +83,7 @@ my $RandrScreenChangeNotify_event
       'root',
       'window',
       'size_id',
-      ['subpixel','RandrSubPixel'],
+      ['subpixel','RRSubPixel'],
       'width',
       'height',
       'width_mm',
@@ -83,13 +92,13 @@ my $RandrScreenChangeNotify_event
 
 
 # version 1.2
-my $RandrNotify_event
+my $RRNotify_event
   = [ sub {
         my $X = shift;
         my $data = shift;
-        ### RandrNotify unpack: @_[1..$#_]
+        ### RRNotify unpack: @_[1..$#_]
         my $subtype = unpack 'xC', $data;
-        push @_, subtype => $X->interp('RandrNotifySubtype',$subtype);
+        push @_, subtype => $X->interp('RRNotifySubtype',$subtype);
         if ($subtype == 0) {
           # CrtcChange
           my ($time, $window, $crtc, $mode, $rotation, $x,$y, $width,$height)
@@ -119,7 +128,7 @@ my $RandrNotify_event
                   mode        => $mode,
                   rotation    => $rotation,
                   connection  => $connection,
-                  subpixel    => $X->interp('RandrSubPixel',$subpixel),
+                  subpixel    => $X->interp('RRSubPixel',$subpixel),
                  );
         } elsif ($subtype == 2) {
           # OutputProperty
@@ -130,13 +139,13 @@ my $RandrNotify_event
                   output  => $output,
                   atom    => $atom,
                   time    => $time,
-                  state   => $X->interp('RandrState',$state),
+                  state   => $X->interp('RRState',$state),
                  );
         }
       },
       sub {
         my ($X, %h) = @_;
-        my $subtype = $X->num('RandrNotifySubtype',$h{'subtype'});
+        my $subtype = $X->num('RRNotifySubtype',$h{'subtype'});
         my $data;
         if ($subtype eq '0') {
           # CrtcChange
@@ -153,7 +162,7 @@ my $RandrNotify_event
                        $h{'height'});
         } elsif ($subtype eq '1') {
           # OutputChange
-          $data = pack('xCxxLLLLLLSCC'
+          $data = pack('xCxxLLLLLLSCC',
                        $subtype,
                        $h{'time'},
                        $h{'config_time'},
@@ -163,18 +172,18 @@ my $RandrNotify_event
                        $h{'mode'},
                        $h{'rotation'},
                        $h{'connection'},
-                       $X->num('RandrSubPixel',$h{'subpixel'}));
+                       $X->num('RRSubPixel',$h{'subpixel'}));
         } elsif ($subtype eq '2') {
           # OutputProperty
-          $data = pack('xCxxLLLLCx11';
+          $data = pack('xCxxLLLLCx11',
                        $subtype,
                        $h{'window'},
                        $h{'output'},
                        $h{'atom'},
                        $h{'time'},
-                       $X->num('RandrState',$h{'state'}),
+                       $X->num('RRState',$h{'state'}));
         } else {
-          croak "Unrecognised RandrNotify subtype $subtype";
+          croak "Unrecognised RRNotify subtype $subtype";
         }
         return ($data,
                 1); # "do_seq" put in sequence number
@@ -186,65 +195,197 @@ my $RandrNotify_event
 
 my $reqs =
   [
-   ['RandrQueryVersion',  # 0
+   ['RRQueryVersion',  # 0
     \&_request_card32s,  # ($X, $client_major, $client_minor)
     sub {
       my ($X, $data) = @_;
-      return unpack 'x8LL', $data;
-
-      # Any interest in holding onto the version?
-      #  my ($server_major, $server_minor) = unpack 'x8LL', $data;
-      # ### $server_major
-      # ### $server_minor
-      # my $self;
-      # if ($self = $self->{'ext'}{'RANDR'}->[3]) {
-      #   $self->{'major'} = $server_major;
-      #   $self->{'minor'} = $server_minor;
-      # }
-      # return ($server_major, $server_minor);
+      my ($server_major, $server_minor) = unpack 'x8LL', $data;
+      ### $server_major
+      ### $server_minor
+      my $self;
+      if ($self = $self->{'ext'}{'RANDR'}->[3]) {
+        $self->{'major'} = $server_major;
+        $self->{'minor'} = $server_minor;
+        $self->{'protocol_11up'}
+          = (($server_major <=> 1 || $server_minor <=> 1) >= 0);
+      }
+      return ($server_major, $server_minor);
     }],
 
    undef, # 1 - OldGetScreenInfo
 
-   ['RandrSetScreenConfig',  # 2
+   ['RRSetScreenConfig',  # 2
     sub {
-      my ($X, $drawable, $time, $config_time, $size, $rotation, $rate) = @_;
-      # FIXME: pack of rotate+reflect ?
-      return pack 'LLLSSSxx',
-        $drawable, $time, $config_time, $size, $rotation, $rate;
+      my $X = shift; # ($window, $time, $config_time, $size, $rotation, $rate)
+      my $self = $X->{'ext'}{'RANDR'}->[3];
+      return pack(($self->{'protocol_11up'} ? 'LLLSSSxx' : 'LLLSS'),
+                  @_);
     },
     sub {
       my ($X, $data) = @_;
-      my ($config_status, $time, $config_time, $root, $subpixel)
+      my ($config_status, @rest) # $time, $config_time, $root, $subpixel
         = unpack 'xC8LL', $data;
 
-      return ($X->interp('RandrConfigStatus',$config_status),
-              $time,
-              $config_time,
-              $root,
-              $subpixel);
-
-      # Any interest in holding onto the version?
-      #  my ($server_major, $server_minor) = unpack 'x8LL', $data;
-      # ### $server_major
-      # ### $server_minor
-      # my $self;
-      # if ($self = $self->{'ext'}{'RANDR'}->[3]) {
-      #   $self->{'major'} = $server_major;
-      #   $self->{'minor'} = $server_minor;
-      # }
-      # return ($server_major, $server_minor);
+      return ($X->interp('RRConfigStatus',$config_status),
+              @rest
+              # $time,
+              #               $config_time,
+              #               $root,
+              #               $subpixel);
+             );
     }],
 
    undef, # 3 - OldScreenChangeSelectInput
 
-   ['RandrSelectInput',  # 4
+   ['RRSelectInput',  # 4
     sub {
       shift; # ($X, $window, $enable)
       return pack 'LSxx', @_;
     }],
+
+   ['RRGetScreenInfo',  # 5
+    \&_request_xids,
+    sub {
+      my ($X, $data) = @_;
+
+      use Data::HexDump::XXD;
+      print scalar(Data::HexDump::XXD::xxd($data));
+      print "\n";
+
+      my ($rotations,
+          $root, $time, $config_time,
+          $num_sizes, $size, $rotation, $rate, $num_rates)
+        = unpack 'xCx6L3S5', $data;
+      ### $num_sizes
+      ### $num_rates
+      my $pos = 32;
+      my @sizes;
+      foreach (1 .. $num_sizes) {
+        push @sizes, [ unpack 'S4', substr ($data, $pos, 8) ];
+        $pos += 8;
+      }
+
+      ### rates pos: $pos, sprintf '%#X',$pos
+      my @rates;
+      foreach (1 .. $num_sizes) {
+        my $num_rates = unpack 'S', substr($data,$pos,2);
+        $pos += 2;
+        push @rates, [ unpack 'S*', substr($data,$pos,2*$num_rates) ];
+      }
+      return (rotations   => $rotations,
+              root        => $root,
+              time        => $time,
+              config_time => $config_time,
+              size        => $size,
+              rotation    => $rotation,
+              rate        => $rate,
+              sizes       => \@sizes,
+              rates       => \@rates,
+             );
+    }],
+
+   #---------------------------------------------------------------------------
+   # version 1.2
+
+   ['RRGetScreenSizeRange',  # 6
+    \&_request_xids,
+    sub {
+      my ($X, $data) = @_;
+      return unpack 'x8S4', $data;
+    }],
+
+   ['RRSetScreenSize',  # 7
+    sub {
+      shift; # ($X, $window, $width,$height, $width_mm,$height_mm)
+      return pack 'LSSLL', @_;
+    }],
+
+
+   # RRGetScreenResources	    8
+   # RRGetOutputInfo	    9
+   # RRListOutputProperties    10
+   # RRQueryOutputProperty	    11
+   # RRConfigureOutputProperty 12
+   # RRChangeOutputProperty    13
+   # RRDeleteOutputProperty    14
+   # RRGetOutputProperty	    15
+   # RRCreateMode		    16
+   # RRDestroyMode		    17
+   # RRAddOutputMode	    18
+   # RRDeleteOutputMode	    19
+   # RRGetCrtcInfo		    20
+   # RRSetCrtcConfig	    21
+   # RRGetCrtcGammaSize	    22
+   # RRGetCrtcGamma	    23
+   # RRSetCrtcGamma	    24
+   #
+   # version 1.3
+   #
+   # RRGetScreenResourcesCurrent	25
+   # RRSetCrtcTransform	    26
+   # RRGetCrtcTransform	    27
+
+   ['RRGetPanning',  # 28
+    \&_request_card32s,  # ($X, $crtc)
+    sub {
+      my ($X, $data) = @_;
+      my @ret = unpack 'xCx6LS8s4', $data;
+      $ret[0] = $X->interp('RRConfigStatus',$ret[0]); # $config_status
+      return @ret;
+    }],
+   # ($config_status,
+   # $timestamp,
+   # $left,
+   # $top,
+   # $width,
+   # $height,
+   # $track_left,
+   # $track_top,
+   # $track_width,
+   # $track_height,
+   # $border_left,
+   # $border_top,
+   # $border_right,
+   # $border_bottom) = $X->RRGetPanning
+
+   ['RRSetPanning',  # 29
+    sub {
+      shift; # ($X, ...)
+      return pack 'L2S8s4', @_;
+    },
+    sub {
+      my ($X, $data) = @_;
+      my ($config_status, $time) = unpack 'xCx6L', $data;
+      return ($X->interp('RRConfigStatus',$config_status),
+              $time);
+    }],
+
+   # RRSetPanning ($crtc,
+   #               $time,
+   #               $left,
+   #               $top,
+   #               $width,
+   #               $height,
+   #               $track_left,
+   #               $track_top,
+   #               $track_width,
+   #               $track_height,
+   #               $border_left,
+   #               $border_top,
+   #               $border_right,
+   #               $border_bottom);
+
+   # RRSetOutputPrimary	    30
+   # RRGetOutputPrimary	    31
+
+
   ];
 
+sub _request_xids {
+  my $X = shift;
+  ### _request_xids(): @_
+  return _request_card32s ($X, map {_num_none($_)} @_);
+}
 sub _request_card32s {
   shift;
   ### _request_card32s(): @_
@@ -255,7 +396,7 @@ sub _request_card32s {
 
 sub new {
   my ($class, $X, $request_num, $event_num, $error_num) = @_;
-  ### XFIXES new()
+  ### RANDR new()
 
   # Constants
   %{$X->{'ext_const'}}     = (%{$X->{'ext_const'}     ||= {}}, %const_arrays);
@@ -265,17 +406,18 @@ sub new {
   _ext_requests_install ($X, $request_num, $reqs);
 
   my ($server_major, $server_minor)
-    = $X->req ('XFixesQueryVersion',
+    = $X->req ('RRQueryVersion',
                CLIENT_MAJOR_VERSION, CLIENT_MINOR_VERSION);
 
   # Events
-  $X->{'ext_const'}{'Events'}[$event_num] = 'RandrScreenChangeNotify';
-  $X->{'ext_events'}[$event_num] = $RandrScreenChangeNotify_event;
-  # version 1.2
+  $X->{'ext_const'}{'Events'}[$event_num] = 'RRScreenChangeNotify';
+  $X->{'ext_events'}[$event_num] = $RRScreenChangeNotify_event;
+
   if (($server_major <=> 1 || $server_minor <=> 2) >= 0) {
+    # protocol version 1.2
     $event_num++;
-    $X->{'ext_const'}{'Events'}[$event_num] = 'RandrNotify';
-    $X->{'ext_events'}[$event_num] = $RandrNotify_event;
+    $X->{'ext_const'}{'Events'}[$event_num] = 'RRNotify';
+    $X->{'ext_events'}[$event_num] = $RRNotify_event;
 
     # Errors
     _ext_const_error_install ($X, $error_num, 'Output','Crtc','Mode');
@@ -310,7 +452,9 @@ sub _ext_requests_install {
   my $href = $X->{'ext_request_num'};
   my $i;
   foreach $i (0 .. $#$reqs) {
-    $href->{$reqs->[$i]->[0]} = [$request_num, $i];
+    if ($reqs->[$i]) {
+      $href->{$reqs->[$i]->[0]} = [$request_num, $i];
+    }
   }
 }
 sub _ext_const_error_install {
@@ -333,7 +477,7 @@ sub _event_update_X {
   my $window;
   if ($event{'name'} eq 'ConfigureNotify') {
     $window = $event{'window'};
-  } elsif ($event{'name'} eq 'RandrScreenChangeNotify') {
+  } elsif ($event{'name'} eq 'RRScreenChangeNotify') {
     my $window = $event{'root'};
   } else {
     return;
@@ -354,11 +498,11 @@ sub _event_update_X {
 1;
 __END__
 
-=for stopwords RANDR CurrentCursor hashref KeyPress KeyRelease keycode ButtonPress ButtonRelase MotionNotify CurrentTime umm XInputExtension XID Ryde
+=for stopwords RANDR XID Ryde
 
 =head1 NAME
 
-X11::Protocol::Ext::RANDR - synthetic user input
+X11::Protocol::Ext::RANDR - screen rotation and reflection
 
 =for test_synopsis
 
@@ -369,8 +513,7 @@ X11::Protocol::Ext::RANDR - synthetic user input
  $X->init_extension('RANDR')
    or print "RANDR extension not available";
 
- $X->RandrFakeInput ({ name   => 'ButtonPress',
-                       detail => 3 });  # button 3
+ $X->RRGetScreenInfo ($X->root);
 
 =head1 DESCRIPTION
 
@@ -385,7 +528,7 @@ per L<X11::Protocol/EXTENSIONS>.
 
 =over
 
-=item C<($server_major, $server_minor) = $X-E<gt>RandrQueryVersion ($client_major, $client_minor)>
+=item C<($server_major, $server_minor) = $X-E<gt>RRQueryVersion ($client_major, $client_minor)>
 
 Negotiate a protocol version with the server.  C<$client_major> and
 C<$client_minor> is what the client would like.  The returned
@@ -393,6 +536,20 @@ C<$server_major> and C<$server_minor> is what the server will do.
 
 The current code supports up to 1.0.  The intention is to automatically
 negotiate in C<init_extension> if/when necessary.
+
+=back
+
+=head2 Version 1.2
+
+=item C<($min_width,$min_height, $max_width,$max_height) = $X-E<gt>RRGetScreenSizeRange ($window)>
+
+Return the minimum and maximum size in pixels of the screen of C<$window>
+(an XID).
+
+=item C<$X-E<gt>RRSetScreenSize ($window, $width,$height, $width_mm,$height_mm)>
+
+Set the size of the screen of C<$window> (an XID).  C<$width>,C<$height> is
+the size in pixels.  C<$width_mm>,C<$height_mm> is the size in millimetres.
 
 =back
 

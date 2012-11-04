@@ -24,6 +24,7 @@ use X11::Protocol;
 # uncomment this to run the ### lines
 use Smart::Comments;
 
+use lib 'devel/lib';
 $ENV{'DISPLAY'} ||= ':0';
 
 
@@ -35,9 +36,14 @@ $ENV{'DISPLAY'} ||= ':0';
   $X->QueryPointer($X->{'root'}); # sync
   ### init_extension() ok ...
 
+  # {
+  #   my @modes = $X->XDGAQueryModes(0);
+  #   ### @modes
+  # }
   {
-    my @modes = $X->XDGAQueryModes(0);
-    ### @modes
+    my @ret = $X->XDGAOpenFramebuffer(0);
+    ### @ret
+    printf "%X\n", $ret[1];
   }
   exit 0;
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -25,27 +25,27 @@
 # XFixesGetCursorImage() retrieves the cursor image.  CursorNotify events
 # report when the image changes.  A change is normally due to moving into a
 # window with a different "cursor" attribute (ie. cursor type to show), but
-# may also be a pointer grab, or even an animated cursor from the RENDER
-# extension.  See cursor-font-anim.pl for some fun with an animated root
-# window cursor.
+# may also be a pointer grab, or even an animated changing cursor from the
+# RENDER extension.  See cursor-font-anim.pl for some fun with an animated
+# root window cursor.
 #
 # The only painful thing is that GetCursorImage gives 8-bit RGBA, so it's
 # necessary to allocate colours etc to display that in a window.  In the
-# code here its drawn to a pixmap, then that pixmap drawn to the window
-# under Expose.
+# code here the image is drawn to a pixmap, then that pixmap drawn to the
+# window under Expose.
 #
-# XFixesGetCursorImage() isn't done in the "event_handler" code, since that
-# Get is a round-trip request and waiting for the reply might read new
-# events and call the event_handler recursively.  If badly lagged and
-# continually getting CursorNotify or whatever then that could be a very
-# deep recursion, or make a mess of the drawing code.  So the event_handler
-# just notes a fresh GetCursorImage is required and that's done in the main
-# $X->handle_input() loop.
+# XFixesGetCursorImage() isn't done in the "event_handler" code, because
+# XFixesGetCursorImage() is a round-trip request and waiting for the reply
+# might read new events and call the event_handler recursively.  If badly
+# lagged and continually getting CursorNotify then that could be a very deep
+# recursion, or make a mess of the drawing code.  So the event_handler just
+# notes a fresh GetCursorImage is required and that's done in the main loop
+# after $X->handle_input().
 #
-# With only the core X protocol there's no real way to get the current
+# With only the core X protocol there's no good way to get the current
 # cursor or its image.  The cursor attribute on a window can't be read back
-# with GetWindowAttributes(), and all the area copying things (including
-# GetImage()) ignore the cursor.
+# with GetWindowAttributes(), and all the area copying things such as
+# GetImage() ignore the cursor.
 #
 # Things Not Done:
 #
@@ -57,12 +57,13 @@
 #
 # The ChangeGC() plus PolyPoint() for each pixel is a bit wasteful.  Better
 # would be to send all the pixels in one PutImage(), but building the
-# server's required bit units, byte order and padding is bit like hard work.
+# server's required bit units, byte order and padding is a bit like hard
+# work.
 #
-# The alpha channel in the cursor image is only used to draw or not draw a
+# The alpha channel in the cursor image is only used to draw or not draw
 # each pixel.  It could be combined with the grey window background without
 # too much trouble.  What's the right multiplication for alpha weighting?
-# In the core protocol cursor pixels are always fully-opaque or
+# In core protocol the cursor pixels are always fully-opaque or
 # fully-transparent, but XFIXES can make partial-transparent cursors.
 #
 
@@ -85,7 +86,7 @@ my $colormap = $X->default_colormap;
 
 # rgb8_to_pixel() takes colour components 0 to 255 and returns a pixel value
 # suitable for $window and $pixmap.  Black and white pixel values from the
-# $X screen info can be pre-loaded, other colours have to be allocated.
+# $X screen info are pre-loaded, other colours have to be allocated.
 #
 my %allocated_pixels = ('0.0.0'       => $X->black_pixel,
                         '255.255.255' => $X->white_pixel);
@@ -101,7 +102,7 @@ sub rgb8_to_pixel {
   return $pixel;
 }
 
-# grey
+# grey colour
 my ($background_pixel) =$X->AllocColor ($colormap, 0x9000,0x9000,0x9000);
 
 my $window = $X->new_rsrc;
@@ -119,6 +120,7 @@ $X->CreateWindow ($window,
 X11::Protocol::WM::set_wm_name ($X, $window, 'Current Cursor'); # title
 X11::Protocol::WM::set_wm_icon_name ($X, $window, 'Cursor');
 X11::Protocol::WM::set_wm_client_machine_from_syshostname ($X, $window);
+X11::Protocol::WM::set_net_wm_pid ($X, $window);
 
 my $pixmap = $X->new_rsrc;
 $X->CreatePixmap ($pixmap,
@@ -177,7 +179,7 @@ for (;;) {
         my $blue  =  $argb        & 0xFF;
         $pos += 4;
 
-        if ($alpha >= 128) {
+        if ($alpha >= 128) {  # opaque, ie. not transparent
           my $pixmap_pixel = rgb8_to_pixel($red, $green, $blue);
           $X->ChangeGC ($gc, foreground => $pixmap_pixel);
           $X->PolyPoint ($pixmap, $gc, 'Origin',

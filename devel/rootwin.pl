@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -88,7 +88,7 @@ use Smart::Comments;
 #   my $rootwin = $X->root;
 #   my ($root, $parent, @children) = $X->QueryTree ($rootwin);
 # 
-#   my $grab = X11::Protocol::GrabServer->new;
+#   my $grab = X11::Protocol::GrabServer->new($X);
 #   foreach my $child (@children) {
 # 
 #   }

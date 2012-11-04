@@ -43,7 +43,7 @@ require Encode::X11;
 # VERSION
 
 {
-  my $want_version = 20;
+  my $want_version = 21;
   ok ($Encode::X11::VERSION, $want_version, 'VERSION variable');
   ok (Encode::X11->VERSION,  $want_version, 'VERSION class method');
 

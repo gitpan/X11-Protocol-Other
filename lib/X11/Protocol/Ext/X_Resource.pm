@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION';
-$VERSION = 20;
+$VERSION = 21;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -427,6 +427,8 @@ L<X11::AtomConstants>
 
 X.org server source code
 C<http://cgit.freedesktop.org/xorg/xserver/tree/Xext/xres.c>
+
+L<xrestop(1)>
 
 =head1 HOME PAGE
 

@@ -27,7 +27,7 @@ use Exporter;
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-$VERSION = 20;
+$VERSION = 21;
 
 %CURSOR_GLYPH
   = (
@@ -156,10 +156,10 @@ glyph name,
 
 Each glyph has an associated mask at character number glyph+1 which is the
 shape of the cursor (the displayed vs transparent pixels).  So the character
-numbers are always even and in C<@CURSOR_NAME> only every second character
-position has a name.
+numbers are always even and in C<@CURSOR_NAME> only the even character
+positions have names.
 
-The cursor images can be viewed with the C<xfd> font display program,
+The cursor images can be viewed with the usual C<xfd> font display program,
 
      xfd -fn cursor
 
@@ -296,17 +296,19 @@ For reference, here's how to create a cursor from a desired glyph,
 
     $X->CloseFont ($cursor_font);
 
-    # then use it with CreateWindow or ChangeWindowAttributes
+    # then use $cursor with CreateWindow or ChangeWindowAttributes
     #       cursor => $cursor
 
-The cursor font can be kept open if used repeatedly.  Opening and closing
-isn't a round-trip, so an open when needed may be enough.
+The C<$cursor_font> could be kept open if used repeatedly.  Opening and
+closing isn't a round-trip, so an open when needed may be enough.
 
-Any RGB colours can be given, but actual appearance on screen is limited by
-the hardware.  All cursors in the core protocol are just two-colour and
-pixels fully opaque or fully transparent like this create.  The RENDER
-extension (when available) can do multi-colour and partial transparency if
-desired (see L<X11::Protocol::Ext::RENDER>).
+Any RGB colours can be given in C<CreateGlyphCursor()>, but actual
+appearance on screen will be limited by the hardware.
+
+All cursors in the core protocol are two-colours with pixels fully opaque or
+fully transparent as per this create.  The RENDER extension, when available,
+can do multi-colour and partial transparency if desired (see
+L<X11::Protocol::Ext::RENDER>).
 
 =head1 SEE ALSO
 
@@ -314,10 +316,11 @@ L<X11::Protocol>,
 L<X11::KeySyms>,
 L<xfd(1)>
 
-F</usr/include/X11/cursorfont.h> and listed in the Xlib manual appendix B
-(http://www.x.org/docs/X11/ or F</usr/share/doc/libx11-dev/libX11.txt.gz>).
+F</usr/include/X11/cursorfont.h> and listing in the Xlib manual appendix B
+(C<http://www.x.org/docs/X11/> or
+F</usr/share/doc/libx11-dev/libX11.txt.gz>).
 
-Xlib Xmu C<XmuCursorNameToIndex()> (http://www.x.org/docs/Xmu/ or
+Xlib Xmu C<XmuCursorNameToIndex()> (C<http://www.x.org/docs/Xmu/> or
 F</usr/share/doc/libxmu-headers/Xmu.txt.gz>)
 
 =head1 HOME PAGE

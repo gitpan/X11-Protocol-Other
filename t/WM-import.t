@@ -31,8 +31,12 @@ plan tests => $test_count;
 use X11::Protocol::WM
   'frame_window_to_client',
   'root_to_virtual_root',
+  'change_wm_hints',
+  'get_wm_icon_size',
+  'get_wm_hints',
   'get_wm_state',
   'get_net_frame_extents',
+  'set_text_property',
   'set_wm_class',
   'set_wm_client_machine',
   'set_wm_client_machine_from_syshostname',
@@ -50,6 +54,7 @@ use X11::Protocol::WM
   'pack_wm_hints',
   'pack_wm_size_hints',
   'pack_motif_wm_hints',
+  'unpack_wm_hints',
   'unpack_wm_state',
   'aspect_to_num_den',
   'iconify',
@@ -101,10 +106,15 @@ $X->CreateWindow ($window2,
                   0);               # border
 
 
+change_wm_hints($X,$window, input => 0);
 { my $client_window = frame_window_to_client($X,$window); }
 { my $vroot = root_to_virtual_root($X,$X->root); }
+{ get_wm_icon_size($X);
+  get_wm_icon_size($X,$X->root); }
+{ my %hash = get_wm_hints($X,$window); }
 { my ($state, $icon_window) = get_wm_state($X,$window); }
 { my ($left,$right,$top,$bottom) = get_wm_state($X,$window); }
+set_text_property($X, $window, $X->atom('WM_NAME'), 'hello');
 set_wm_class($X,$window,"foo","Foo");
 set_wm_client_machine($X,$window,"mymachine");
 set_wm_client_machine_from_syshostname($X,$window);

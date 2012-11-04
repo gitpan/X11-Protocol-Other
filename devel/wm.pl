@@ -25,6 +25,27 @@ use X11::Protocol::WM;
 # uncomment this to run the ### lines
 use Smart::Comments;
 
+{
+  # default WM_HINTS
+
+  my $X = X11::Protocol->new;
+  my $window = $X->new_rsrc;
+  $X->CreateWindow ($window,
+                    $X->root,         # parent
+                    'InputOutput',
+                    0,                # depth, from parent
+                    'CopyFromParent', # visual
+                    0,0,              # x,y
+                    100,100,          # width,height
+                    0,                # border
+                    background_pixel => $X->black_pixel,
+                   );
+  $X->MapWindow ($window);
+  $X->QueryPointer($X->root); # sync
+  sleep 100;
+  exit 0;
+}
+
 
 
 {

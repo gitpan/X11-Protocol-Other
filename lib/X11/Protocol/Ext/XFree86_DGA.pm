@@ -15,6 +15,11 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
+
+# 2.0 bits:
+# SetMode two flags fields
+
+
 BEGIN { require 5 }
 package X11::Protocol::Ext::XFree86_DGA;
 use strict;
@@ -22,11 +27,11 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 20;
+$VERSION = 21;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
-#use Smart::Comments;
+# use Smart::Comments;
 
 
 # Version 1.0:
@@ -188,6 +193,32 @@ my $reqs =
    undef,  # 10
    undef,  # 11
 
+   # =item C<($num, $hashref, ...) = $X-E<gt>XDGAQueryModes($screen_num)>
+   # num
+   # byte_order
+   # depth
+   # bpp
+   # name
+   # vsync_num
+   # vsync_den
+   # flags
+   # image_width        \
+   # image_height       /
+   # pixmap_width       \
+   # pixmap_height      /
+   # bytes_per_scanline
+   # red_mask           \
+   # green_mask         |
+   # blue_mask          /
+   # visual_class
+   # viewport_width     \
+   # viewport_height    /
+   # viewport_xstep
+   # viewport_ystep
+   # viewport_xmax      \
+   # viewport_ymax      /
+   # viewport_flags
+
    ['XDGAQueryModes',   # 12
     \&_request_screen16,
     sub {
@@ -199,42 +230,24 @@ my $reqs =
       # print scalar(Data::HexDump::XXD::xxd($data));
       # print "\n";
 
-      return map {my %h;
-                  @h{qw(byte_order depth
-                        num bpp
-                        name_len vsync_num vsync_den flags
-                        image_width image_height pixmap_width pixmap_height
-                        bytes_per_scanline red_mask green_mask blue_mask
-                        visual_class
-                        viewport_width viewport_height viewport_xstep
-                        viewport_ystep viewport_xmax viewport_ymax
-                        viewport_flags
-                      )}
-                    = unpack 'CCSSSLLLLSSSSLLLLSxxSSSSSSL',
-                      substr($data,$pos,72);
-                  $pos += 72;
-                  ### %h
-
-                  # name_len a multiple of 4, string \0 nul-terminated
-                  # within that length
-                  my $name_len = delete $h{'name_len'};
-                  ($h{'name'} = substr($data, $pos, $name_len))
-                    =~ s/\0.*//;
-                  # cf unpack 'Z', new in perl 5.6
-                  # $h{'name'} = unpack 'Z*', substr($data, $pos, $name_len);
-                  $pos += $name_len;
-                  ### $name_len
-                  ### name: $h{'name'}
-
-                  ($h{'num'}, \%h)
+      return map {my $h = _unpack_info($X,substr($data,$pos,72));
+                  ($h->{'num'} => $h)
                 } 1 .. $num_modes;
     } ],
 
+   # =item C<($offset, $flags) = $X-E<gt>XDGASetMode($num,$pid)>
+   #
    ['XDGASetMode',  # 13
     sub {
-      shift;  # ($X, $screen, $mode, $pid)
+      shift;  # ($X, $screen, $mode_num, $pid)
       return pack 'L3', @_;
     },
+    sub {
+      my ($X, $data) = @_;
+      my ($offset, $flags) = unpack 'x8LL', $data;
+      my $h = _unpack_info($X, $data, 32);
+      return offset => $offset, dgaflags => $flags, %$h;
+    }
    ],
 
    [ 'XDGASetViewport',  # 14
@@ -272,20 +285,38 @@ my $reqs =
        return pack 'LS6L', @_;  # x,y's are CARD16s, so unsigned
      } ],
 
+   # =item C<$status = $X-E<gt>XDGAGetViewportStatus($screen_num)>
+   #
    [ 'XDGAGetViewportStatus',  # 20
-     \&_request_screen16 ],
+     \&_request_screen16,
+     sub {
+       my ($X, $data) = @_;
+       return unpack 'x8L', $data;
+     } ],
 
+   # =item C<$X-E<gt>XDGASync($screen_num)>
+   #
    [ 'XDGASync',  # 21
      \&_request_screen16,
      sub {  # ($X, $data)  empty
        return;
      } ],
 
+   # =item C<($device_name, $mem1, $mem2, $size, $offset, $extra) = $X-E<gt>XDGAOpenFramebuffer($screen_num)>
+   #
    [ 'XDGAOpenFramebuffer',  # 22
      \&_request_screen16,
      sub {
        my ($X, $data) = @_;
-       return unpack 'x8L6', $data; # (mem1,mem2,size,offset,extra)
+       # (length,mem1,mem2,size,offset,extra)
+       my ($mem_lo, $mem_hi, @rest) = unpack 'x8L5', $data;
+       ### head: unpack('CCSL', $data)
+       ### data: unpack('x8L5', $data)
+       ### name: substr($data,32)
+       (my $name = substr($data,32)) =~ s/\0.*//;
+       return ($name,
+               _hilo_to_card64($mem_hi,$mem_lo),
+               @rest);
      } ],
 
    [ 'XDGACloseFramebuffer', # 23
@@ -298,6 +329,8 @@ my $reqs =
        return pack 'SS', @_;
      } ],
 
+   # =item C<($x,$y) = $X-E<gt>XDGAChangePixmapMode($screen_num, $x,$y, $flags)>
+   #
    [ 'XDGAChangePixmapMode',  # 25
      sub {
        shift;  # ($X, $screen, $x, $y, $flags)
@@ -338,6 +371,71 @@ sub new {
   return bless { }, $class;
 }
 
+sub _unpack_info {
+  my ($X, $data, $pos) = @_;
+  my %h;
+  @h{qw(byte_order depth
+        num bpp name_len
+        vsync_num vsync_den flags
+        image_width image_height pixmap_width pixmap_height
+        bytes_per_scanline red_mask green_mask blue_mask
+        visual_class
+        viewport_width viewport_height
+        viewport_xstep viewport_ystep
+        viewport_xmax viewport_ymax
+        viewport_flags
+      )}
+    = unpack 'C2S3L3S4L4SxxS6L', substr($data,$pos,72);
+  $pos += 72;
+  ### %h
+
+  # name_len a multiple of 4, string \0 nul-terminated
+  # within that length
+  my $name_len = delete $h{'name_len'};
+  ($h{'name'} = substr($data, $pos, $name_len)) =~ s/\0.*//;
+  # cf unpack 'Z', new in perl 5.6
+  # $h{'name'} = unpack 'Z*', substr($data, $pos, $name_len);
+  $pos += $name_len;
+  ### $name_len
+  ### name: $h{'name'}
+  return \%h;
+}
+
+#------------------------------------------------------------------------------
+# 64-bits
+
+{
+  my $uv = ~0;
+  my $bits = 0;
+  while ($uv && $bits < 64) {
+    $uv >>= 1;
+    $bits++;
+  }
+
+  if ($bits >= 64) {
+     eval "\n#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
+sub _hilo_to_card64 {
+  my ($hi,$lo) = @_;
+  ### _hilo_to_sv(): "$hi $lo, result ".(($hi << 32) + $lo)
+  return ($hi << 32) + $lo;
+}
+1;
+HERE
+  } else {
+     eval "\n#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
+sub _hilo_to_card64 {
+  my ($hi,$lo) = @_;
+  if ($hi) {
+     require Math::BigInt;
+     return Math::BigInt->new($hi)->blsft(32)->badd($lo);
+  } else {
+     return $lo;
+  }
+}
+1;
+HERE
+  }
+}
 
 #------------------------------------------------------------------------------
 # generic
@@ -423,9 +521,9 @@ to read or write directly instead of going through the X protocol.
 
 Accessing video memory will require some system-dependent trickery.  Under
 the Linux kernel for example video RAM is part of the F</dev/mem> physical
-address space and it can be brought into program address space with an
-C<mmap()>, or accessed with C<sysread()> and C<syswrite()>.  This normally
-requires root permissions.
+address space and accessed with C<sysread()> and C<syswrite()> or brought
+into program address space with an C<mmap()>.  This normally requires root
+permissions.
 
 The requests offered here are only XFree86-DGA version 1.0 as yet.  They
 don't say anything about the pixel layout etc in the memory, that has to be

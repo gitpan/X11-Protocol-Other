@@ -159,6 +159,8 @@ ok (!!$mit_obj, 1, 'Mit object');
   }
   ok (1, 1, 'MitScreenSaverSetAttributes');
 
+  my $saw_on = 0;
+  my $saw_off_again = 0;
   my %notify;
   $X->MitScreenSaverSelectInput ($X->root, 0x03);
   local $X->{'event_handler'} = sub {
@@ -168,23 +170,46 @@ ok (!!$mit_obj, 1, 'Mit object');
     if ($h{'name'} eq 'MitScreenSaverNotify') {
       MyTestHelpers::diag ("MitScreenSaverNotify state=$h{'state'} kind=$h{'kind'} forced=$h{'forced'}");
       %notify = %h;
+
+      if ($notify{'state'} eq 'On') {
+        $saw_on = 1;
+      }
+      if ($saw_on && $notify{'state'} eq 'Off') {
+        $saw_off_again = 1;
+      }
     }
   };
 
   $X->ForceScreenSaver ('Activate');
   $X->QueryPointer($X->root); # sync
-  ok ($notify{'state'}, 'On'); 
-  ok ($notify{'time'} ne '0', 1); 
-  ok ($notify{'window'} > 0, 1); 
-  ok ($notify{'kind'}, 'External');
-  ok ($notify{'forced'}, 1);
 
-  my @info = $X->MitScreenSaverQueryInfo ($X->root);
-  my ($state, $window, $til_or_since, $idle, $event_mask, $kind) = @info;
-  ok ($state, 'On'); 
-  ok ($kind, 'External'); 
-  ok ($event_mask, 3); 
-  ok ($window, $notify{'window'}); 
+  # maybe the user turns the saver off very quickly, or something
+  if ($saw_off_again) {
+    $skip = 'saver turned off again by something';
+  }
+  skip ($skip,
+        $notify{'state'}, 'On');
+  skip ($skip,
+        $notify{'time'} ne '0', 1);
+  skip ($skip,
+        $notify{'window'} > 0, 1);
+  skip ($skip,
+        $notify{'kind'}, 'External');
+  skip ($skip,
+        $notify{'forced'}, 1);
+
+  {
+    my @info = $X->MitScreenSaverQueryInfo ($X->root);
+    my ($state, $window, $til_or_since, $idle, $event_mask, $kind) = @info;
+    skip ($skip,
+          $state, 'On');
+    skip ($skip,
+          $kind, 'External');
+    skip ($skip,
+          $event_mask, 3);
+    skip ($skip,
+          $window, $notify{'window'});
+  }
 
   $X->ForceScreenSaver ('Reset');
   $X->QueryPointer($X->root); # sync
@@ -192,7 +217,7 @@ ok (!!$mit_obj, 1, 'Mit object');
   $X->MitScreenSaverUnsetAttributes ($X->root);
   $X->QueryPointer($X->root); # sync
 
-  ok (1, 1, 'MitScreenSaverUnsetAttributes');
+  ok (1, 1, 'MitScreenSaverUnsetAttributes() succeeded');
 }
 
 # { my @info = $X->MitScreenSaverQueryInfo ($X->root);

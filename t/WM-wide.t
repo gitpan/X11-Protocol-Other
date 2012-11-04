@@ -17,6 +17,10 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
+
+# Tests involving perl 5.8 wide chars.
+
+
 BEGIN { require 5 }
 use strict;
 use Test;

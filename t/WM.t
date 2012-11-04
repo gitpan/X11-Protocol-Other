@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = (tests => 174)[1];
+my $test_count = (tests => 216)[1];
 plan tests => $test_count;
 
 require X11::Protocol::WM;
@@ -86,7 +86,7 @@ sub to_hex {
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 20;
+my $want_version = 21;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');
@@ -101,6 +101,26 @@ my $check_version = $want_version + 1000;
 ok (! eval { X11::Protocol::WM->VERSION($check_version); 1 },
     1,
     "VERSION class check $check_version");
+
+#------------------------------------------------------------------------------
+# get_wm_icon_size()
+
+{
+  X11::Protocol::WM::get_wm_icon_size($X);
+  X11::Protocol::WM::get_wm_icon_size($X, $X->root);
+
+  $X->ChangeProperty($window,
+                     $X->atom('WM_ICON_SIZE'),  # property
+                     $X->atom('WM_ICON_SIZE'),  # type
+                     32,                        # format
+                     'Replace',                 # mode
+                     pack ('L6', 1,2,3,4,5,6));
+
+  my @ret = X11::Protocol::WM::get_wm_icon_size($X, $window);
+  ok (join(',',@ret), '1,2,3,4,5,6', "WM_ICON_SIZE");
+
+  $X->DeleteProperty($window, $X->atom('WM_ICON_SIZE'));
+}
 
 #------------------------------------------------------------------------------
 # aspect_to_num_den()
@@ -411,6 +431,29 @@ X11::Protocol::WM::pack_wm_size_hints($X,
 
 
 #------------------------------------------------------------------------------
+# set_text_property()
+
+{
+  my $name = "hello world";
+  X11::Protocol::WM::set_text_property ($X, $window2,
+                                        $X->atom('WM_NAME'), $name);
+
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window2,
+                       $X->atom('WM_NAME'),
+                       'AnyPropertyType',
+                       0,   # offset
+                       100, # length
+                       0);  # delete
+  ok ($format, 8);
+  ok ($type, $X->atom('STRING'));
+  my $type_name = ($type ? $X->atom_name($type) : 'None');
+  ok ($type_name, 'STRING');
+  ok ($value, $name);
+  ok ($bytes_after, 0);
+}
+
+#------------------------------------------------------------------------------
 # set_wm_class()
 
 {
@@ -658,7 +701,121 @@ X11::Protocol::WM::set_wm_protocols ($X, $window2);
 
 
 #------------------------------------------------------------------------------
-# set_wm_hints()
+# pack_wm_hints()
+
+{
+  my $format = 'LLLLLllLL';
+  ok (X11::Protocol::WM::pack_wm_hints($X),
+      pack($format));
+
+  ok (X11::Protocol::WM::pack_wm_hints ($X,
+                                        input => 1),
+      pack($format,1,1));
+
+  ok (X11::Protocol::WM::pack_wm_hints ($X,
+                                        input => 1,
+                                        initial_state => 'IconicState'),
+      pack($format,1|2,1,3));
+
+  ok (X11::Protocol::WM::pack_wm_hints ($X,
+                                        icon_pixmap => 123,
+                                        icon_mask => 456),
+      pack($format,4|32,0,0,123,0,0,0,456));
+
+  ok (X11::Protocol::WM::pack_wm_hints ($X,
+                                        icon_x  => 123,
+                                        icon_y  => 456),
+      pack($format,16,0,0,0,0,123,456));
+
+  ok (X11::Protocol::WM::pack_wm_hints ($X,
+                                        urgency => 1),
+      pack($format,256));
+}
+{
+  my $bytes1 = X11::Protocol::WM::pack_wm_hints
+    ($X, initial_state => 'NormalState');
+  my $bytes2 = X11::Protocol::WM::pack_wm_hints
+    ($X, initial_state => 1);
+  ok ($bytes1, $bytes2);
+}
+
+
+#------------------------------------------------------------------------------
+# unpack_wm_hints()
+
+{
+  my $format = 'LLLLLllLL';
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,0))),
+      '');
+
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,1,0))),
+      'input,0');
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,1,123))),
+      'input,123');
+
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,2,0,1))),
+      'initial_state,NormalState');
+  { local $X->{'do_interp'} = 0;
+    ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,2,0,1))),
+        'initial_state,1');
+  }
+
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,4,0,0,123))),
+      'icon_pixmap,123');
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,4))),
+      'icon_pixmap,None');
+  { local $X->{'do_interp'} = 0;
+    ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,4))),
+        'icon_pixmap,0');
+  }
+
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,8,0,0,0,123))),
+      'icon_window,123');
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,8))),
+      'icon_window,None');
+  { local $X->{'do_interp'} = 0;
+    ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,8))),
+        'icon_window,0');
+  }
+
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,16,0,0,0,0,123,456))),
+      'icon_x,123,icon_y,456');
+
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,32,0,0,0,0,0,0,123))),
+      'icon_mask,123');
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,32))),
+      'icon_mask,None');
+  { local $X->{'do_interp'} = 0;
+    ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,32))),
+        'icon_mask,0');
+  }
+
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,64,0,0,0,0,0,0,0,123))),
+      'window_group,123');
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,64))),
+      'window_group,None');
+  { local $X->{'do_interp'} = 0;
+    ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,64))),
+        'window_group,0');
+  }
+
+  # hints from X11R2 only 8 cards with window_group flag but field chopped off
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack('LLLLLllL',
+                                                          64,0,0,0,0,0,0,0))),
+      '');
+
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,128))),
+      'message,1');
+
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,256))),
+      'urgency,1');
+
+  ok (join(',',X11::Protocol::WM::unpack_wm_hints($X,pack($format,64|256,0,0,0,0,0,0,0,123))),
+      'window_group,123,urgency,1');
+}
+
+#------------------------------------------------------------------------------
+# set_wm_hints() / get_wm_hints() / change_wm_hints()
 
 {
   my $pixmap = $X->new_rsrc;
@@ -689,21 +846,28 @@ X11::Protocol::WM::set_wm_protocols ($X, $window2);
   X11::Protocol::WM::set_wm_hints ($X, $window,
                                    input => 1,
                                    initial_state => 'NormalState',
-                                   icon_x  => -1,
-                                   icon_y  => -1,
+                                   icon_x  => 123,
+                                   icon_y  => 456,
                                    urgency => 1);
+  ok (join(',',X11::Protocol::WM::get_wm_hints($X,$window)),
+      'input,1,initial_state,NormalState,icon_x,123,icon_y,456,urgency,1');
+
   # individual fields to see others default ...
   X11::Protocol::WM::set_wm_hints ($X, $window, input => 1);
+  ok (join(',',X11::Protocol::WM::get_wm_hints($X,$window)),
+      'input,1');
   X11::Protocol::WM::set_wm_hints ($X, $window, initial_state => 'IconicState');
   X11::Protocol::WM::set_wm_hints ($X, $window, icon_pixmap => 'None');
   X11::Protocol::WM::set_wm_hints ($X, $window, icon_pixmap => 0);
+  ok (join(',',X11::Protocol::WM::get_wm_hints($X,$window)),
+      'icon_pixmap,None');
   X11::Protocol::WM::set_wm_hints ($X, $window, icon_pixmap => $pixmap);
   X11::Protocol::WM::set_wm_hints ($X, $window, icon_window => 'None');
   X11::Protocol::WM::set_wm_hints ($X, $window, icon_window => 0);
   X11::Protocol::WM::set_wm_hints ($X, $window, icon_window => $icon_window);
   X11::Protocol::WM::set_wm_hints ($X, $window,
-                                   icon_x  => -1,
-                                   icon_y  => -1);
+                                   icon_x => 123,
+                                   icon_y => 456);
   X11::Protocol::WM::set_wm_hints ($X, $window, icon_mask => 'None');
   X11::Protocol::WM::set_wm_hints ($X, $window, icon_mask => 0);
   X11::Protocol::WM::set_wm_hints ($X, $window, icon_mask => $bitmap);
@@ -713,73 +877,35 @@ X11::Protocol::WM::set_wm_protocols ($X, $window2);
   X11::Protocol::WM::set_wm_hints ($X, $icon_window, window_group => 0);
   X11::Protocol::WM::set_wm_hints ($X, $icon_window, window_group => $window);
 
+  # change to already set
+  X11::Protocol::WM::set_wm_hints    ($X, $window, urgency => 1);
+  X11::Protocol::WM::change_wm_hints ($X, $window, urgency => 1);
+  ok (join(',',X11::Protocol::WM::get_wm_hints($X,$window)),
+      'urgency,1');
+
+  X11::Protocol::WM::change_wm_hints ($X, $window, window_group => $window);
+  ok (join(',',X11::Protocol::WM::get_wm_hints($X,$window)),
+      "window_group,$window,urgency,1");
+
+  X11::Protocol::WM::change_wm_hints ($X, $window, window_group => undef);
+  ok (join(',',X11::Protocol::WM::get_wm_hints($X,$window)),
+      'urgency,1');
+
+  X11::Protocol::WM::change_wm_hints ($X, $window,
+                                      initial_state => 'IconicState');
+  ok (join(',',X11::Protocol::WM::get_wm_hints($X,$window)),
+      'initial_state,IconicState,urgency,1');
+
+  X11::Protocol::WM::change_wm_hints ($X, $window,
+                                      initial_state => 'NormalState');
+  ok (join(',',X11::Protocol::WM::get_wm_hints($X,$window)),
+      'initial_state,NormalState,urgency,1');
+
   $X->FreePixmap($pixmap);
   $X->FreePixmap($bitmap);
   $X->DestroyWindow($icon_window);
   $X->QueryPointer($X->root);  # sync
 }
-
-
-#------------------------------------------------------------------------------
-# pack_wm_hints()
-
-X11::Protocol::WM::pack_wm_hints ($X);
-X11::Protocol::WM::pack_wm_hints ($X,
-                                  input => 1);
-X11::Protocol::WM::pack_wm_hints ($X,
-                                  icon_x  => -1,
-                                  icon_y  => -1);
-X11::Protocol::WM::pack_wm_hints ($X,
-                                  urgency => 1);
-{
-  my $bytes1 = X11::Protocol::WM::pack_wm_hints
-    ($X, initial_state => 'NormalState');
-  my $bytes2 = X11::Protocol::WM::pack_wm_hints
-    ($X, initial_state => 1);
-  ok ($bytes1, $bytes2);
-}
-
-
-#------------------------------------------------------------------------------
-# _wm_unpack_wm_hints()
-
-# {
-#   my $format = 'LLLLLllLL';
-#
-#   foreach ([ pack($format,0,(0)x8) ],
-#            [ pack($format,0,(0)x7) ],  # short from X11R2 ?
-#
-#            [ pack($format,1,0,(0)x7), input => 0 ],
-#            [ pack($format,1,1,(0)x7), input => 1 ],
-#
-#            [ pack($format,2,0,1,(0)x6), initial_state => 'NormalState' ],
-#            [ pack($format,2,0,3,(0)x6), initial_state => 'IconicState' ],
-#
-#            [ pack($format, 16, 0,0,0,0, 123,456, 0,0),
-#              icon_x => 123, icon_y => 456 ],
-#            [ pack($format, 16, 0,0,0,0, -123,-456, 0,0),
-#              icon_x => -123, icon_y => -456 ],
-#
-#            [ pack($format, 64, 0,0,0,0, 0,0, 0,0), window_group => 0 ],
-#            [ pack($format, 64, 0,0,0,0, 0,0, 0,123), window_group => 123 ],
-#            [ pack($format, 256, (0)x8), urgency => 1 ],
-#           ) {
-#     my $elem = $_;
-#     my ($bytes, @want) = @$elem;
-#     my @got = X11::Protocol::WM::_unpack_wm_hints($X,$bytes);
-#     my $good = 1;
-#     ok (scalar(@got), scalar(@want));
-#     for (my $i = 0; $i < @got && $i < @want; $i++) {
-#       unless ((! defined $got[$i] && ! defined $want[$i])
-#               || (defined $got[$i] && defined $want[$i]
-#                   && $got[$i] eq $want[$i])) {
-#         $good = 0;
-#         MyTestHelpers::diag ("Got ",$got[$i]," want ",$want[$i]);
-#       }
-#     }
-#     ok ($good, 1);
-#   }
-# }
 
 
 #------------------------------------------------------------------------------
