@@ -165,6 +165,7 @@ if (defined $visual) {
     skip ($skip_no_writable_visual, $colours[0]->[3], 0);
     skip ($skip_no_writable_visual, $colours[0]->[4] & 8, 8);  # at another pixel
   }
+  $X->FreeColormap($colormap);
 }
 
 my $skip_no_colour_visual;
@@ -208,6 +209,7 @@ if (defined $visual) {
     skip ($skip_no_writable_visual, $colours[0]->[3] > 0, 1);
     skip ($skip_no_writable_visual, $colours[0]->[4] & 8, 8);  # at another pixel
   }
+  $X->FreeColormap($colormap);
 }
 
 #------------------------------------------------------------------------------

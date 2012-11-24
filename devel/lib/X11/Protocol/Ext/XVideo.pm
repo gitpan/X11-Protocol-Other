@@ -2,7 +2,6 @@
 # struct forms ?
 
 # XVideoShmPutImage arg order ...
-# XVideoImageOrder enum
 
 
 
@@ -30,7 +29,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 21;
+$VERSION = 22;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -92,9 +91,6 @@ my %const_arrays
      XVideoImageFormatType => [ 'RGB', # 0
                                 'YUV', # 1
                               ],
-     XVideoImageOrder => [ 'LSBFirst', # 0
-                           'MSBFirst', # 1
-                         ],
     );
 
 my %const_hashes
@@ -361,7 +357,7 @@ my $reqs =
         $h{'scanline_order'}
           = $X->interp('XVideoScanlineOrder', $h{'scanline_order'});
         $h{'byte_order'}
-          = $X->interp('XVideoImageOrder', $h{'byte_order'});
+          = $X->interp('Significance', $h{'byte_order'});
         
         push @ret, \%h;
       }
@@ -640,7 +636,7 @@ The flag bits are
     {
       id          => integer,
       type        => enum "RGB" or "YUV"
-      byte_order  => enum "LSBFirst" or "MSBFirst"
+      byte_order  => enum "LeastSignificant" or "MostSignificant"
       guid        =>
       bpp         =>
       num_planes  =>

@@ -1,6 +1,4 @@
-# 1.0, 1.1 exercise GetBuffers
-
-# 1.2 counters as 64-bit
+# DRI2SwapCompleteEventType name ?
 
 
 
@@ -28,7 +26,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 21;
+$VERSION = 22;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -46,119 +44,102 @@ use Smart::Comments;
 # /so/xfree4/unpacked/usr/share/doc/xserver-xfree86/README.DRI.gz
 #
 # /usr/share/xcb/dri2.xml
-#    xcb (dri2 1.1)
+#    xcb (dri2 1.3)
 #
 # /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
 
-### DRI2.pm loads
 
 # these not documented yet ...
 use constant CLIENT_MAJOR_VERSION => 1;
 use constant CLIENT_MINOR_VERSION => 2;
 
-
-#------------------------------------------------------------------------------
-# 64-bits
-
-{
-  my $uv = ~0;
-  my $bits = 0;
-  while ($uv && $bits < 64) {
-    $uv >>= 1;
-    $bits++;
-  }
-
-  if ($bits >= 64) {
-     eval "\n#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
-sub _hilo_to_card64 {
-  my ($hi,$lo) = @_;
-  ### _hilo_to_sv(): "$hi $lo"
-  if ($hi & 0x8000_0000) {
-    $hi -= 0x8000_0000;
-    $lo += -(1<<63);
-  }
-  ### $hi
-  ### $lo
-  ### hi shift: $hi<<1
-  ### result: ($hi << 32) + $lo
-  return ($hi << 32) + $lo;
-}
-1;
-HERE
-  } else {
-     eval "\n#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
-use Math::BigInt;
-sub _hilo_to_card64 {
-  my ($hi,$lo) = @_;
-  my $sv = ($hi << 32) + $lo;
-  my $sv = Math::BigInt->new($hi)->blsft(32)->badd($lo);
-  if ($hi & 0x8000_0000) {
-    $sv = -$sv;
-  }
-  return $sv;
-}
-1;
-HERE
-  }
-}
-
-sub _card64_to_hilo {
-  my ($sv) = @_;
-  return ($sv >> 32,          # hi
-          $sv & 0xFFFF_FFFF); # lo
-}
-
-
 #------------------------------------------------------------------------------
 # symbolic constants
 
-my %const_arrays
-  = (
-     DRI2Driver     => ['DRI', 'VDPAU'],
-     DRI2Attachment => [qw(
-                            FrontLeft
-                            BackLeft
-                            FrontRight
-                            BackRight
-                            Depth
-                            Stencil
-                            Accum
-                            FakeFrontLeft
-                            FakeFrontRight
-                            DepthStencil
-                            Hiz
-                         )],
-    );
+use constant constants_list =>
+  (DRI2Driver     => ['DRI', 'VDPAU'],
+   DRI2Attachment => [qw(FrontLeft
+                         BackLeft
+                         FrontRight
+                         BackRight
+                         Depth
+                         Stencil
+                         Accum
+                         FakeFrontLeft
+                         FakeFrontRight
+                         DepthStencil
+                         Hiz
+                       )],
+   DRI2SwapCompleteEventType => [ '',
+                                  'ExchangeComplete',  # 1
+                                  'BlitComplete',      # 2
+                                  'FlipComplete' ],    # 3
+  );
 
-my %const_hashes
-  = (map { $_ => { X11::Protocol::make_num_hash($const_arrays{$_}) } }
-     keys %const_arrays);
+sub _ext_constants_install {
+  my ($X, $constants_arrayref) = @_;
+  foreach (my $i = 0; $i <= $#$constants_arrayref; $i+=2) {
+    my $name = $constants_arrayref->[$i];
+    my $aref = $constants_arrayref->[$i+1];
+    $X->{'ext_const'}->{$name} = $aref;
+    $X->{'ext_const_num'}->{$name} = { X11::Protocol::make_num_hash($aref) };
+  }
+}
 
 #------------------------------------------------------------------------------
 # events
 
-my $BufferSwapComplete_event = [ 'xCxxL5',
-                                 ['subtype','XFixesSelectionNotifySubtype'],
-                                 'window',
-                                 ['owner',['None']], # window
-                                 'selection',        # atom
-                                 'time',
-                                 'selection_time',
-                               ];
+use constant events_list =>
+  (DRI2BufferSwapComplete =>
+   [ sub {
+       my $X = shift;
+       my $data = shift;
+       my ($event_type, $drawable, $ust_hi,$ust_lo, $msc_hi,$msc_lo, $sbc_hi,$sbc_lo)
+         = unpack 'xxxxSxxL7', $data;
+       return (@_,  # base fields
+               event_type => $X->num('DRI2BufferSwapCompleteEventType', $event_type),
+               drawable   => $drawable,
+               ust        => _hilo_to_card64($ust_hi,$ust_lo),
+               msc        => _hilo_to_card64($msc_hi,$msc_lo),
+               sbc        => _hilo_to_card64($sbc_hi,$sbc_lo),
+              );
+     }, sub {
+       my ($X, %h) = @_;
+       my $level = ($X->num('DamageReportLevel', $h{'level'})
+                    + ($h{'more'} ? 0x80 : 0));
+       return (pack('xxxxSxxL7',
+                    $level,
+                    $X->interp('DRI2BufferSwapCompleteEventType', $h{'event_type'}),
+                    $h{'drawable'},
+                    _hilo_to_card64($h{'ust'}),
+                    _hilo_to_card64($h{'msc'}),
+                    _hilo_to_card64($h{'sbc'})),
+               1); # "do_seq" put in sequence number
+     } ],
 
-my $InvalidateBuffers_event = [ 'xCxxL5',
-                                ['subtype','XFixesSelectionNotifySubtype'],
-                                'window',
-                                ['owner',['None']], # window
-                                'selection',        # atom
-                                'time',
-                                'selection_time',
-                              ];
+   DRI2InvalidateBuffers =>
+   [ 'xxxxLx24',
+     'drawable',
+   ],
+  );
+
+sub _ext_events_install {
+  my ($X, $event_num, $events_arrayref) = @_;
+  foreach (my $i = 0; $i <= $#$events_arrayref; $i+=2) {
+    my $name = $events_arrayref->[$i];
+    if (defined (my $already = $X->{'ext_const'}->{'Events'}->[$event_num])) {
+      carp "Event $event_num $already overwritten with $name";
+    }
+    $X->{'ext_const'}->{'Events'}->[$event_num] = $name;
+    $X->{'ext_events'}->[$event_num] = $events_arrayref->[$i+1]; # pack/unpack
+    $event_num++;
+  }
+}
 
 #------------------------------------------------------------------------------
 # requests
 
-my $reqs =
+my $requests_arrayref =
   [
    ['DRI2QueryVersion',    # 0
     \&_request_card32s, # ($X, $client_major, $client_minor)
@@ -255,8 +236,6 @@ my $reqs =
     },
     \&_reply_get_buffers ],
 
-
-
    #------------------------------------
    # protocol 1.2
 
@@ -271,30 +250,30 @@ my $reqs =
     },
     sub {
       my ($X, $data) = @_;
-      return _hilo_to_card64 (unpack 'x8LL', $data); # swap hi/lo
+      return _hilo_to_card64 (unpack 'x8LL', $data);
     },
    ],
 
    ['DRI2GetMSC',  # 9
     \&_request_card32s,  # ($X, $drawable)
-    sub {
-      my ($X, $data) = @_;
-      return unpack 'x8L', $data;  # (result)
-    } ],
+    \&_reply_ums64 ],
 
    ['DRI2WaitMSC',   # 10
     sub {
       my ($X, $drawable, $target_msc, $divisor, $remainder) = @_;
       return pack 'L*', $drawable,
-        _hilo($target_msc), _hilo($divisor), _hilo($remainder);
+        _card64_to_hilo($target_msc),
+          _card64_to_hilo($divisor),
+            _card64_to_hilo($remainder);
     },
-   ],
+    \&_reply_ums64 ],
+
    ['DRI2WaitSBC',  # 11
     sub {
       my ($X, $drawable, $target_sbc) = @_;
-      return pack 'L*', $drawable, _hilo($target_sbc);
+      return pack 'L*', $drawable, _card64_to_hilo($target_sbc);
     },
-   ],
+    \&_reply_ums64 ],
 
    [ 'DRI2SwapInterval',  # 12
      \&_request_card32s,  # ($X, $drawable, $interval)
@@ -320,18 +299,37 @@ sub _unpack_buffers {
   } 1 .. $num_buffers;
 }
 
+sub _reply_ums64 {
+  my ($X, $data) = @_;
+  ### _reply_ums64(): $data
+  my ($ust_hi,$ust_lo, $msc_hi,$msc_lo, $sbc_hi,$sbc_lo)
+    = unpack 'x8L6', $data;
+  return (_hilo_to_card64($ust_hi,$ust_lo),
+          _hilo_to_card64($msc_hi,$msc_lo),
+          _hilo_to_card64($sbc_hi,$sbc_lo));
+}
+
+sub _ext_requests_install {
+  my ($X, $request_num, $reqs) = @_;
+
+  $X->{'ext_request'}->{$request_num} = $reqs;
+  my $href = $X->{'ext_request_num'};
+  my $i;
+  foreach $i (0 .. $#$reqs) {
+    $href->{$reqs->[$i]->[0]} = [$request_num, $i];
+  }
+}
+
+#------------------------------------------------------------------------------
+
 sub new {
   my ($class, $X, $request_num, $event_num, $error_num) = @_;
-  ### DRI2 new()
+  my $self = bless { }, $class;
 
-  # Constants
-  %{$X->{'ext_const'}}     = (%{$X->{'ext_const'}     ||= {}}, %const_arrays);
-  %{$X->{'ext_const_num'}} = (%{$X->{'ext_const_num'} ||= {}}, %const_hashes);
-
-  # Requests
-  _ext_requests_install ($X, $request_num, $reqs);
-
-  return bless { }, $class;
+  _ext_constants_install ($X, [ $self->constants_list ]);
+  _ext_requests_install ($X, $request_num, $requests_arrayref);
+  _ext_events_install ($X, $event_num, [ $self->events_list ]);
+  return $self;
 }
 
 #------------------------------------------------------------------------------
@@ -357,15 +355,55 @@ sub _num_none {
   }
 }
 
-sub _ext_requests_install {
-  my ($X, $request_num, $reqs) = @_;
+#------------------------------------------------------------------------------
+# 64-bits
 
-  $X->{'ext_request'}->{$request_num} = $reqs;
-  my $href = $X->{'ext_request_num'};
-  my $i;
-  foreach $i (0 .. $#$reqs) {
-    $href->{$reqs->[$i]->[0]} = [$request_num, $i];
+{
+  my $uv = ~0;
+  my $bits = 0;
+  while ($uv && $bits < 64) {
+    $uv >>= 1;
+    $bits++;
   }
+
+  if ($bits >= 64) {
+     eval "\n#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
+sub _hilo_to_card64 {
+  my ($hi,$lo) = @_;
+  ### _hilo_to_sv(): "$hi $lo"
+  if ($hi & 0x8000_0000) {
+    $hi -= 0x8000_0000;
+    $lo += -(1<<63);
+  }
+  ### $hi
+  ### $lo
+  ### hi shift: $hi<<1
+  ### result: ($hi << 32) + $lo
+  return ($hi << 32) + $lo;
+}
+1;
+HERE
+  } else {
+     eval "\n#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
+use Math::BigInt;
+sub _hilo_to_card64 {
+  my ($hi,$lo) = @_;
+  my $sv = ($hi << 32) + $lo;
+  my $sv = Math::BigInt->new($hi)->blsft(32)->badd($lo);
+  if ($hi & 0x8000_0000) {
+    $sv = -$sv;
+  }
+  return $sv;
+}
+1;
+HERE
+  }
+}
+
+sub _card64_card64_to_hilo {
+  my ($sv) = @_;
+  return ($sv >> 32,          # hi
+          $sv & 0xFFFF_FFFF); # lo
 }
 
 1;
@@ -410,8 +448,8 @@ be to automatically negotiate in C<init_extension()> if necessary.
 
 =item C<($driver_name, $device_name) = $X-E<gt>DRI2Connect ($window, $driver_type)>
 
-Get the driver and device filename to use on C<$window> (integer XID).
-C<$driver_type> is one of
+Get the driver name and device name to use on C<$window> (integer XID).
+C<$driver_type> is a C<DRI2Driver> enum,
 
     "DRI"      0
     "VDPAU"    1
@@ -420,16 +458,21 @@ If C<$driver_type> is unknown or the client is not on the same machine as
 the server then the returned C<$driver_name> and C<$device_name> are empty
 strings "".
 
-=item C<$bool = $X-E<gt>DRI2Authenticate ($window, $token_type)>
+Exactly what the client might have to do with C<$driver_name> is
+unspecified.
 
-Ask the server to authenticate C<$token> so the client can access DRI memory
-on the screen associated with C<$window> (an integer XID).  The return is 1
-if successful or 0 if C<$token> is no good.
+=item C<$bool = $X-E<gt>DRI2Authenticate ($window, $token)>
 
-=item C<($width,$height,$buffer...) = $X-E<gt>DRI2GetBuffers ($drawable, $attach...)>
+Ask the server to authenticate C<$token> (a 32-bit integer) so the client
+can access DRI memory on the screen associated with C<$window> (an integer
+XID).  The return is 1 if successful or 0 if C<$token> is no good.
+
+The C<$token> should be obtained from the kernel rendering manager, somehow.
+
+=item C<($width,$height,[bufinfo],[bufinfo]...) = $X-E<gt>DRI2GetBuffers ($drawable, $attach...)>
 
 Get buffers for C<$drawable> (integer XID) at the given C<$attach> points.
-Each C<$attach> argument is
+Each C<$attach> argument is a C<DRI2Attachment> enum value,
 
     FrontLeft           0
     BackLeft            1
@@ -443,6 +486,19 @@ Each C<$attach> argument is
     DepthStencil        9     new in protocol 1.1
     Hiz                10
 
+The return is the screen size and a buffer info for each given C<$attach>.
+Each info is an arrayref
+
+    [ $attach,          # $attach from request
+      $name,            # buffer name (integer)
+      $pitch,           # (integer)
+      $cpp,             # chars per pixel (integer)
+      $flags            # (integer)
+    ]
+
+If any of the C<$attach> buffers requested cannot be obtained then a Value
+error is sent.
+
 =item C<$X-E<gt>DRI2CopyRegion ($drawable, $region, $src_attach, $dst_attach)>
 
 Copy C<$region> (integer XID of XFIXES Region type) from C<$src_attach> to
@@ -450,6 +506,108 @@ C<$dst_attach> buffers of C<$drawable> (integer XID).  The attach arguments
 are per C<DRI2GetBuffers()> above.
 
 =back
+
+=head2 DRI2 1.1
+
+=over
+
+=item C<($width,$height,[bufinfo],[bufinfo]...) = $X-E<gt>DRI2GetBuffers ($drawable, [$attach,$format],...)>
+
+Get buffers for C<$drawable> (integer XID) at the given C<$attach> points.
+Each buffer requested is an arrayref of two values
+
+    [ $attach, $format ]
+
+C<$attach> is a C<DRI2Attachment> enum value as per C<DRI2GetBuffers()>
+above, and C<$format> (an integer) is some sort of device-dependent format
+desired for the buffer.
+
+The return and possible Value error is the same as C<DRI2GetBuffers()>
+above.
+
+=back
+
+=head2 DRI2 1.2
+
+=over
+
+=item C<($sbc) = $X-E<gt>DRI2SwapBuffers ($drawable, $target_msc, $divisor, $remainder)>
+
+Schedule a swap of the front and back buffers.
+
+The swap will be done when the media stamp counter reaches C<$target_msc>.
+If MSC E<gt> C<$target_msc> already then it's done when MSC mod C<$divisor>
+equals C<$remainder>, or if C<$divisor> is 0 then immediately.
+
+When the swap is performed the swap counter increments and a
+C<DRI2BufferSwapComplete> event is sent to the client.
+
+=item C<($ust, $msc, $sbc) = $X-E<gt>DRI2GetMSC ($drawable)>
+
+Get the current unadjusted system time, media stamp counter, and swap
+buffer counter.
+
+The C<$sbc> swap buffer counter is how many scheduled C<DRI2SwapBuffers()>
+swaps have completed.
+
+=item C<($ust, $msc, $sbc) = $X-E<gt>DRI2WaitMSC ($drawable, $target_msc, $divisor, $remainder)>
+
+Block processing of requests from the client until the media stamp counter
+reaches C<$target_msc>.
+
+If MSC E<gt> $target_msc already then block until MSC mod $divisor ==
+$remainder, or if $divisor is 0 then don't block.
+
+The return is the time and counters per C<DRI2GetMSC()> above.
+
+=item C<($ust, $msc, $sbc) = $X-E<gt>DRI2WaitSBC ($drawable, $target_sbc, $divisor, $remainder)>
+
+Block processing of requests from the client until the swap buffer counter
+reaches C<$target_sbc>.  If C<$target_sbc> is 0 then block until all
+currently scheduled C<DRI2SwapBuffers()> have completed.
+
+The return is time and counters per C<DRI2GetMSC()> above.
+
+=item C<$X-E<gt>DRI2SwapInterval ($drawable, $interval)>
+
+Set the swap interval on C<$drawable> (integer XID).
+
+Swaps scheduled with C<DRI2SwapBuffers()> are limited to at most one swap
+per C<$interval> many media stamp counter frames.
+
+=head1 EVENTS
+
+The following events have the usual fields
+
+    name             "DRI2..."
+    synthetic        true if from a SendEvent
+    code             integer opcode
+    sequence_number  integer
+
+=over
+
+=item C<DRI2BufferSwapComplete>
+
+This is sent to the client when a scheduled C<DRI2SwapBuffers()> has
+completed.  The fields are
+
+    event_type      enum "ExchangeComplete"  1
+                         "BlitComplete"      2
+                         "FlipComplete"      3
+    drawable        XID
+    ust             unadjusted system time (integer)
+    msc             media stamp counter (integer)
+    sbc             swap buffer counter (integer)
+
+C<ust>, C<msc> and C<sbc> are as per C<DRI2GetMSC()> above.
+
+=item C<DRI2InvalidateBuffers>
+
+This is sent to the client to advise that some sort of screen size or other
+change has invalidated the buffers it obtained with C<DRI2GetBuffers()>.
+The fields are
+
+    drawable        XID
 
 =head1 SEE ALSO
 

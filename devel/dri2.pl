@@ -44,10 +44,11 @@ $X->CreateWindow ($window,
                   background_pixel => $X->black_pixel,
                  );
 $X->MapWindow ($window);
+### $window
 
 $X->init_extension('DRI2') or die $@;
 {
-  my @version = $X->DRI2QueryVersion (99,99);
+  my @version = $X->DRI2QueryVersion (1,3);
   ### @version
 }
 {
@@ -65,10 +66,15 @@ $X->init_extension('DRI2') or die $@;
 {
   my @buffers = $X->DRI2GetBuffers($window,2);
   ### @buffers
+  $X->QueryPointer($X->{'root'}); # sync
+}
+{
+  my @counters = $X->DRI2GetMSC($window);
+  ### @counters
+  $X->QueryPointer($X->{'root'}); # sync
 }
 exit 0;
 
-$X->QueryPointer($X->{'root'}); # sync
 
 $X->flush;
 sleep 1;

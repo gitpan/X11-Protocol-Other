@@ -29,7 +29,7 @@ ok (1, 1, 'X11::Protocol::Ext::X_Resource load as first thing');
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 21;
+my $want_version = 22;
 ok ($X11::Protocol::Ext::X_Resource::VERSION,
     $want_version,
     'VERSION variable');

@@ -17,6 +17,9 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 22, November 2012
+    - tests MIT_SCREEN_SAVER allow for saver disabled
+
 Version 21, November 2012
     - X11::Protocol::WM new functions set_text_property(), get_wm_icon_size(),
       get_wm_hints(), change_wm_hints()

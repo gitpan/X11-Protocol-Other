@@ -180,27 +180,38 @@ ok (!!$mit_obj, 1, 'Mit object');
     }
   };
 
-  $X->ForceScreenSaver ('Activate');
-  $X->QueryPointer($X->root); # sync
+  {
+    $X->ForceScreenSaver ('Activate');
+    $X->QueryPointer($X->root); # sync
 
-  # maybe the user turns the saver off very quickly, or something
-  if ($saw_off_again) {
-    $skip = 'saver turned off again by something';
+    # maybe the user turns the saver off very quickly, or something
+    if ($saw_off_again) {
+      MyTestHelpers::diag ("skip tests due to saver turned off again");
+      $skip = 'saver turned off again by something';
+      $saw_off_again = 0;
+    }
+    skip ($skip,
+          $notify{'state'}, 'On');
+    skip ($skip,
+          $notify{'time'} ne '0', 1);
+    skip ($skip,
+          $notify{'window'} > 0, 1);
+    skip ($skip,
+          $notify{'kind'}, 'External');
+    skip ($skip,
+          $notify{'forced'}, 1);
   }
-  skip ($skip,
-        $notify{'state'}, 'On');
-  skip ($skip,
-        $notify{'time'} ne '0', 1);
-  skip ($skip,
-        $notify{'window'} > 0, 1);
-  skip ($skip,
-        $notify{'kind'}, 'External');
-  skip ($skip,
-        $notify{'forced'}, 1);
 
   {
     my @info = $X->MitScreenSaverQueryInfo ($X->root);
     my ($state, $window, $til_or_since, $idle, $event_mask, $kind) = @info;
+
+    # maybe the user turns the saver off very quickly, or something
+    if ($saw_off_again) {
+      MyTestHelpers::diag ("skip tests due to saver turned off again");
+      $skip = 'saver turned off again by something';
+      $saw_off_again = 0;
+    }
     skip ($skip,
           $state, 'On');
     skip ($skip,
@@ -220,17 +231,6 @@ ok (!!$mit_obj, 1, 'Mit object');
   ok (1, 1, 'MitScreenSaverUnsetAttributes() succeeded');
 }
 
-# { my @info = $X->MitScreenSaverQueryInfo ($X->root);
-#   ### @info
-# }
-# $X->QueryPointer($X->root); # sync
-#
-#
-#
-# foreach (1 .. 20) {
-#   $X->handle_input;
-# }
-
 #------------------------------------------------------------------------------
 # MitScreenSaverUnsetAttributes
 
@@ -245,4 +245,5 @@ ok (!!$mit_obj, 1, 'Mit object');
   $X->QueryPointer($X->root); # sync
 }
 
+#------------------------------------------------------------------------------
 exit 0;

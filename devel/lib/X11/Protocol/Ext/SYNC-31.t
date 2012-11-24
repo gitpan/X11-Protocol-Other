@@ -127,7 +127,7 @@ $X->QueryPointer($X->root); # sync
   my $fence = $X->new_rsrc;
   $X->SyncCreateFence ($fence, $drawable, 0);
   $X->QueryPointer($X->root); # sync
-  ok (1, 1, 'SyncCreateFence');
+  ok (1, 1, 'SyncCreateFence, initially untriggered');
 
   { my $value = $X->SyncQueryFence ($fence);
     ok ($value, 0);
@@ -140,13 +140,15 @@ $X->QueryPointer($X->root); # sync
   $X->QueryPointer($X->root); # sync
 
   { my $value = $X->SyncQueryFence ($fence);
-    ok ($value, 1);
+    ok ($value, 1,
+        'fence triggered after short delay');
   }
 
   $X->SyncResetFence ($fence);
 
   { my $value = $X->SyncQueryFence ($fence);
-    ok ($value, 0);
+    ok ($value, 0,
+        'fence untriggered again');
   }
 
   $X->SyncDestroyFence ($fence);
@@ -160,10 +162,11 @@ $X->QueryPointer($X->root); # sync
   my $fence = $X->new_rsrc;
   $X->SyncCreateFence ($fence, $drawable, 1);
   $X->QueryPointer($X->root); # sync
-  ok (1, 1, 'SyncCreateFence');
+  ok (1, 1, 'SyncCreateFence, initially triggered');
 
   { my $value = $X->SyncQueryFence ($fence);
-    ok ($value, 1);
+    ok ($value, 1,
+        'fence initially triggered state');
   }
 
   $X->SyncDestroyFence ($fence);

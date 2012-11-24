@@ -22,7 +22,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 21;
+$VERSION = 22;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -49,76 +49,97 @@ use constant CLIENT_MINOR_VERSION => 0;
 #------------------------------------------------------------------------------
 # symbolic constants
 
-my %const_arrays
-  = (
-     XFixesWindowRegionKind => ['Bounding', 'Clip'],
-     XFixesSaveSetMode      => ['Insert', 'Delete'],
-     XFixesSaveSetTarget    => ['Nearest', 'Root'],
-     XFixesSaveSetMap       => ['Map', 'Unmap'],
+use constant constants_list =>
+  (XFixesWindowRegionKind => ['Bounding', 'Clip'],
+   XFixesSaveSetMode      => ['Insert', 'Delete'],
+   XFixesSaveSetTarget    => ['Nearest', 'Root'],
+   XFixesSaveSetMap       => ['Map', 'Unmap'],
 
-     XFixesSelectionNotifySubtype => [ 'SetSelectionOwner',
-                                       'SelectionWindowDestroy',
-                                       'SelectionClientClose' ],
-     XFixesCursorNotifySubtype => [ 'DisplayCursor' ],
+   XFixesSelectionNotifySubtype => [ 'SetSelectionOwner',
+                                     'SelectionWindowDestroy',
+                                     'SelectionClientClose' ],
+   XFixesCursorNotifySubtype => [ 'DisplayCursor' ],
 
-     # Not sure about these two ...
-     # XFixesSelectionEventMask => [ 'SetSelectionOwner',
-     #                               'SelectionWindowDestroy',
-     #                               'SelectionClientClose' ],
-     # XFixesCursorEventMask     => [ 'DisplayCursor' ],
-    );
+   # Not sure about these two ...
+   # XFixesSelectionEventMask => [ 'SetSelectionOwner',
+   #                               'SelectionWindowDestroy',
+   #                               'SelectionClientClose' ],
+   # XFixesCursorEventMask     => [ 'DisplayCursor' ],
+  );
 
-my %const_hashes
-  = (map { $_ => { X11::Protocol::make_num_hash($const_arrays{$_}) } }
-     keys %const_arrays);
+sub _ext_constants_install {
+  my ($X, $constants_arrayref) = @_;
+  foreach (my $i = 0; $i <= $#$constants_arrayref; $i+=2) {
+    my $name = $constants_arrayref->[$i];
+    my $aref = $constants_arrayref->[$i+1];
+    $X->{'ext_const'}->{$name} = $aref;
+    $X->{'ext_const_num'}->{$name} = { X11::Protocol::make_num_hash($aref) };
+  }
+}
 
 #------------------------------------------------------------------------------
 # events
 
-my $XFixesSelectionNotify_event = [ 'xCxxL5',
-                                    ['subtype','XFixesSelectionNotifySubtype'],
-                                    'window',
-                                    ['owner',['None']], # window
-                                    'selection',        # atom
-                                    'time',
-                                    'selection_time',
-                                  ];
+my $events_arrayref
+  = [ XFixesSelectionNotify =>
+      [ 'xCxxL5',
+        ['subtype','XFixesSelectionNotifySubtype'],
+        'window',
+        ['owner',['None']], # window
+        'selection',        # atom
+        'time',
+        'selection_time',
+      ],
 
-my $XFixesCursorNotify_event
-  = [ sub {
-        my $X = shift;
-        my $data = shift;
-        ### XFixesCursorNotify unpack: @_
-        my ($subtype, $window, $cursor_serial, $time, $cursor_name)
-          = unpack 'xCxxL4', $data;
-        return (@_,  # base fields
-                subtype => $X->interp('XFixesCursorNotifySubtype',$subtype),
-                window  => _interp_none($X,$window), # probably not None though
-                cursor_serial => $cursor_serial,
-                time    => _interp_time($time),
-                # "name" field only in XFIXES 2.0 up, probably pad garbage
-                # in 1.0, so omit there.  Give it as "cursor_name" since
-                # plain "name" is the event name.
-                ($X->{'ext'}->{'XFIXES'}->[3]->{'major'} >= 2
-                 ? (cursor_name => $cursor_name)
-                 : ()));
-      },
-      sub {
-        my ($X, %h) = @_;
-        # "cursor_name" can be omitted as for a 1.0 event
-        return (pack('xCxxL4x12',
-                     $X->num('XFixesCursorNotifySubtype',$h{'subtype'}),
-                     _num_none($h{'window'}),
-                     $h{'cursor_serial'},
-                     _num_time($h{'time'}),
-                     _num_none($h{'cursor_name'} || 0)),
-                1); # "do_seq" put in sequence number
-      } ];
+      XFixesCursorNotify =>
+      [ sub {
+          my $X = shift;
+          my $data = shift;
+          ### XFixesCursorNotify unpack: @_
+          my ($subtype, $window, $cursor_serial, $time, $cursor_name)
+            = unpack 'xCxxL4', $data;
+          return (@_,  # base fields
+                  subtype => $X->interp('XFixesCursorNotifySubtype',$subtype),
+                  window  => _interp_none($X,$window), # probably not None though
+                  cursor_serial => $cursor_serial,
+                  time    => _interp_time($time),
+                  # "name" field only in XFIXES 2.0 up, probably pad garbage
+                  # in 1.0, so omit there.  Give it as "cursor_name" since
+                  # plain "name" is the event name.
+                  ($X->{'ext'}->{'XFIXES'}->[3]->{'major'} >= 2
+                   ? (cursor_name => $cursor_name)
+                   : ()));
+        },
+        sub {
+          my ($X, %h) = @_;
+          # "cursor_name" can be omitted as for a 1.0 event
+          return (pack('xCxxL4x12',
+                       $X->num('XFixesCursorNotifySubtype',$h{'subtype'}),
+                       _num_none($h{'window'}),
+                       $h{'cursor_serial'},
+                       _num_time($h{'time'}),
+                       _num_none($h{'cursor_name'} || 0)),
+                  1); # "do_seq" put in sequence number
+        } ],
+    ];
+
+sub _ext_events_install {
+  my ($X, $event_num, $events_arrayref) = @_;
+  foreach (my $i = 0; $i <= $#$events_arrayref; $i+=2) {
+    my $name = $events_arrayref->[$i];
+    if (defined (my $already = $X->{'ext_const'}->{'Events'}->[$event_num])) {
+      carp "Event $event_num $already overwritten with $name";
+    }
+    $X->{'ext_const'}->{'Events'}->[$event_num] = $name;
+    $X->{'ext_events'}->[$event_num] = $events_arrayref->[$i+1]; # pack/unpack
+    $event_num++;
+  }
+}
 
 #------------------------------------------------------------------------------
 # requests
 
-my $reqs =
+my $requests_arrayref =
   [
    [ 'XFixesQueryVersion',  # 0
      sub {
@@ -354,23 +375,27 @@ my $reqs =
     \&_request_xids ],  # ($X, $barrier)  single barrier to destroy
   ];
 
+sub _ext_requests_install {
+  my ($X, $request_num, $requests_arrayref) = @_;
+
+  $X->{'ext_request'}->{$request_num} = $requests_arrayref;
+  my $href = $X->{'ext_request_num'};
+  my $i;
+  foreach $i (0 .. $#$requests_arrayref) {
+    $href->{$requests_arrayref->[$i]->[0]} = [$request_num, $i];
+  }
+}
+
+#------------------------------------------------------------------------------
+
 sub new {
   my ($class, $X, $request_num, $event_num, $error_num) = @_;
   ### XFIXES new()
 
-  # Constants
-  %{$X->{'ext_const'}}     = (%{$X->{'ext_const'}     ||= {}}, %const_arrays);
-  %{$X->{'ext_const_num'}} = (%{$X->{'ext_const_num'} ||= {}}, %const_hashes);
-
-  # Events
-  $X->{'ext_const'}{'Events'}[$event_num] = 'XFixesSelectionNotify';
-  $X->{'ext_events'}[$event_num] = $XFixesSelectionNotify_event;
-  $event_num++;
-  $X->{'ext_const'}{'Events'}[$event_num] = 'XFixesCursorNotify';
-  $X->{'ext_events'}[$event_num] = $XFixesCursorNotify_event;
-
-  # Requests
-  _ext_requests_install ($X, $request_num, $reqs);
+  my $self = bless { }, $class;
+  _ext_constants_install ($X, [ $self->constants_list ]);
+  _ext_requests_install ($X, $request_num, $requests_arrayref);
+  _ext_events_install ($X, $event_num, $events_arrayref);
 
   # the protocol spec says must query version with what we support
   # need it to know which error types are defined too, as otherwise oughtn't
@@ -378,17 +403,17 @@ sub new {
   my ($server_major, $server_minor)
     = $X->req ('XFixesQueryVersion',
                CLIENT_MAJOR_VERSION, CLIENT_MINOR_VERSION);
+  $self->{'major'} = $server_major;
+  $self->{'minor'} = $server_minor;
 
   # Errors
-  _ext_const_error_install ($X, $error_num,
-                            # version 2.0
-                            ($server_major >= 2 ? ('Region') : ()),
-                            # version 5.0
-                            ($server_major >= 5 ? ('Barrier') : ()));
+  _ext_error_install ($X, $error_num,
+                      # version 2.0
+                      ($server_major >= 2 ? ('Region') : ()),
+                      # version 5.0
+                      ($server_major >= 5 ? ('Barrier') : ()));
 
-  return bless { major => $server_major,
-                 minor => $server_minor,
-               }, $class;
+  return $self;
 }
 
 sub _request_empty {
@@ -467,19 +492,9 @@ sub _num_xinputdevice {
   return $device;
 }
 
-sub _ext_requests_install {
-  my ($X, $request_num, $reqs) = @_;
-
-  $X->{'ext_request'}->{$request_num} = $reqs;
-  my $href = $X->{'ext_request_num'};
-  my $i;
-  foreach $i (0 .. $#$reqs) {
-    $href->{$reqs->[$i]->[0]} = [$request_num, $i];
-  }
-}
-sub _ext_const_error_install {
+sub _ext_error_install {
   my $X = shift;  # ($X, $errname1,$errname2,...)
-  ### _ext_const_error_install: @_
+  ### _ext_error_install: @_
   my $error_num = shift;
   my $aref = $X->{'ext_const'}{'Error'}  # copy
     = [ @{$X->{'ext_const'}{'Error'} || []} ];

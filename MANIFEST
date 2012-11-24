@@ -73,6 +73,7 @@ devel/xf86dga.pl
 devel/xf86vidmode.pl
 devel/xfixes-barrier.pl
 devel/xfixes.pl
+devel/XFree86_DGA-2.t
 devel/XFree86_VidModeExtension.t
 devel/xi-info.pl
 devel/xinerama.pl
@@ -158,6 +159,7 @@ t/XFIXES-2.t
 t/XFIXES-3.t
 t/XFIXES-4.t
 t/XFIXES-5.t
+t/XFree86_DGA-use.t
 t/XFree86_DGA.t
 t/XINERAMA-10.t
 t/XINERAMA-11.t

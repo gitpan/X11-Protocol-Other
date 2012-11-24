@@ -30,7 +30,7 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-my $test_count = (tests => 43)[1];
+my $test_count = (tests => 61)[1];
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -104,6 +104,48 @@ $other_X->QueryPointer($other_X->root); # sync
 
   ok ($X->interp('XFixesWindowRegionKind',0), 'Bounding');
   ok ($X->interp('XFixesWindowRegionKind',1), 'Clip');
+}
+
+#------------------------------------------------------------------------------
+# XFixesSaveSetMode enum
+
+{
+  ok ($X->num('XFixesSaveSetMode','Insert'), 0);
+  ok ($X->num('XFixesSaveSetMode','Delete'), 1);
+
+  ok ($X->num('XFixesSaveSetMode',0), 0);
+  ok ($X->num('XFixesSaveSetMode',1), 1);
+
+  ok ($X->interp('XFixesSaveSetMode',0), 'Insert');
+  ok ($X->interp('XFixesSaveSetMode',1), 'Delete');
+}
+
+#------------------------------------------------------------------------------
+# XFixesSaveSetTarget enum
+
+{
+  ok ($X->num('XFixesSaveSetTarget','Nearest'), 0);
+  ok ($X->num('XFixesSaveSetTarget','Root'), 1);
+
+  ok ($X->num('XFixesSaveSetTarget',0), 0);
+  ok ($X->num('XFixesSaveSetTarget',1), 1);
+
+  ok ($X->interp('XFixesSaveSetTarget',0), 'Nearest');
+  ok ($X->interp('XFixesSaveSetTarget',1), 'Root');
+}
+
+#------------------------------------------------------------------------------
+# XFixesSaveSetMap enum
+
+{
+  ok ($X->num('XFixesSaveSetMap','Map'), 0);
+  ok ($X->num('XFixesSaveSetMap','Unmap'), 1);
+
+  ok ($X->num('XFixesSaveSetMap',0), 0);
+  ok ($X->num('XFixesSaveSetMap',1), 1);
+
+  ok ($X->interp('XFixesSaveSetMap',0), 'Map');
+  ok ($X->interp('XFixesSaveSetMap',1), 'Unmap');
 }
 
 #------------------------------------------------------------------------------

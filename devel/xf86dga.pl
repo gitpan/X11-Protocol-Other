@@ -45,6 +45,11 @@ $ENV{'DISPLAY'} ||= ':0';
     ### @ret
     printf "%X\n", $ret[1];
   }
+
+ $X->XDGASelectInput(0, $);
+    ### @ret
+    printf "%X\n", $ret[1];
+  }
   exit 0;
 }
 {

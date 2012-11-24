@@ -90,6 +90,8 @@ END {
 }
 $have_extension = 1;
 
+my $screen_num = MyTestHelpers::X11_chosen_screen_number($X);
+
 
 #------------------------------------------------------------------------------
 # "XF86DGA" errors
@@ -115,28 +117,28 @@ $have_extension = 1;
 
 
 #------------------------------------------------------------------------------
-# XF86DGAQueryVersion
+# XF86DGAQueryVersion()
 
 {
   my @ret = $X->XF86DGAQueryVersion;
   MyTestHelpers::diag ("server XFree86_DGA version ", join('.',@ret));
   ok (scalar(@ret), 2);
+  $X->QueryPointer($X->root); # sync
 }
-$X->QueryPointer($X->root); # sync
 
 
 #------------------------------------------------------------------------------
-# XF86DGAQueryDirectVideo
+# XF86DGAQueryDirectVideo()
 
 my $direct_video_available;
 {
-  my $flags = $X->XF86DGAQueryDirectVideo(0);
+  my $flags = $X->XF86DGAQueryDirectVideo($screen_num);
   MyTestHelpers::diag ("XF86DGAQueryDirectVideo flags=$flags in hex ",
                        sprintf('%X',$flags));
   ok ($flags =~ /^\d+$/, 1);
   $direct_video_available = $flags & 1;
+  $X->QueryPointer($X->root); # sync
 }
-$X->QueryPointer($X->root); # sync
 
 my $skip_if_no_direct_video;
 if (! $direct_video_available) {
@@ -176,12 +178,13 @@ if (! $direct_video_available) {
   my @ret;
   if ($direct_video_available) {
     if (eval {
-      @ret = $X->XF86DGAGetVideoLL(0);
+      @ret = $X->XF86DGAGetVideoLL($screen_num);
       1;
     }) {
       MyTestHelpers::diag ("XF86DGAGetVideoLL ", join(', ',@ret));
       MyTestHelpers::diag ("  in hex ", join(', ',map{sprintf '%X',$_}@ret));
     }
+    $X->QueryPointer($X->root); # sync
   }
   my $skip_if_error = (defined $error
                        ? 'due to XF86DGAGetVideoLL error reply'
@@ -189,7 +192,6 @@ if (! $direct_video_available) {
   skip ($skip_if_error,
         scalar(@ret), 4);
 }
-$X->QueryPointer($X->root); # sync
 
 
 #------------------------------------------------------------------------------
@@ -198,32 +200,32 @@ $X->QueryPointer($X->root); # sync
 {
   my @ret;
   if ($direct_video_available) {
-    @ret = $X->XF86DGAGetViewPortSize(0);
+    @ret = $X->XF86DGAGetViewPortSize($screen_num);
     MyTestHelpers::diag ("XF86DGAGetViewPortSize ", join(', ',@ret));
+    $X->QueryPointer($X->root); # sync
   }
   skip ($skip_if_no_direct_video,
         scalar(@ret), 2);
 }
-$X->QueryPointer($X->root); # sync
 
 
 #------------------------------------------------------------------------------
-# XF86DGAGetVidPage
+# XF86DGAGetVidPage()
 
 {
   my $page = '';
   if ($direct_video_available) {
-    $page = $X->XF86DGAGetVidPage(0);
+    $page = $X->XF86DGAGetVidPage($screen_num);
     MyTestHelpers::diag ("XF86DGAGetVidPage ", $page);
+    $X->QueryPointer($X->root); # sync
   }
   skip ($skip_if_no_direct_video,
         $page =~ /^\d+$/, 1);
 }
-$X->QueryPointer($X->root); # sync
 
 
 #------------------------------------------------------------------------------
-# XF86DGADirectVideo
+# XF86DGADirectVideo()
 
 my $enabled = 1;
 {
@@ -244,7 +246,7 @@ my $enabled = 1;
   };
 
   MyTestHelpers::diag ("XF86DGADirectVideo attempt ...");
-  $X->XF86DGADirectVideo(0, 0x02);
+  $X->XF86DGADirectVideo($screen_num, 0x02);
   $X->QueryPointer($X->root); # sync
   MyTestHelpers::diag ("XF86DGADirectVideo done");
 }
@@ -258,28 +260,41 @@ if ($enabled) {
 }
 
 #------------------------------------------------------------------------------
-# XF86DGAGetVidPage / XF86DGASetVidPage
+# XF86DGAGetVidPage() / XF86DGASetVidPage()
 
 {
-  my $old_page = $X->XF86DGAGetVidPage(0);
+  my $old_page = $X->XF86DGAGetVidPage($screen_num);
   my $new_page = 0;
   my $got_page;
   if ($enabled) {
-    $X->XF86DGASetVidPage (0, 0);
-    $got_page = $X->XF86DGAGetVidPage(0);
+    $X->XF86DGASetVidPage ($screen_num, $new_page);
+    $got_page = $X->XF86DGAGetVidPage($screen_num);
+    $X->QueryPointer($X->root); # sync
   }
   skip ($skip_if_not_enabled,
         $got_page, $new_page,
         'XF86DGASetVidPage page');
 }
-$X->QueryPointer($X->root); # sync
 
 #------------------------------------------------------------------------------
-# XF86DGASetViewPort
+# XF86DGASetViewPort()
 
 {
   if ($enabled) {
-    $X->XF86DGASetViewPort(0, 0,0);
+    $X->XF86DGASetViewPort($screen_num, 0,0);
+    $X->QueryPointer($X->root); # sync
+  }
+  skip ($skip_if_not_enabled,
+        1,1, 'XF86DGASetViewPort');
+}
+
+#------------------------------------------------------------------------------
+# XF86DGAInstallColormap()
+
+{
+  my $colormap = $X->default_colormap;
+  if ($enabled) {
+    $X->XF86DGAInstallColormap($screen_num, $colormap);
     $X->QueryPointer($X->root); # sync
   }
   skip ($skip_if_not_enabled,
@@ -287,33 +302,19 @@ $X->QueryPointer($X->root); # sync
 }
 
 #------------------------------------------------------------------------------
-# XF86DGAInstallColormap
-
-{
-  my $colormap = $X->default_colormap;
-  if ($enabled) {
-    $X->XF86DGAInstallColormap(0, $colormap);
-  }
-  skip ($skip_if_not_enabled,
-        1,1, 'XF86DGAInstallColormap');
-}
-$X->QueryPointer($X->root); # sync
-
-
-#------------------------------------------------------------------------------
-# XF86DGAViewPortChanged
+# XF86DGAViewPortChanged()
 
 {
   my $bool = 'x';
   if ($enabled) {
-    $bool = $X->XF86DGAViewPortChanged(0);
+    $bool = $X->XF86DGAViewPortChanged($screen_num);
     MyTestHelpers::diag ("XF86DGAViewPortChanged ", $bool);
+    $X->QueryPointer($X->root); # sync
   }
   skip ($skip_if_not_enabled,
         $bool =~ /^\d+$/, 1,
         'XF86DGAViewPortChanged return');
 }
-$X->QueryPointer($X->root); # sync
 
 #------------------------------------------------------------------------------
 

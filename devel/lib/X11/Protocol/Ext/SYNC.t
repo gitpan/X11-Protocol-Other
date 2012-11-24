@@ -86,6 +86,68 @@ $X->QueryPointer($X->root); # sync
 
 
 #------------------------------------------------------------------------------
+# _hilo_to_int64()
+
+# explicit stringizing to cope with old BigInt
+{ my $ret = X11::Protocol::Ext::SYNC::_hilo_to_int64(0,1);
+  $ret = "$ret";
+  $ret =~ s/^\+//;
+  ok ($ret, 1);
+}
+{ my $ret = X11::Protocol::Ext::SYNC::_hilo_to_int64(0,0x8000_0000);
+  $ret = "$ret";
+  $ret =~ s/^\+//;
+  ok ($ret, '2147483648');
+}
+{ my $ret = X11::Protocol::Ext::SYNC::_hilo_to_int64(0,0xFFFF_FFFF);
+  $ret = "$ret";
+  $ret =~ s/^\+//;
+  ok ($ret, '4294967295');
+}
+{ my $ret = X11::Protocol::Ext::SYNC::_hilo_to_int64(0x8000_0000,3);
+  $ret = "$ret";
+  $ret =~ s/^\+//;
+  ok ($ret, '-9223372036854775805');
+}
+{ my $ret = X11::Protocol::Ext::SYNC::_hilo_to_int64(0x1234_5678, 0x8765_4321);
+  $ret = "$ret";
+  $ret =~ s/^\+//;
+  ok ($ret, '1311768467139281697');
+}
+{ my $ret = X11::Protocol::Ext::SYNC::_hilo_to_int64(0xFFFF_FFFF, 0xFFFF_FFFF);
+  $ret = "$ret";
+  $ret =~ s/^\+//;
+  ok ($ret, '-1');
+}
+
+#------------------------------------------------------------------------------
+# _int64_to_hilo()
+
+{ my @ret = X11::Protocol::Ext::SYNC::_int64_to_hilo(0);
+  ok (scalar(@ret), 2);
+  ok ($ret[0], 0);
+  ok ($ret[1], 0);
+}
+{ my @ret = X11::Protocol::Ext::SYNC::_int64_to_hilo(-1);
+  ok (scalar(@ret), 2);
+  ok ($ret[0], 0xFFFF_FFFF);
+  ok ($ret[1], 0xFFFF_FFFF);
+}
+{ my $sv = big_leftshift(1,32);
+  my @ret = X11::Protocol::Ext::SYNC::_int64_to_hilo($sv);
+  ok (scalar(@ret), 2);
+  ok ($ret[0], 1);
+  ok ($ret[1], 0);
+}
+{ my $sv = big_leftshift(1,63) - 1;
+  my @ret = X11::Protocol::Ext::SYNC::_int64_to_hilo($sv);
+  ok (scalar(@ret), 2);
+  ok ($ret[0], 0x7FFF_FFFF);
+  ok ($ret[1], 0xFFFF_FFFF);
+}
+
+
+#------------------------------------------------------------------------------
 # errors
 
 {
@@ -132,10 +194,9 @@ ok ($X->interp('SyncValueType',1), 'Relative');
 
 sub big_leftshift {
   my ($b, $n) = @_;
+  # no "<<" in old BigInt
   require Math::BigInt;
-  $b = Math::BigInt->new($b);
-  $b <<= $n;
-  return $b;
+  return Math::BigInt->new("$b") * Math::BigInt->new(2) ** $n;
 }
 {
   my $counter = $X->new_rsrc;
@@ -143,20 +204,24 @@ sub big_leftshift {
   $X->QueryPointer($X->root); # sync
   ok (1, 1, 'SyncCreateCounter');
 
-  my $value = $X->SyncQueryCounter ($counter);
-  ok ($value, 123);
+  { my $value = $X->SyncQueryCounter ($counter);
+    $value = "$value";
+    $value =~ s/^\+//;
+    ok ($value, 123);
+  }
 
-  my $value;
-  foreach $value (0, 1, -1,
-                     big_leftshift(1,32),
-                     - big_leftshift(1,32),
-                     big_leftshift(1,63) - 1,
-                     - big_leftshift(1,63),
-                    ) {
-    $X->SyncSetCounter ($counter, $value);
-    my $got_value = $X->SyncQueryCounter ($counter);
-    ok ($got_value == $value, 1,
-        "counter $value got $got_value");
+  { my $value;
+    foreach $value (0, 1, -1,
+                    big_leftshift(1,32),
+                    - big_leftshift(1,32),
+                    big_leftshift(1,63) - 1,
+                    - big_leftshift(1,63),
+                   ) {
+      $X->SyncSetCounter ($counter, $value);
+      my $got_value = $X->SyncQueryCounter ($counter);
+      ok ($got_value == $value, 1,
+          "counter $value got $got_value");
+    }
   }
 
   $X->SyncDestroyCounter ($counter);
@@ -237,7 +302,8 @@ sub big_leftshift {
   foreach $more (0, 1) {
     my $time;
     foreach $time ('CurrentTime', 103) {
-      my %input = (# can't use "name" on an extension event, at least in 0.56
+      my %input = (# can't use "name" on an extension event, in
+                   # X11::Protocol 0.56
                    # name        => "SyncCounterNotify",
                    synthetic     => 1,
                    code          => $event_num,
@@ -282,7 +348,8 @@ sub big_leftshift {
   foreach $more (0, 1) {
     my $time;
     foreach $time ('CurrentTime', 103) {
-      my %input = (# can't use "name" on an extension event, at least in 0.56
+      my %input = (# can't use "name" on an extension event, in
+                   # X11::Protocol 0.56
                    # name          => "SyncAlarmNotify",
                    synthetic       => 1,
                    code            => $alarm_event_num,
@@ -311,6 +378,37 @@ sub big_leftshift {
       ok ($output{'state'},         $input{'state'});
     }
   }
+}
+
+
+#------------------------------------------------------------------------------
+# SyncSetPriority / SyncGetPriority
+
+{
+  $X->SyncSetPriority(0,123);
+  ok ($X->SyncGetPriority(0), 123);
+
+  $X->SyncSetPriority("None",-123);
+  ok ($X->SyncGetPriority(0), -123);
+
+  $X->SyncSetPriority(0,0);
+  ok ($X->SyncGetPriority(0), 0);
+
+  # second client connection
+  my $X2 = X11::Protocol->new ($display);
+  my $pixmap2 = $X2->new_rsrc;
+  $X2->CreatePixmap($pixmap2, $X2->root, 1, 1,1);
+  $X2->QueryPointer($X->root); # sync
+
+  $X->SyncSetPriority($pixmap2, 456);
+  ok ($X->SyncGetPriority($pixmap2), 456);
+  ok ($X2->SyncGetPriority(0), 456);
+  ok ($X->SyncGetPriority(0), 0);
+
+  my $pixmap = $X->new_rsrc;
+  $X->CreatePixmap($pixmap, $X2->root, 1, 1,1);
+  ok ($X->SyncGetPriority($pixmap), 0);
+  $X->FreePixmap($pixmap);
 }
 
 
