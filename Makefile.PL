@@ -54,13 +54,13 @@ WriteMakefile
       { description => 'All the optional things which may be used.',
         requires => { %encode_modules,
                     },
-        maximum_tests =>
-        { description => 'Have "make test" do as much as possible.',
-          requires => {
-                       'Module::Util' => 0, # checking for HanExtra
-                       %encode_modules,
-                      },
-        },
+      },
+      maximum_tests =>
+      { description => 'Have "make test" do as much as possible.',
+        requires => {
+                     'Module::Util' => 0, # checking for HanExtra
+                     %encode_modules,
+                    },
       },
      },
    },

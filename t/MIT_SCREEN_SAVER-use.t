@@ -28,7 +28,7 @@ ok (1, 1, 'X11::Protocol::Ext::MIT_SCREEN_SAVER load as first thing');
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 22;
+my $want_version = 23;
 ok ($X11::Protocol::Ext::MIT_SCREEN_SAVER::VERSION,
     $want_version,
     'VERSION variable');

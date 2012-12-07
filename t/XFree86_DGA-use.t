@@ -29,7 +29,7 @@ ok (1, 1, 'X11::Protocol::Ext::XFree86_DGA load as first thing');
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 22;
+my $want_version = 23;
 ok ($X11::Protocol::Ext::XFree86_DGA::VERSION,
     $want_version,
     'VERSION variable');

@@ -147,7 +147,7 @@ if (! $direct_video_available) {
 
 
 #------------------------------------------------------------------------------
-# XF86DGAGetVideoLL
+# XF86DGAGetVideoLL()
 #
 # Have seen an x.org server on solaris give flags=1 from
 # XF86DGAQueryDirectVideo() but then error XF86DGANoDirectVideoMode from an
@@ -164,15 +164,16 @@ if (! $direct_video_available) {
 
     my ($type, $seq, $info, $minor_op, $major_op) = unpack 'xCSLSC', $data;
     my $typename = $X->interp('Error',$type);
-    if ($typename =~ /^XF86DGA/) {
-      MyTestHelpers::diag ("XF86DGAGetVideoLL error $typename");
-      $error = $typename;
-      $direct_video_available = 0;
-      $skip_if_no_direct_video = 'error from XF86DGAGetVideoLL';
-      die "longjmp out to eval";
-    } else {
-      goto $orig_error_handler;
-    }
+    MyTestHelpers::diag ("XF86DGAGetVideoLL error $typename");
+    $error = $typename;
+    $direct_video_available = 0;
+    $skip_if_no_direct_video = 'error from XF86DGAGetVideoLL';
+    die "longjmp out to eval";
+
+    # if ($typename =~ /^XF86DGA/) {
+    # } else {
+    #   goto $orig_error_handler;
+    # }
   };
 
   my @ret;

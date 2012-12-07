@@ -86,7 +86,7 @@ sub to_hex {
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 22;
+my $want_version = 23;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');
@@ -1044,6 +1044,8 @@ X11::Protocol::WM::set_net_wm_window_type ($X, $window, 'NORMAL');
                    event_mask       => $X->pack_event_mask('PropertyChange'));
   $X->MapWindow($toplevel);
 
+  $X->atom_name($X->atom('WM_STATE'));
+
   my $skip;
   my $wm_state = wait_for_wm_state($X,$toplevel);
   if (! $wm_state) {
@@ -1051,21 +1053,27 @@ X11::Protocol::WM::set_net_wm_window_type ($X, $window, 'NORMAL');
   }
   skip ($skip, $wm_state, 'NormalState');
 
-  X11::Protocol::WM::iconify($X,$toplevel);
-  unless ($skip) { $wm_state = wait_for_wm_state($X,$toplevel); }
-  skip ($skip, $wm_state, 'IconicState');
-
-  X11::Protocol::WM::withdraw($X,$toplevel);
-  unless ($skip) { $wm_state = wait_for_wm_state($X,$toplevel); }
-  skip ($skip, $wm_state, 'WithdrawnState');
-
-  $X->MapWindow($toplevel);
-  unless ($skip) { $wm_state = wait_for_wm_state($X,$toplevel); }
-  skip ($skip, $wm_state, 'NormalState');
-
-  X11::Protocol::WM::withdraw($X,$toplevel);
-  unless ($skip) { $wm_state = wait_for_wm_state($X,$toplevel); }
-  skip ($skip, $wm_state, 'WithdrawnState');
+  {
+    X11::Protocol::WM::iconify($X,$toplevel);
+    unless ($skip) { $wm_state = wait_for_wm_state($X,$toplevel); }
+    skip ($skip, $wm_state, 'IconicState');
+  }
+  {
+    X11::Protocol::WM::withdraw($X,$toplevel);
+    unless ($skip) { $wm_state = wait_for_wm_state($X,$toplevel); }
+    my $is_withdrawn = (! defined $wm_state || $wm_state eq 'WithdrawnState');
+    skip ($skip, $is_withdrawn, 1, 'withdrawn');
+  }
+  {
+    $X->MapWindow($toplevel);
+    unless ($skip) { $wm_state = wait_for_wm_state($X,$toplevel); }
+    skip ($skip, $wm_state, 'NormalState');
+  }
+  { X11::Protocol::WM::withdraw($X,$toplevel);
+    unless ($skip) { $wm_state = wait_for_wm_state($X,$toplevel); }
+    my $is_withdrawn = (! defined $wm_state || $wm_state eq 'WithdrawnState');
+    skip ($skip, $is_withdrawn, 1, 'withdrawn again');
+  }
 
   $X->DestroyWindow($toplevel);
   $X->QueryPointer($X->root);  # sync
@@ -1079,6 +1087,10 @@ sub wait_for_wm_state {
   local $X->{'event_handler'} = sub {
     my (%h) = @_;
     ### event_handler: \%h
+    # MyTestHelpers::diag ("event ", $h{'name'},
+    #                      ' ',$h{'window'},
+    #                      ' ',$h{'atom'},
+    #                      '=', $h{'atom'} && $X->{'atom_names'}->[$h{'atom'}]);
     if ($h{'name'} eq 'PropertyNotify'
         && $h{'window'} == $window
         && $h{'atom'} == $WM_STATE) {
@@ -1107,7 +1119,8 @@ sub wait_for_readable {
   vec($read_bits,fileno($fh),1) = 1;
   my $err_bits = $read_bits;
 
-  my ($nfound, $timeleft) = select($read_bits, '', $err_bits, 1);
+  my ($nfound, $timeleft) = select($read_bits, '', $err_bits,
+                                   1); # 1 second timeout
   return $nfound;
 }
 

@@ -33,7 +33,7 @@ use Carp;
 use X11::AtomConstants;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 22;
+$VERSION = 23;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -1716,20 +1716,21 @@ C<UnmapNotify> message does nothing.
 C<$root> should be the root window of C<$window>.  If not given or
 C<undef> then it's obtained from a C<QueryTree()>.
 
-If any windows are C<WM_TRANSIENT_FOR> this C<$window> then generally the
-client should withdraw them too.  The window manager might make such
-transients inaccessible anyway.
+If any other windows are C<WM_TRANSIENT_FOR> this C<$window> then generally
+the client should withdraw them too.  The window manager might make such
+other windows inaccessible anyway.
 
 The ICCCM specifies an C<UnmapNotify> message so the window manager is
 notified of the desired state change even if C<$window> is already unmapped,
-such as when it's in IconicState or perhaps during some window manager
+such as when it's in "IconicState" or perhaps during some window manager
 reparenting, etc.
 
-C<$window> can be changed back to NormalState or IconicState later with a
-C<$X-E<gt>MapWindow()> the same as for a newly created window (with
-C<WM_HINTS> C<initial_state> for desired initial state).  But before doing
-so be sure the window manager has recognised the C<withdraw()>, by it
-changing C<WM_STATE> to WithdrawnState.
+C<$window> can be changed back to NormalState or IconicState later with
+C<$X-E<gt>MapWindow()> the same as for a newly created window.  (C<WM_HINTS>
+C<initial_state> can give a desired initial iconic/normal state).  But
+before doing so be sure the window manager has recognised the C<withdraw()>.
+This will be when the window manager changes the C<WM_STATE> to
+"WithdrawnState", or deletes the C<WM_STATE> property.
 
 Any client can withdraw any toplevel window, but it's unusual for a client
 to withdraw windows which are not its own.

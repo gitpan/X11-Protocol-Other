@@ -93,7 +93,6 @@ examples/xinerama-info.pl
 examples/xresource-pairwise.pl
 examples/xresource-print.pl
 inc/my_pod2html
-inc/MyMakeMakerExtras.pm
 lib/Encode/X11.pm
 lib/X11/AtomConstants.pm
 lib/X11/CursorFont.pm
