@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -16,7 +16,7 @@
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
 CFLAGS = -Wall -g -Wpadded
-LOADLIBES = -lXss -lXi -lXv -lX11
+LOADLIBES = -lXss -lXi -lXv -lXext -lX11
 
 pad:
 	gcc -Wpadded -x c -fsyntax-only /usr/include/X11/extensions/xf86vmproto.h

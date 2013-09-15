@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -30,26 +30,10 @@ use Smart::Comments;
 
 
 {
+  # various prints
+
   my $display = $ENV{'DISPLAY'} || ':0';
-  my $X = X11::Protocol->new ($display);
-  $X->init_extension('X-Resource') or die $@;
-
-  my $pixmap;
-  foreach (1 .. 1) {
-    $pixmap = $X->new_rsrc;
-    $X->CreatePixmap ($pixmap,
-                      $X->root,
-                      8,
-                      1000,1000);  # width,height
-  }
-
-  my $bytes = $X->XResourceQueryClientPixmapBytes ($pixmap);
-  print "PixmapBytes $bytes\n";
-  exit 0;
-}
-
-{
-  my $display = $ENV{'DISPLAY'} || ':0';
+  $display = ':1';
   my $X0 = X11::Protocol->new ($display);
   ### resource_id_base: sprintf '%X', $X0->resource_id_base
 
@@ -106,7 +90,8 @@ use Smart::Comments;
 
   { my @res = $X->XResourceQueryClientResources ($X->resource_id_base);
     ### @res
-    atom_names ($X, values(%{@res}));
+    { my %res = @res;
+      atom_names ($X, values(%res)); }
     while (@res) {
       my $atom = shift @res;
       my $count = shift @res;
@@ -118,19 +103,38 @@ use Smart::Comments;
   my $nf = Number::Format->new;
 
   foreach my $client (@clients) {
-    my $xid = $client->[0] + $client->[1];
+    printf "\nclient %X %X\n", $client->[0], $client->[1];
+    my $xid =  $client->[0] + $client->[1];
     my @res = $X->XResourceQueryClientResources ($xid);
-    printf "\nclient %X\n", $xid;
     while (@res) {
       my $atom = shift @res;
       my $count = shift @res;
       printf "%s (atom %d)   %d\n", atom_name_maybe($X,$atom), $atom, $count;
     }
     my $bytes = $X->XResourceQueryClientPixmapBytes ($xid);
-    $bytes = $nf->format_number($bytes);
-    print "PixmapBytes $bytes\n";
+    my $nbytes = $nf->format_number($bytes);
+    print "PixmapBytes $nbytes   $bytes\n";
   }
 
+  exit 0;
+}
+
+{
+  my $display = $ENV{'DISPLAY'} || ':0';
+  my $X = X11::Protocol->new ($display);
+  $X->init_extension('X-Resource') or die $@;
+
+  my $pixmap;
+  foreach (1 .. 1) {
+    $pixmap = $X->new_rsrc;
+    $X->CreatePixmap ($pixmap,
+                      $X->root,
+                      8,
+                      1000,1000);  # width,height
+  }
+
+  my $bytes = $X->XResourceQueryClientPixmapBytes ($pixmap);
+  print "PixmapBytes $bytes\n";
   exit 0;
 }
 

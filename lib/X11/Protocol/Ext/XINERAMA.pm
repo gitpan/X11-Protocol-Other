@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 23;
+$VERSION = 24;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -177,7 +177,7 @@ sub _num_none {
 1;
 __END__
 
-=for stopwords XINERAMA Xinerama XID arrayrefs Ryde multi-monitor PanoramiX natively enquire
+=for stopwords XINERAMA Xinerama XID arrayrefs Ryde multi-monitor PanoramiX natively enquire ProcPanoramiXGetScreenSize
 
 =head1 NAME
 
@@ -265,7 +265,11 @@ C<$x>,C<$y> is the top-left corner of the monitor in the combined screen.
 Rumour has it the C<Xsun> server with Xinerama 1.0 had a different request
 number 4 than the C<XineramaIsActive> of Xinerama 1.1 above.
 
-    http://blogs.sun.com/alanc/entry/xinerama_protocol_clashes_on_solaris
+=over
+
+L<http://blogs.sun.com/alanc/entry/xinerama_protocol_clashes_on_solaris>
+
+=back
 
 There's no attempt to do anything about this here, as yet.  If
 C<PanoramiXQueryVersion()> reports 1.0 then you shouldn't use
@@ -279,9 +283,13 @@ Early server code such as X11R6.4 might not range check the monitor number
 in C<PanoramiXGetScreenSize()>.  Did big values read out fragments of
 arbitrary memory, or cause a segfault?  Don't do that.
 
-    X.org some time post 1.5.x,
-    "Prevent buffer overrun in ProcPanoramiXGetScreenSize"
-    http://cgit.freedesktop.org/xorg/xserver/commit/?id=2b266eda6e23d16116f8a8e258192df353970279
+=over
+
+X.org some time post 1.5.x,
+"Prevent buffer overrun in ProcPanoramiXGetScreenSize",
+L<http://cgit.freedesktop.org/xorg/xserver/commit/?id=2b266eda6e23d16116f8a8e258192df353970279>
+
+=back
 
 =head1 OTHER NOTES
 
@@ -308,11 +316,11 @@ C<http://www.kernel.org/doc/als1999/Conference/IMcCartney/xinerama.html>
 
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

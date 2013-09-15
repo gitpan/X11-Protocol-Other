@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -31,7 +31,7 @@ use Carp;
 use Encode ();
 use Encode::Encoding;
 
-our $VERSION = 23;
+our $VERSION = 24;
 our @ISA = ('Encode::Encoding');
 
 # uncomment this to run the ### lines
@@ -481,18 +481,17 @@ without converting.
 L<Encode>,
 L<Encode::HanExtra>
 
-"Compound Text Encoding" specification
-
-    http://www.x.org/docs/CTEXT/ctext.pdf
-    /usr/share/doc/xorg-docs/specs/CTEXT/ctext.txt.gz
+"Compound Text Encoding" specification,
+L</usr/share/doc/xorg-docs/specs/CTEXT/ctext.txt.gz>,
+L<http://www.x.org/docs/CTEXT/ctext.pdf>
 
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

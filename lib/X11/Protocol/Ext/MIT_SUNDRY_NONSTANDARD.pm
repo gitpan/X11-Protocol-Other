@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 23;
+$VERSION = 24;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -35,8 +35,6 @@ $VERSION = 23;
 # /usr/include/X11/extensions/MITMisc.h
 #     Xlib.
 
-
-### MIT_SUNDRY_NONSTANDARD.pm loads
 
 my $reqs =
   [
@@ -137,11 +135,11 @@ L<Xserver(1)> "bc" command-line option to set the flag at server startup.
 
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

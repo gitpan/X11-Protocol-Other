@@ -1,8 +1,4 @@
-# alarm parameters
-
-
-
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -26,112 +22,48 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 23;
+$VERSION = 24;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
 # use Smart::Comments;
 
-
-# /usr/share/doc/x11proto-xext-dev/sync.txt.gz
-#
-# /usr/include/X11/extensions/syncproto.h
-# /usr/include/X11/extensions/syncconst.h
-# /usr/include/X11/extensions/syncstr.h
-#
-# /usr/include/X11/extensions/sync.h
-#    Xlib
-# /usr/share/xcb/sync.xml
-#    xcb
-#
-# /so/xorg/xorg-server-1.10.0/Xext/sync.c
-#    server source
-#
 # /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
 #
-# X11R7.6 SYNC 3.0
-
+# SYNC 3.1
+#    /usr/share/doc/x11proto-xext-dev/sync.txt.gz
+#
+#    /usr/include/X11/extensions/syncproto.h
+#    /usr/include/X11/extensions/syncconst.h
+#    /usr/include/X11/extensions/syncstr.h
+#
+#    /usr/include/X11/extensions/sync.h
+#    /usr/share/X11/doc/hardcopy/Xext/synclib.PS.gz
+#    /so/xorg/libXext-1.2.0/src/XSync.c
+#    /so/xorg/libXext-1.2.0/specs/synclib.xml
+#       Xlib
+#    /usr/share/xcb/sync.xml
+#       xcb
+#
+#    /so/xorg/xorg-server-1.10.0/Xext/sync.c
+#       server source
+#
+# X11R7.6 SYNC 3.0, no Fence
+#    /so/xorg/sync-3.0/sync.txt
+#    /so/x11r6.4/xc/include/extensions/sync.h
+#    /so/x11r6.4/xc/include/extensions/syncstr.h
+#    /so/x11r6.4/xc/programs/Xserver/Xext/sync.c
+#
+#    /so/xfree/xfree86-3.3.2.3a/include/extensions/sync.h
+#    /so/xfree/xfree86-3.3.2.3a/include/extensions/syncstr.h
+#    /so/xfree/xfree86-3.3.2.3a/programs/Xserver/Xext/sync.c
+#
+#    /so/x11r2/X.V11R2/lib/X/XSync.c
+#       Xlib
 
 # these not documented yet ...
 use constant CLIENT_MAJOR_VERSION => 3;
 use constant CLIENT_MINOR_VERSION => 1;
-
-#------------------------------------------------------------------------------
-# 64-bits
-
-# -2^64 + $hi*2^32 + $lo
-# = 2^32 * (-2^32 + $hi) + $lo
-#
-# -2^64 + $hi*2^32 + $lo
-# = -2^64 + ($hi-2^31+2^31)*2^32 + $lo
-# = -2^64 + 2^63 + ($hi-2^31)*2^32 + $lo
-# = -2^63 + ($hi-2^31)*2^32 + $lo
-#
-# Crib: "<<" shift operator turns a negative into a positive, so have to
-# shift $hi as positive then adjust.
-
-{
-  my $uv = ~0;
-  my $bits = 0;
-  while ($uv && $bits < 64) {
-    $uv >>= 1;
-    $bits++;
-  }
-
-  if ($bits >= 64) {
-     eval "\n#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
-sub _hilo_to_int64 {
-  my ($hi,$lo) = @_;
-  if ($hi & 0x8000_0000) {
-    $hi -= 0x8000_0000;
-    $lo += -(1<<63);
-  }
-  ### $hi
-  ### $lo
-  ### hi shift: $hi<<1
-  ### result: ($hi << 32) + $lo
-  return ($hi << 32) + $lo;
-}
-1;
-HERE
-  } else {
-     eval "\n#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
-use Math::BigInt;
-sub _hilo_to_int64 {
-  my ($hi,$lo) = @_;
-
-  print "_hilo_to_int64()  $hi  $lo\n";
-
-  my $ret = Math::BigInt->new("$hi") * (Math::BigInt->new(2) ** 32) + $lo;
-  if ($hi & 0x8000_0000) {
-    $ret -= Math::BigInt->new(2) ** 64;
-  }
-  print "  ret $ret\n";
-  return $ret;
-}
-1;
-HERE
-  }
-}
-
-sub _int64_to_hilo {
-  my ($sv) = @_;
-  print "_int64_to_hilo $sv ",(ref $sv || '[scalar]'),"\n";
-
-  # $lo = $sv % 65536;
-  # $sv = int($sv / 65536);
-  # $lo += ($sv % 65536) * 65536;
-
-
-  $sv = int($sv);
-  my $lo = $sv % (2.0**32);
-  $sv -= $lo;
-  print "  sub lo $lo to $sv\n";
-  $sv = int ($sv / (2.0**32));
-  return ($sv & 0xFFFF_FFFF,
-          $lo);
-}
-
 
 #------------------------------------------------------------------------------
 # symbolic constants
@@ -239,6 +171,8 @@ sub _ext_events_install {
 
 my $reqs =
   [
+   # Version 3.0
+
    ['SyncInitialize',  # 0
     sub {
       my ($X, $major, $minor) = @_;
@@ -287,6 +221,7 @@ my $reqs =
    ['SyncSetCounter',  # 3
     sub {
       my ($X, $counter, $value) = @_;
+      ### SyncSetCounter() ...
       return pack 'L3', $counter, _int64_to_hilo($value);
     },
    ],
@@ -363,7 +298,7 @@ my $reqs =
     }],
 
    #------------------------
-   # version ...
+   # version 3.1
 
    ['SyncCreateFence',  # 14
     sub {
@@ -414,7 +349,7 @@ my $reqs =
     my $i;
     foreach $i (0 .. $#keys) {
       my $key = $keys[$i];
-      next unless exists $h{$key};;
+      next unless exists $h{$key};
 
       my $arg = delete $h{$key};
       $mask |= (1 << $i);
@@ -449,7 +384,10 @@ sub new {
   _ext_constants_install ($X, [ $self->constants_list ]);
   _ext_events_install ($X, $event_num, [ $self->events_list ]);
 
-  # spec says must initialize or behaviour undefined
+  # SYNC spec says must initialize or behaviour undefined (though for
+  # example the X.org server doesn't enforce this).  Also we want to know
+  # whether 3.0 or 3.1 so that the Fence error type can be setup or not.
+  #
   my ($major, $minor) = $X->req('SyncInitialize',
                                 CLIENT_MAJOR_VERSION,
                                 CLIENT_MINOR_VERSION);
@@ -541,14 +479,151 @@ sub _request_xids {
   return _request_card32s ($X, map {_num_none($_)} @_);
 }
 
+#------------------------------------------------------------------------------
+# 64-bits
+
+# -2^64 + $hi*2^32 + $lo
+# = 2^32 * (-2^32 + $hi) + $lo
+#
+# -2^64 + $hi*2^32 + $lo
+# = -2^64 + ($hi-2^31+2^31)*2^32 + $lo
+# = -2^64 + 2^63 + ($hi-2^31)*2^32 + $lo
+# = -2^63 + ($hi-2^31)*2^32 + $lo
+#
+# Crib: "<<" shift operator turns a negative into a positive, so must shift
+# $hi as positive then adjust.
+
+use constant _INT_BITS => do {
+  # In Perl 5.14.2 with -T taint mode, $lo += -(1<<63) becomes an NV not a
+  # UV making the int64 return lose precision.  $lo is tainted by being a
+  # value read from the server.  Not sure what can be relied on for integer
+  # arithmetic in taint mode, but for now treat it as 32-bit Perl.
+
+  # $n = tainted zero.  It's assumed there will be something in %ENV which
+  # is tainted.  Normally everything in %ENV is tainted, but it's not
+  # uncommon to wash $PATH.  Could use Taint::Util::taint(), but don't
+  # really want to demand that module.
+  my $n = '0' . join ('', map {defined $_ && substr($_,0,0)} values %ENV);
+
+  my $bits = 0;
+  for (;;) {
+    $bits++;
+    $n *= 2;
+    my $n2 = $n;
+    $n += 1;
+    if ($n <= $n2 || $n >= $n2 + 2) {
+      # floating point round-off, stop
+      last;
+    }
+    if ($bits >= 64) {
+      # enough good bits for our purposes, stop
+      last;
+    }
+  }
+  ### $bits
+  # Devel::Peek::Dump ($n);
+  $bits;
+};
+
+if (_INT_BITS >= 64) {
+  ### 64-bit UV ...
+
+  eval "\n#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
+sub _hilo_to_int64 {
+  my ($hi,$lo) = @_;
+  ### _hilo_to_int64() ...
+  ### $hi
+  ### $lo
+  if ($hi & 0x8000_0000) {
+    $hi -= 0x8000_0000;
+    $lo += -(1<<63);
+    ### twos-complement negative to ...
+    ### $hi
+    ### $lo
+    ### lo hex: sprintf '%X', $lo
+  }
+  ### hi shift: $hi<<1
+  ### result: ($hi << 32) + $lo
+  return ($hi << 32) + $lo;
+}
+1;
+HERE
+} else {
+  ### 32-bit UV (or anything less than 64) ...
+
+  eval "\n#line ".(__LINE__+1)." \"".__FILE__."\"\n" . <<'HERE' or die;
+use Math::BigInt;
+sub _hilo_to_int64 {
+  my ($hi,$lo) = @_;
+  # print "_hilo_to_int64() hi=$hi lo=$lo\n";
+
+  my $ret = Math::BigInt->new("$hi") * (Math::BigInt->new(2) ** 32) + $lo;
+  if ($hi & 0x8000_0000) {
+    $ret -= Math::BigInt->new(2) ** 64;
+  }
+  ### $ret
+  return $ret;
+}
+1;
+HERE
+}
+
+# NV floats are converted to UV for bitwise ">>" or "&", which would lose
+# some of the mantissa if UV==32bits, so use "%".
+#
+# Divisor 2^32 would be an NV float if UV==32bits, so do two divisions by
+# 65536.
+#
+# Math::BigInt in perl 5.6.0 has a bug in the division where it mis-handles
+# the sign of the dividend, giving for example -16 div 8 = -1 rem +7, where
+# it should be -2 rem +1 (or perhaps -1 rem -7 if a negative remainder).
+# Avoid that by making $sv positive and bit-invert the resulting $hi,$lo.
+#
+# For reference, Math::BigInt in perl 5.6.0 had int() returning a plain
+# string, not a BigInt object, so avoid that.
+#
+sub _int64_to_hilo {
+  my ($sv) = @_;
+  ### _int64_to_hilo(): $sv
+  # print "_int64_to_hilo() sv=$sv ",(ref $sv || '[plain scalar]'),"\n";
+
+  my $xor = 0;
+  if ($sv < 0) {
+    $sv = -1 - $sv;
+    $xor = 0xFFFF;
+  }
+
+  ($sv, my $lo) = _divrem($sv,65536);
+  $lo ^= $xor;
+  ($sv, my $lo2) = _divrem($sv,65536);
+  $lo2 ^= $xor;
+  $lo += 65536*$lo2;
+
+  ($sv, my $hi) = _divrem($sv,65536);
+  $hi ^= $xor;
+  ($sv, my $hi2) = _divrem($sv,65536);
+  $hi2 ^= $xor;
+  $hi += 65536*$hi2;
+
+  ### $hi
+  ### $lo
+  return ($hi, $lo)
+}
+
+sub _divrem {
+  my ($n, $d) = @_;
+  my $rem = $n % $d;
+  return (($n-$rem)/$d, $rem);
+}
+
 1;
 __END__
 
-=for stopwords SYNC XID Ryde
+=for stopwords SYNC XID Ryde Pre-defined SERVERTIME timestamp IDLETIME BigInts arrayref ie unsatisfy untriggered XIDs builtin ENUM SyncValueType SyncTestType SyncAlarmState
 
 =head1 NAME
 
-X11::Protocol::Ext::SYNC - client synchronization
+X11::Protocol::Ext::SYNC - inter-client synchronization
 
 =head1 SYNOPSIS
 
@@ -565,36 +640,68 @@ The SYNC extension adds
 
 =item *
 
-Counter objects, 64-bits either client controlled or server controlled.
+Counter objects, counting in 64-bits client controlled or server builtin.
 
 =item *
 
-Alarm objects to wait for counter values.
+Alarm objects to receive events for counter values.
 
 =item *
 
-Fence objects triggered by completion of screen rendering (new in SYNC 3.1).
+Priority level for clients.
+
+=item *
+
+Fence objects triggered by completion of screen rendering.  New in SYNC
+version 3.1.
 
 =back
 
 Counters and alarms allow multiple clients to synchronize their actions.
-One client can create a counter and increment it.  Other clients can either
-wait on a target counter value, or create an alarm to receive events for
-successive target values.
+One client can create a counter and increment it.  Other clients can block
+or receive events for desired target values.
 
-Client counters are changed by client C<SyncChangeCounter()> or
-C<SyncSetCounter()> requests.  The meaning of a counter value and when and
-by how much it changes is entirely up to client programs.
+Counter values are INT64 signed 64-bit integers, so -2^63 to +2^63-1
+inclusive.  On a 64-bit Perl these values are returned as plain integers.
+On a 32-bit Perl they're returned as C<Math::BigInt> objects.  For requests
+values can be given as either integers, floating point, or BigInts.
 
-Pre-defined system counters are controlled by the server.  The "SERVERTIME"
-counter is the server timestamp in milliseconds (the C<time> field of events
-etc).  There might be other counters too, for example the X.org server has
-an "IDLETIME" in milliseconds.
+=head2 Client Counters
 
-Counter values are INT64 signed 64-bit values, so -2^63 to 2^63-1 inclusive.
-On a 64-bit Perl values are returned as plain integers.  On a 32-bit Perl
-they're returned as C<Math::BigInt> objects.  Values in requests can be
-integers, float integers or BigInts.
+Client counters are changed by C<SyncChangeCounter()> or C<SyncSetCounter()>
+requests.  The meaning of a counter value and when and by how much it
+changes is entirely up to client programs.
+
+Client counters do not wrap-around.  If an increment overflows the -2^63 to
++2^63-1 range then a C<BadValue> results, or alarms becomes Inactive when
+adding their C<delta> overflows the INT64 range.
+
+=head2 System Counters
+
+Pre-defined system counters are controlled by the server.  As of SYNC
+specification 3.1 the only system counter always available is "SERVERTIME".
+A particular server might have more.
+
+=over
+
+=item "SERVERTIME"
+
+The server timestamp in milliseconds.  This is per the C<time> field of
+server events etc.
+
+=back
+
+Recent versions of the X.org server (1.10 or thereabouts) have
+
+=over
+
+=item "IDLETIME"
+
+The idle time in milliseconds, being the time since any device input.  This
+is the same as the idle time in C<MitScreenSaverQueryInfo()> (see
+L<X11::Protocol::Ext::MIT_SCREEN_SAVER>).
+
+=back
 
 =head1 REQUESTS
 
@@ -611,8 +718,14 @@ Negotiate a protocol version with the server.  C<$client_major> and
 C<$client_minor> is what the client would like.  The returned
 C<$server_major> and C<$server_minor> is what the server will do.
 
-This negotiation is done automatically by C<init_extension()>.  The current
-code supports up to SYNC version 3.1.
+This negotiation request is made automatically in C<init_extension()> and
+the SYNC spec says it should not be done again later.  The current module
+code supports up to SYNC version 3.1 and that version is requested.  The
+version the server returns is stored in the extension object,
+
+    my $extobj = $X->{'ext'}->{'SYNC'}->[3];
+    $major = $extobj->{'major'};
+    $minor = $extobj->{'minor'};
 
 =item C<@infos = $X-E<gt>SyncListSystemCounters ($client_major, $client_minor)>
 
@@ -621,16 +734,13 @@ arrayref
 
     [ $counter, $resolution, $name ]
 
-C<$counter> is the XID (integer) of the counter.
+C<$counter> is the XID (an integer) of the counter.
 
 C<$resolution> is an estimate of the granularity of the counter.  For
 example if resolution is 10 then it might increment by 10 or thereabouts
 each time.
 
 C<$name> is a string name of the counter.
-
-The name "SERVERTIME" is the server timestamp counter in milliseconds, as
-appearing in the C<time> field of events etc.
 
 See F<examples/sync-info.pl> in the X11-Protocol-Other sources for a
 complete program listing the system counters.
@@ -642,12 +752,16 @@ INT64).
 
 =item C<$X-E<gt>SyncSetCounter ($counter, $value)>
 
+Set C<$counter> (an XID) to C<$value> (64-bit integer).  The server system
+counters cannot be changed by clients.
+
 =item C<$X-E<gt>SyncChangeCounter ($counter, $add)>
 
-Change C<$counter> (an XID) by setting it to the given C<$value> or adding
-the given C<$add> amount (INT64 values).
+Change C<$counter> (an XID) by adding C<$add> (64-bit integer) to it.  The
+server system counters cannot be changed by clients.
 
-The system counters cannot be changed by clients.
+If C<$add> would make the resulting counter overflow a 64-bit integer then a
+C<BadValue> error results.
 
 =item C<$value = $X-E<gt>SyncQueryCounter ($counter)>
 
@@ -657,10 +771,10 @@ Return the current value of C<$counter> (an XID).
 
 Destroy C<$counter> (an XID).
 
-Any clients waiting on C<$counter> are sent a C<SyncCounterNotify> with the
-C<destroyed> field true.  Any alarms on C<$counter> become state "Inactive".
-System counters cannot be destroyed.  A client's counters are destroyed
-automatically on connection close.
+Any clients currently waiting on C<$counter> are sent a C<SyncCounterNotify>
+event with the C<destroyed> field true.  Any alarms on C<$counter> become
+state "Inactive".  A client's counters are destroyed automatically on
+connection close.  System counters cannot be destroyed.
 
 =back
 
@@ -670,17 +784,21 @@ automatically on connection close.
 
 =item C<$X-E<gt>SyncAwait ([$key=E<gt>$value,...],...)>
 
-Block the processing of further requests from current client until one of
-the given counter conditions is satisfied.  If one of the conditions is
-already satisfied then there's no block (but events described below are
-still generated).
+Block processing of further requests from the current client until one of
+the given counter conditions is satisfied.  The call C<$X-E<gt>SyncAwait()>
+returns immediately, but any further requests sent on C<$X> will not be read
+by the server until the wait is satisfied.
+
+If one of the wait conditions is already satisfied then the block is for no
+time.  The C<event_threshold> events described below are still generated in
+this case.
 
 Each condition is an arrayref of key/value pairs
 
     counter           the target counter (integer XID)
-    value_type        enum "Absolute" or "Relative"
+    value_type        "Absolute" or "Relative"
     value             target value (INT64 signed integer)
-    test_type         enum "PositiveTransition", "NegativeTransition",
+    test_type         "PositiveTransition", "NegativeTransition",
                       "PositiveComparison" or "NegativeComparison"
     event_threshold   possible difference (INT64 signed integer)
 
@@ -697,37 +815,41 @@ For example to wait on two counters
                      test_type  => "NegativeTransition",
                      event_threshold => 100 ]);
 
-C<test_type> is satisified by
+C<test_type> is how the condition will be satisfied,
 
-    "PositiveComparison"    whenever counter >= value
-    "NegativeComparison"    whenever counter <= value
-    "PositiveTransition"    change from counter<value to counter>=value
-    "NegativeTransition"    change from counter>value to counter<=value
+    "PositiveComparison"   whenever counter >= value
+    "NegativeComparison"   whenever counter <= value
+    "PositiveTransition"   change from counter<value to counter>=value
+    "NegativeTransition"   change from counter>value to counter<=value
 
 C<value_type> is how C<value> is interpreted
 
-    "Absolute"      target value is as given
-    "Relative"      target value is counter current value + given value
+    "Absolute"     target value as given
+    "Relative"     target value is counter current value + given value
 
 For "Absolute" the C<counter> can be "None" and that's considered satisfied
-immediately.  For "Relative" each C<counter> must be a valid counter.
+immediately.  For "Relative" each C<counter> must be a valid counter.  If
+adding the relative amount overflows an INT64 then a C<BadValue> error
+results.
 
-If a counter is destroyed during C<SyncAwait()> then the wait finishes and a
-C<CounterNotify> event with the C<destroyed> flag is generated.
+If any of the counters is destroyed during C<SyncAwait()> then the wait
+finishes and a C<CounterNotify> event with the C<destroyed> flag is
+generated.
 
-When C<SyncAwait()> finishes the C<event_threshold> can generate
+When C<SyncAwait()> finishes, the C<event_threshold> can generate
 C<CounterNotify> events for the client.  The difference
 
     diff = counter - target value
 
 is compared to the given C<event_threshold>
 
-    if diff >= event_threshold for a Positive
-    or diff <= event_threshold for a Negative
+    if diff >= event_threshold for "Positive"
+    or diff <= event_threshold for "Negative"
     then send CounterNotify
 
 This is designed to alert the client that a counter has run on by more than
-an expected threshold amount (perhaps due to lag, perhaps by a jump).
+a threshold amount.  This could be due to lag, or perhaps a jump in the
+value.
 
 =item C<$X-E<gt>SyncCreateAlarm ($alarm, $key=E<gt>$value, ...)>
 
@@ -738,9 +860,9 @@ existing C<$alarm>.  The key/value parameters are similar to C<SyncAwait()>
 above,
 
     counter       the target counter (integer XID)
-    value_type    enum "Absolute" or "Relative"
+    value_type    "Absolute" or "Relative"
     value         target value (64-bit signed integer)
-    test_type     enum "PositiveTransition", "NegativeTransition",
+    test_type     "PositiveTransition", "NegativeTransition",
                   "PositiveComparison" or "NegativeComparison"
     delta         step target value (64-bit signed, default 1)
     events        boolean (default true)
@@ -753,19 +875,19 @@ etc at all just by
 
 C<counter> "None" (0) or omitted makes the alarm "Inactive".
 
-C<delta> is added to C<value> when the alarm is satisfied, so as to make it
-unsatisfied again.  C<delta> is added repeatedly if necessary to make
-unsatisfied (ie. add smallest necessary multiple of C<delta>).  For example
-the default C<delta> of 1 means C<value> has 1 added until unsatisfied
-again, ie. set the alarm value to counter value+1.
+C<delta> is added to C<value> when the alarm is satisfied.  C<delta> is
+added repeatedly if necessary to make it unsatisfied, ie. add smallest
+necessary multiple of C<delta> to become unsatisfied.  The default C<delta>
+of 1 means C<value> has 1 added until unsatisfied again, so reset the alarm
+target to counter value+1.
 
-If adding C<delta> this way would overflow an INT64, or if it's 0 in a
-"Comparison" test (and thus no amount of adding will unsatisfy), then the
-C<value> is unchanged and the alarm set "Inactive" instead.  Setting
+If adding C<delta> this way would overflow an INT64, or if C<delta> is 0 in
+a "Comparison" test (and thus no amount of adding will unsatisfy), then the
+alarm value is unchanged and the alarm set "Inactive" instead.  Setting
 C<delta> to 0 therefore makes a "once-only" alarm.
 
-C<delta> must be in the right direction for the C<test_type>, or a C<Match>
-error results.
+C<delta> must be positive or negative in the same direction as the
+C<test_type> or a C<Match> error results.
 
     "Positive"     must have delta >= 0
     "Negative"     must have delta <= 0
@@ -779,9 +901,8 @@ select or deselect events from any alarm using C<SyncChangeAlarm()>,
 
     $X->SyncChangeAlarm ($alarm, events => $bool);
 
-The SYNC specification allows C<SyncChangeAlarm()> to apply the requested
-settings in a server-dependent order.  If an error results (bad type, bad
-counter, etc) then some might be updated but others left unchanged.
+If an error results (bad type, bad counter, etc) then the SYNC specification
+allows some of the request changes to have been applied but others not.
 
 =item C<@list = $X-E<gt>SyncQueryAlarm ($alarm)>
 
@@ -790,21 +911,27 @@ key/value list like C<SyncCreateAlarm()> above.
 
 For reference, in the X.org server circa its version 1.10 if C<value_type>
 is set to "Relative" then it reads back as "Absolute" with a C<value> which
-is the target counter+relative_value.  Not sure what the spec says about
-this.
+is the target counter+relative_value.  Not sure what the SYNC spec says
+about this.
 
 =item C<$X-E<gt>SyncDestroyAlarm ($alarm)>
 
 Destroy C<$alarm> (an XID).
 
+=back
+
+=head1 Client Priority
+
+=over
+
 =item C<$X-E<gt>SyncSetPriority ($xid, $priority)>
 
 =item C<$priority = $X-E<gt>SyncGetPriority ($xid)>
 
-Get or set a client's scheduling priority level.  C<$xid> is any XID
-belonging to the desired client, or "None" (0) for the current client.
-C<$priority> is an INT32 integer.  Higher numbers are higher priority.  The
-default priority is 0.
+Get or set a client's scheduling priority level in the server.  C<$xid> is
+any XID belonging to the desired client, or "None" (0) for the current
+client.  C<$priority> is an INT32 integer.  Higher numbers are higher
+priority.  The default priority is 0.
 
     $X->SyncSetPriority ("None", 100);   # higher priority
 
@@ -817,7 +944,12 @@ actually do anything with the priority level.
 
 =back
 
-=head2 SYNC 3.1
+=head2 Fence
+
+Fences are new in SYNC version 3.1.  A fence represents completion of all
+queued drawing in the server.  It can be in "triggered" or "untriggered"
+state.  Clients can ask for trigger when drawing has completed, and then
+either query or block waiting for that to occur.
 
 =over
 
@@ -835,7 +967,7 @@ C<$fence> is already triggered then do nothing.
 If a simple server does all drawing direct to video memory with no queuing
 then C<$fence> will be triggered immediately.  If the server or graphics
 card has some sort or rendering pipeline or queue then C<$fence> is
-triggered only once the drawing requests issued so far have reached the
+triggered only when the drawing requests issued so far have reached the
 actual screen.
 
 =item C<$X-E<gt>SyncResetFence ($fence)>
@@ -852,7 +984,7 @@ Destroy C<$fence> (an XID).
 Get the current triggered state of C<$fence> (an XID).  The return is 0 if
 untriggered or 1 if triggered.
 
-=item C<$X-E<gt>SyncAwaitFence ($fence, ...)>
+=item C<$X-E<gt>SyncAwaitFence ($fence1, $fence2, ...)>
 
 Block the processing of further requests from the current client until one
 or more of the given C<$fence> XIDs is in triggered state.  If one of the
@@ -876,8 +1008,8 @@ plus event-specific fields described below.
 
 =item C<SyncCounterNotify>
 
-A C<SyncCounterNotify> is generated when a C<SyncAwait()> request is
-unblocked by one ore more of its requested conditions being satisfied.
+A C<SyncCounterNotify> event is generated when a C<SyncAwait()> request is
+unblocked by one or more of its requested conditions being satisfied.
 
 The event-specific fields are
 
@@ -909,22 +1041,63 @@ The event-specific fields are
 
 =back
 
+=head1 ENUM TYPES
+
+The following types are available for C<$X-E<gt>interp()> and
+C<$X-E<gt>num()>, after C<init_extension()>.
+
+=over
+
+=item SyncValueType
+
+    "Absolute"     0
+    "Relative"     1
+
+=item SyncTestType
+
+    "PositiveTransition"     0
+    "NegativeTransition"     1
+    "PositiveComparison"     2
+    "NegativeComparison"     3
+
+=item SyncAlarmState
+
+    "Active"        0
+    "Inactive"      1
+    "Destroyed"     2
+
+=back
+
+For example,
+
+    my $num = $X->num("SyncTestType", "PositiveComparison");
+    # sets $num to 2
+
 =head1 ERRORS
 
-Error types "Counter", "Alarm" and "Fence" are respectively a bad
-C<$counter>, C<$alarm> or C<$fence> resource XID in a request.
+The extension error types are
+
+    "Counter"
+    "Alarm"
+    "Fence"         # if server has SYNC 3.1
+
+which are respectively a bad C<$counter>, C<$alarm> or C<$fence> resource
+XID in a request.
 
 =head1 SEE ALSO
 
 L<X11::Protocol>
 
+F</usr/share/doc/x11proto-xext-dev/sync.txt.gz>,
+F</usr/share/X11/doc/hardcopy/Xext/sync.PS.gz>
+
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the
@@ -940,3 +1113,9 @@ You should have received a copy of the GNU General Public License along with
 X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
 =cut
+
+# The C<Math::BigInt> which is included in Perl 5.6.0 and thereabouts has a
+# couple of dubious bits.  Believe it suffices for adding and subtracting
+# but it might be necessary to demand a newer version for more involved
+# calculations.  Working with an overloaded type for the 64-bits is much
+# more convenient than two 32-bit parts.

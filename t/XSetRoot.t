@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -43,17 +43,6 @@ plan tests => $test_count;
   }
   MyTestHelpers::diag ("X11::Protocol version ", X11::Protocol->VERSION);
 }
-{
-  my $have_x11_protocol_other = eval { require X11::Protocol::Other; 1 };
-  if (! $have_x11_protocol_other) {
-    MyTestHelpers::diag ('X11::Protocol::Other not available -- ',$@);
-    foreach (1 .. $test_count) {
-      skip ('X11::Protocol::Other not available', 1, 1);
-    }
-    exit 0;
-  }
-  MyTestHelpers::diag ("X11::Protocol::Other version ", X11::Protocol::Other->VERSION);
-}
 
 my $display = $ENV{'DISPLAY'};
 if (! defined $display) {
@@ -77,16 +66,16 @@ $X->QueryPointer($X->{'root'});  # sync
 
 
 # Something fishy with xvfb test server seems to cause the reconnect below
-# to fail.  Keeping a second connection makes it better, dunno why.
+# to fail.  Keeping a second connection makes it better.  Dunno why.
+#
 my $keepalive_X = X11::Protocol->new ($display);
-
 
 require X11::Protocol::XSetRoot;
 
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 23;
+my $want_version = 24;
 ok ($X11::Protocol::XSetRoot::VERSION,
     $want_version,
     'VERSION variable');

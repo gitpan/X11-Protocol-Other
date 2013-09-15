@@ -2,7 +2,7 @@
 
 
 
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -26,7 +26,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 23;
+$VERSION = 24;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -177,9 +177,9 @@ my $reqs =
     sub {
       my ($X, $data) = @_;
 
-        use Data::HexDump::XXD;
-        print scalar(Data::HexDump::XXD::xxd($data));
-        print "\n";
+      use Data::HexDump::XXD;
+      print scalar(Data::HexDump::XXD::xxd($data));
+      print "\n";
 
       # There was a "bandwidth" field in protocol 0.7 and 0.8 headers, but
       # the server never sent it and Xlib never used it.
@@ -230,8 +230,7 @@ my $reqs =
       my $self = $X->{'ext'}{'XFree86_VidModeExtension'}->[3];
       ### $self
       my $protocol_2 = ($self->{'set_client_major'} >= 2);
-      my $protocol_08 = (($self->{'server_major'} <=> 0
-                          || $self->{'server_minor'} <=> 8)
+      my $protocol_08 = (($self->{'major'} <=> 0 || $self->{'minor'} <=> 8)
                          >= 0);
 
       my ($num_modes) = unpack 'x8L', $data;
@@ -576,7 +575,11 @@ C<XF86VidModeGetAllModeLines()> byte swapped as 16-bit instead of 32-bit.
 If it's zero this makes no difference, but non-zero might come out wrong for
 a client with different endianness than the server.
 
-    http://cgit.freedesktop.org/xorg/xserver/commit/hw/xfree86/dixmods/extmod/xf86vmode.c?id=9edcae78c46286baff42e74bfe26f6ae4d00fe01
+=over
+
+L<http://cgit.freedesktop.org/xorg/xserver/commit/hw/xfree86/dixmods/extmod/xf86vmode.c?id=9edcae78c46286baff42e74bfe26f6ae4d00fe01>
+
+=back
 
 =head1 SEE ALSO
 
@@ -584,11 +587,11 @@ L<X11::Protocol>
 
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

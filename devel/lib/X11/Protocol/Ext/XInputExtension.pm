@@ -2,7 +2,7 @@
 
 
 
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -26,7 +26,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 23;
+$VERSION = 24;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -73,7 +73,13 @@ my %const_arrays
                'ExtensionKeyboard', # 3
                'ExtensionPointer',  # 4
               ],
-
+     XIEventMode => [ 'AsyncThisDevice',    # 0  per XI.h
+                      'SyncThisDevice',     # 1
+                      'ReplayThisdevice',   # 2
+                      'AsyncOtherDevices',  # 3
+                      'AsyncAll',           # 4
+                      'SyncAll',            # 5
+                    ]
     );
 
 my %const_hashes
@@ -265,7 +271,15 @@ my $reqs =
    undef,  # GrabDeviceButton		17
    undef,  # UngrabDeviceButton		18
 
-   undef,  # AllowDeviceEvents		19
+   ['XIAllowDeviceEvents',  # 19
+    sub {
+      my ($X, $deviceid, $event_mode, $time) = @_;
+      return pack 'LCCxx',
+        _num_time($time),
+          $X->num('XIEventMode',$event_mode),
+            $deviceid;
+    } ],
+
    undef,  # GetDeviceFocus		20
    undef,  # SetDeviceFocus		21
    undef,  # GetFeedbackControl		22
@@ -490,11 +504,11 @@ sub new {
 
   # Errors
   _ext_const_error_install ($X, $error_num,
-                            'Device',                 # 0
-                            'Event',                  # 1
-                            'XIMode',    # 2
-                            'DeviceBusy',             # 3
-                            'XIClass');  # 4
+                            'Device',       # 0
+                            'Event',        # 1
+                            'XIMode',       # 2
+                            'DeviceBusy',   # 3
+                            'XIClass');     # 4
 
   # Requests
   _ext_requests_install ($X, $request_num, $reqs);
@@ -558,13 +572,66 @@ per L<X11::Protocol/EXTENSIONS>.
 
 =head1 XInputExtension 1.5
 
+=over
+
+=item C<$X-E<gt>XIAllowDeviceEvents ($deviceid, $event_mode, $time)>
+
+Release some events frozen by a grab on C<$deviceid>.  C<$event_mode> can be
+
+     "AsyncThisDevice"         0
+     "SyncThisDevice"          1
+     "ReplayThisdevice"        2
+     "AsyncOtherDevices"       3
+     "AsyncAll"                4
+     "SyncAll"                 5
+
+C<$time> is a server timestamp, or "CurrentTime".  If C<$time> is before the
+last grab then C<XIAllowDeviceEvents()> is ignored.
+
+=item C<$X-E<gt>XIDeviceBell ($deviceid, $feedback_class, $feedback_id, $percent)>
+
+Sound the device bell, in a style similar to the core C<Bell()>.
+C<$feedback_class> and C<$feedback_id> identify which bell to ring.
+
+C<$percent> is -100 to +100 relative to the base volume of the bell.
+
+    -100            0    +100   $percent
+      |-----------base----|
+      0                  100    volume used
+
+Percent 0 means the base volume.  Positive percent 0 to 100 means a volume
+proportionally from base up to 100% volume.  Negative percent -100 to 0
+means a volume proportionally from 0% (silent) up to the base volume.
+
+    percent <= 0     volume = base * (percent+100)/100
+                    so percent=-100 to 0 is volume=0 to base
+
+    percent >= 0     volume = base + percent*(100 - base)/100
+                    so percent=0 to +100 is volume=base to 100
+
+=cut
+
+# when percent>=0
+# volume = base - [(base * percent) / 100] + percent
+#        = base + percent - (base*percent)/100
+#        = base + percent*(1 - base/100)
+#        = base + percent*(100 - base)/100
+
+=pod
+
+=back
+
 =head1 XInputExtension 2.0
 
 =over
 
-=item C<($server_major, $server_minor) = $X-E<gt>XInputExtensionQueryVersion ($client_major, $client_minor)>
+=item C<($server_major, $server_minor) = $X-E<gt>XIQueryVersion ($client_major, $client_minor)>
 
-Return the XInputExtension protocol version implemented by the server.
+Negotiate a protocol version with the server.  C<$client_major> and
+C<$client_minor> is what the client would like.  The returned
+C<$server_major> and C<$server_minor> is what the server will do.
+
+C<$client_major> must be 2 or more or a C<BadValue> error results.
 
 =back
 
@@ -572,13 +639,16 @@ Return the XInputExtension protocol version implemented by the server.
 
 L<X11::Protocol>
 
+F</usr/share/doc/x11proto-input-dev/XIproto.txt.gz>,
+F</usr/share/doc/x11proto-input-dev/XI2proto.txt.gz>
+
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

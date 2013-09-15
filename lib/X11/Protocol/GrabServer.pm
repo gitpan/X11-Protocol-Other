@@ -1,4 +1,4 @@
-# Copyright 2010, 2011, 2012 Kevin Ryde
+# Copyright 2010, 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -33,7 +33,7 @@ HERE
 #use Smart::Comments;
 
 use vars '$VERSION';
-$VERSION = 23;
+$VERSION = 24;
 
 sub new {
   my ($class, $X) = @_;
@@ -127,14 +127,15 @@ This is an object-oriented approach to GrabServer / UngrabServer on an
 C<X11::Protocol> connection.  A grab object represents a desired server grab
 and destroying it ungrabs.
 
-The first grab object on a connection does a GrabServer and the last
-destroyed does an UngrabServer.  The idea is that it's easier to manage the
-lifespan of a grabbing object in a block etc than to be sure of catching all
-exits.
+The first grab object on a connection does a C<GrabServer()> and the last
+destroyed does an C<UngrabServer()>.  The idea is that it's easier to manage
+the lifespan of a grabbing object in a block etc than to be sure of catching
+all exits.
 
-Multiple grab objects can overlap or nest.  The GrabServer remains until the
-last is destroyed.  This is good in a library or sub-function where an
-UngrabServer should wait until the end of any outer desired grab.
+Multiple grab objects can overlap or nest.  A single C<GrabServer()> is done
+and it remains until the last object is destroyed.  This is good in a
+library or sub-function where an C<UngrabServer()> should wait until the end
+of any outer desired grab.
 
 A server grab is usually to make a few operations atomic, for instance
 something global like root window properties.  A block-based temporary per
@@ -143,7 +144,7 @@ an extended time, perhaps for some state driven interaction.
 
 Care must be taken not to grab for too long since other client programs are
 locked out.  If a grabbing program hangs then the server will be unusable
-until the program is killed, or its TCP etc server connection broken.
+until the program is killed, or its TCP etc server connection is broken.
 
 =head2 Weak C<$X>
 
@@ -151,22 +152,22 @@ If Perl weak references are available (Perl 5.6 and up and C<Scalar::Util>
 with its usual XS code), then a grab object holds only a weak reference to
 the target C<$X> connection.  This means the grab doesn't keep the
 connection up once nothing else is interested.  When a connection is
-destroyed the server ungrabs automatically, there's no need for an explicit
-C<UngrabServer> in that case.
+destroyed the server ungrabs automatically so there's no need for an
+explicit C<UngrabServer()> in that case.
 
 The main effect of the weakening is that C<$X> can be garbage collected
 anywhere within a grabbing block, the same as if there was no grab.  Without
 the weakening it would wait until the end of the block.  In practice this
 only rarely makes a difference.
 
-If in the future an C<X11::Protocol> connection gets a notion of an explicit
-close then the intention would be to skip any C<UngrabServer> in that case
+In the future if an C<X11::Protocol> connection gets a notion of an explicit
+close then the intention would be to skip any C<UngrabServer()> in that case
 too, ie. treat a closed connection the same as a weakened away connection.
 
 Currently no attention is paid to whether the server has disconnected the
-link.  A C<UngrabServer> is done on destroy in the usual way.  If the server
-has disconnected then a C<SIGPIPE> or C<EPIPE> occurs the same as for any
-other request sent to the C<$X>.
+link.  A C<UngrabServer()> is done on destroy in the usual way.  If the
+server has disconnected then a C<SIGPIPE> or C<EPIPE> occurs the same as for
+any other request sent to the C<$X>.
 
 =head1 FUNCTIONS
 
@@ -185,19 +186,18 @@ C<$X-E<gt>GrabServer> is done.
 Ungrab the C<$g> object.  An ungrab is done automatically when C<$g>
 is destroyed, but C<$g-E<gt>ungrab()> can do it sooner.
 
-If C<$g> was already ungrabbed this way then do nothing.
+If C<$g> is already ungrabbed this way then do nothing.
 
 =item C<$g-E<gt>grab ()>
 
-Re-grab with the C<$g> object.  This can be used after a
-C<$g-E<gt>ungrab> to grab again using the same object, the same as if
-newly created.
+Re-grab with the C<$g> object.  This can be used after a C<$g-E<gt>ungrab()>
+to grab again using the same object, the same as if newly created.
 
 If C<$g> is already grabbing, then do nothing.
 
 =item C<$bool = $g-E<gt>is_grabbed ()>
 
-Return true C<$g> is grabbing.  This is true when first created, or false
+Return true if C<$g> is grabbing.  This is true when first created, or false
 after a C<$g-E<gt>ungrab()>.
 
 =back
@@ -209,11 +209,11 @@ L<X11::Protocol::Other>
 
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2010, 2011, 2012 Kevin Ryde
+Copyright 2010, 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

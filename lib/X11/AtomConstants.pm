@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -21,7 +21,7 @@ use strict;
 use Exporter;
 use vars '$VERSION', '@ISA', '@EXPORT_OK', '%EXPORT_TAGS';
 
-$VERSION = 23;
+$VERSION = 24;
 @ISA = ('Exporter');
 %EXPORT_TAGS = (all => \@EXPORT_OK);
 
@@ -205,7 +205,7 @@ is 20, the PIXMAP atom.
     my $name = $X->GetAtomName($atom_id);      # $name is "PIXMAP"
 
 The C<LAST_PREDEFINED> constant is not an atom as such, but the last of the
-predefined values, that being C<WM_TRANSIENT_FOR>.
+predefined values, which happens to be C<WM_TRANSIENT_FOR>.
 
 =cut
 
@@ -323,11 +323,11 @@ F</usr/include/X11/Xatom.h>
 
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

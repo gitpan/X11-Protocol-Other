@@ -1,4 +1,4 @@
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 This file is part of X11-Protocol-Other.
 
@@ -17,11 +17,14 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 24, September 2013
+    - X11::Protocol::XSetRoot clear Esetroot too
+
 Version 23, December 2012
     - tests fix WM withdraw(), and yet more relaxing XFree86_DGA
 
 Version 22, November 2012
-    - tests MIT_SCREEN_SAVER allow for saver disabled
+    - tests MIT_SCREEN_SAVER.t allow for saver disabled
 
 Version 21, November 2012
     - X11::Protocol::WM new functions set_text_property(), get_wm_icon_size(),

@@ -61,7 +61,7 @@ $X->QueryPointer($X->{'root'});  # sync
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 23;
+my $want_version = 24;
 ok ($X11::Protocol::ChooseWindow::VERSION,
     $want_version,
     'VERSION variable');

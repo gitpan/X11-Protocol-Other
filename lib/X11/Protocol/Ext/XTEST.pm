@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -21,7 +21,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 23;
+$VERSION = 24;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -190,7 +190,7 @@ sub _ext_requests_install {
 1;
 __END__
 
-=for stopwords XTEST CurrentCursor hashref KeyPress KeyRelease keycode ButtonPress ButtonRelase MotionNotify CurrentTime umm XInputExtension XID Ryde recognised arrayrefs timestamp lookup ie
+=for stopwords XTEST CurrentCursor hashref KeyPress KeyRelease keycode ButtonPress ButtonRelase MotionNotify CurrentTime umm XInputExtension XID Ryde recognised arrayrefs timestamp lookup ie GrabServer Imperviousness Xlib
 
 =head1 NAME
 
@@ -224,7 +224,7 @@ Displayed cursor comparisons.
 
 =item *
 
-Test programs continuing during another client C<GrabServer>.
+Test programs continuing during C<GrabServer> by other clients.
 
 =back
 
@@ -248,6 +248,12 @@ C<$server_major> and C<$server_minor> is what the server will do.
 
 The current code supports up to 2.1.  The intention would be to
 automatically negotiate in C<init_extension()> if/when necessary.
+
+=back
+
+=head2 Cursor Comparisons
+
+=over
 
 =item C<$is_same = $X-E<gt>XTestCompareCursor ($window, $cursor)>
 
@@ -290,6 +296,12 @@ example to see if a C<GrabPointer()> is displaying what's intended,
     $X->XTestCompareCursor ($test_window, "CurrentCursor");
       or die "Oops, currently displayed cursor is not as desired";
 
+=back
+
+=head2 Simulated Input
+
+=over
+
 =item C<$X-E<gt>XTestFakeInput (name=E<gt>...)>
 
 =item C<$X-E<gt>XTestFakeInput ([ name=E<gt>... ])>
@@ -302,9 +314,9 @@ An input action is specified as an event packet using fields similar to
 C<$X-E<gt>pack_event()>.
 
 C<XTestFakeInput()> is always a single user action, so for example a button
-press and button release are two C<XTestFakeInput()> requests.  For the core
-events a single event packet is enough to describe an input, but some
-extensions such as C<XInputExtension> may require more.
+press and button release are two separate C<XTestFakeInput()> requests.  For
+the core events a single event packet is enough to describe an input but
+some extensions such as C<XInputExtension> may require more.
 
 =over
 
@@ -342,7 +354,7 @@ The argument fields are
 =item Mouse Pointer Movement
 
 Mouse pointer motion can be induced with the following.  The effect is
-similar to a C<WarpPointer>.
+similar to a C<WarpPointer()>.
 
     name       "MotionNotify"
     root       XID of root window, default "None" for current
@@ -368,8 +380,8 @@ C<detail> can be 1 to move relative to the current mouse position.
 =item Other Events
 
 Extension events can be faked after an C<init_extension()> so they're
-recognised by C<$X-E<gt>pack_event()>.  But it's up to the server or
-extension which events can actually be simulated.
+recognised by C<$X-E<gt>pack_event()>.  It's up to the server or extension
+which events can actually be simulated.
 
 If an extension input requires more than one event packet to describe then
 pass multiple arrayrefs.  For example C<DeviceMotion> (from
@@ -396,21 +408,27 @@ particular,
 =item *
 
 C<time> from an event is a timestamp, so would have to be zeroed or adjusted
-to a relative time for a delay of C<XTestFakeInput()>.
+to a relative time for a delay in C<XTestFakeInput()>.
 
 =item *
 
 For C<MotionNotify>, C<detail> from an event is the hint mechanism, so would
-have to be zeroed for the absolute/relative flag of C<XTestFakeInput()>.
+have to be zeroed for the absolute/relative flag in C<XTestFakeInput()>.
 
 =item *
 
 For C<ButtonPress> and C<ButtonRelease>, C<detail> from an event is a
 logical button number after C<SetPointerMapping()> transformation, whereas
-C<XFakeInput()> takes a physical number.  An reverse lookup through the
+C<XFakeInput()> takes a physical number.  A reverse lookup through the
 C<GetPointerMapping()> table would be needed.
 
 =back
+
+=back
+
+=head2 GrabServer Imperviousness
+
+=over
 
 =item C<$X-E<gt>XTestGrabControl ($impervious)>
 
@@ -430,13 +448,18 @@ requests wait during any C<GrabServer()> by another client.
 L<X11::Protocol>,
 L<X11::Protocol::Ext::XInputExtension>
 
+L<xdotool(1)>, L<X11::GUITest>, Xlib L<XTestQueryExtension(3)>
+
+F</usr/share/doc/x11proto-xext-dev/xtest.txt.gz>,
+F</usr/share/X11/doc/hardcopy/Xext/xtest.PS.gz>
+
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

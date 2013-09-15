@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -33,7 +33,7 @@ use Carp;
 use X11::AtomConstants;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 23;
+$VERSION = 24;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -47,32 +47,32 @@ use Exporter;
                  get_wm_state
                  get_net_frame_extents
                  set_text_property
-                 
+
                  set_wm_class
                  set_wm_client_machine
                  set_wm_client_machine_from_syshostname
                  set_wm_command
                  set_wm_hints
                  set_wm_name
-                 
+
                  set_wm_normal_hints
                  set_wm_icon_name
                  set_wm_protocols
                  set_wm_transient_for
-                 
+
                  set_motif_wm_hints
-                 
+
                  set_net_wm_pid
                  set_net_wm_user_time
                  set_net_wm_window_type
-                 
+
                  pack_wm_hints
                  pack_wm_size_hints
                  pack_motif_wm_hints
                  unpack_wm_hints
                  unpack_wm_state
                  aspect_to_num_den
-                 
+
                  iconify
                  withdraw
               );
@@ -133,9 +133,9 @@ sub _to_STRING {
 #
 # =item C<($atom, $bytes) = _to_TEXT ($X, $str)>
 #
-# Convert C<$str> to either "STRING" or "COMPOUND_TEXT" per L</Text
+# Convert C<$str> to either C<STRING> or C<COMPOUND_TEXT> per L</Text
 # Properties> above.  The returned C<$atom> (an integer) is the either
-# "STRING" or "COMPOUND_TEXT" and C<$bytes> are bytes of that type.
+# C<STRING> or C<COMPOUND_TEXT> and C<$bytes> are bytes of that type.
 #
 sub _to_TEXT {
   my ($X, $str) = @_;
@@ -203,6 +203,14 @@ sub _none_interp {
   }
 }
 
+# return $root or if that's undef then lookup root of $window
+sub _root_for_window {
+  my ($X, $window, $root) = @_;
+  if (! defined $root) {
+    ($root) = $X->QueryTree($window);
+  }
+  return $root;
+}
 
 #------------------------------------------------------------------------------
 # frame_window_to_client()
@@ -213,24 +221,24 @@ sub _none_interp {
 #
 sub frame_window_to_client {
   my ($X, $frame) = @_;
-  
+
   my @search = ($frame);
   my $property = $X->atom('WM_STATE');
-  
+
   # ENHANCE-ME: do three reqs in parallel, better yet all reqs for an
   # @search depth level in parallel
-  
+
   my $count = 0;
  OUTER: foreach (1 .. 5) {   # limit search depth for safety
     my $child;
     foreach $child (splice @search) {   # breadth-first search
       ### look at: sprintf '0x%X', $child
-      
+
       if ($count++ > 50) {
         ### abandon search at count: $count
         return undef;
       }
-      
+
       {
         my $ret = $X->robust_req ('GetWindowAttributes', $child);
         if (! ref $ret) {
@@ -285,7 +293,7 @@ sub frame_window_to_client {
 sub root_to_virtual_root {
   my ($X, $root) = @_;
   ### root_to_virtual_root(): $root
-  
+
   my ($root_root, $root_parent, @toplevels) = $X->QueryTree($root);
   my $toplevel;
   foreach $toplevel (@toplevels) {
@@ -299,7 +307,7 @@ sub root_to_virtual_root {
                               0); # delete;
     ### @ret
     next unless ref $ret[0]; # ignore errors from toplevels destroyed etc
-    
+
     my ($value, $type, $format, $bytes_after) = @{$ret[0]};
     if (my $vroot = unpack 'L', $value) {
       ### found: $vroot
@@ -351,13 +359,13 @@ sub set_wm_client_machine_from_syshostname {
 sub set_wm_command {
   my $X = shift;
   my $window = shift;
-  
+
   if (@_ && ! defined $_[0]) {
     # this not documented ...
     $X->DeleteProperty ($window, X11::AtomConstants::WM_COMMAND());
     return;
   }
-  
+
   # cf join() gives a wide-char result if any parts wide, upgrading byte
   # strings as if they were latin-1
   my $value = '';
@@ -462,7 +470,7 @@ sub change_wm_hints {
                      # message     => 128, # in the code, obsolete
                      # urgency     => 256, # in the code
                     );
-  
+
   sub pack_wm_hints {
     my ($X, %hint) = @_;
     ### pack_wm_hints(): %hint
@@ -492,7 +500,7 @@ sub change_wm_hints {
                  _num_none($hint{'icon_mask'}) || 0,        # PIXMAP
                  _num_none($hint{'window_group'}) || 0);    # WINDOW
   }
-  
+
   # X11R2 Xlib had a bug where XSetWMHints() set a WM_HINTS property to only
   # 8 CARD32s, chopping off the window_group field.  This was due to
   # Xatomtype.h NumPropWMHintsElements being 8 instead of 9.  If the length
@@ -578,7 +586,7 @@ sub set_wm_name {
 sub set_wm_protocols {
   my $X = shift;
   my $window = shift;
-  
+
   # ENHANCE-ME: intern all atoms in one round-trip
   my $prop = $X->atom('WM_PROTOCOLS');
   if (@_) {
@@ -702,17 +710,12 @@ sub unpack_wm_state {
 sub iconify {
   my ($X, $window, $root) = @_;
   ### iconify(): $window
-  
-  if (! defined $root) {
-    ($root) = $X->QueryTree($window);
-  }
-  ### $root
-  
+
   # The icccm spec doesn't seem to say any particular event mask for this
   # ClientMessage, but follow Xlib Iconify.c and send
   # SubstructureRedirect+SubstructureNotify.
   #
-  _send_event_to_wm ($X, $root,
+  _send_event_to_wm ($X, _root_for_window($X,$window,$root),
                      name   => 'ClientMessage',
                      window => $window,
                      type   => $X->atom('WM_CHANGE_STATE'),
@@ -725,12 +728,7 @@ sub iconify {
 sub withdraw {
   my ($X, $window, $root) = @_;
   ### withdraw(): $window, $root
-  
-  if (! defined $root) {
-    ($root) = $X->QueryTree($window);
-  }
-  ### $root
-  
+  $root = _root_for_window($X,$window,$root); # QueryTree before unmap
   $X->UnmapWindow ($window);
   _send_event_to_wm ($X, $root,
                      name   => 'UnmapNotify',
@@ -739,14 +737,15 @@ sub withdraw {
                      from_configure => 0);
 }
 
-# _send_event_to_wm ($X, $root, name=>$str,...)
+# =item C<_send_event_to_wm ($X, $root, name=E<gt>$str,...)>
 #
-# Sent an event to the window manager by a $X->SendEvent() to the given
-# $root window (integer XID of a root window).
+# Send an event to the window manager by C<$X-E<gt>SendEvent()> to the given
+# C<$root> (integer XID of a root window).
 #
-# The key/value pairs specify the event as for $X->pack_event().  Often this
-# is a ClientMessage event, but any type can be sent.  For example
-# withdraw() sends a synthetic UnmapNotify.
+# The key/value parameters specify an event packet as per
+# C<$X-E<gt>pack_event()>.  Often this is a C<ClientMessage> event, but any
+# type can be sent.  (For example C<withdraw()> sends a synthetic
+# C<UnmapNotify>.)
 #
 # cf. event-mask=ColormapChange for own colormap install setups ...
 # cf. event-mask=StructureNotify for "manager" acquiring resource ...
@@ -758,7 +757,7 @@ sub _send_event_to_wm {
                  0,  # all clients
                  $X->pack_event_mask('SubstructureRedirect',
                                      'SubstructureNotify'),
-                 $X->pack_event (@_));
+                 $X->pack_event(@_));
 }
 
 
@@ -809,7 +808,7 @@ sub set_motif_wm_hints {
                     );
   sub pack_motif_wm_hints {
     my ($X, %hint) = @_;
-    
+
     my $flags = 0;
     my $key;
     foreach $key (keys %hint) {
@@ -832,7 +831,7 @@ sub set_motif_wm_hints {
                         primary_application_modal => 1,
                         system_modal              => 2,
                         full_application_modal    => 3,
-                        
+
                         # application_modal         => 1,
                        );
   sub _motif_input_mode_num {
@@ -962,7 +961,7 @@ sub set_wm_normal_hints {
   sub pack_wm_size_hints {
     my ($X, %hint) = @_;
     ### pack_wm_size_hints(): %hint
-    
+
     my $flags = 0;
     my $key;
     foreach $key (keys %hint) {
@@ -1000,9 +999,9 @@ sub _aspect {
 sub aspect_to_num_den {
   my ($aspect) = @_;
   ### $aspect
-  
+
   my ($num, $den);
-  
+
   if ($aspect =~ /^\d+$/) {
     ### integer
     $num = $aspect;
@@ -1013,7 +1012,7 @@ sub aspect_to_num_den {
     $num = $aspect;
     $den = 1;
   }
-  
+
   my $den_zeros = 0;
   if ($num =~ /^0*(\d*)\.(\d*?)0*$/) {
     ### decimal
@@ -1031,7 +1030,7 @@ sub aspect_to_num_den {
   if ($den_zeros < 0) {
     $num .= '0' x -$den_zeros;
   }
-  
+
   if ($num == $num-1) {  # infinity
     return (0x7FFF_FFFF, ($den == $den-1  # infinity too
                           ? 0x7FFF_FFFF : 1));
@@ -1039,7 +1038,7 @@ sub aspect_to_num_den {
   if ($den == $den-1) {  # infinity
     return (1, 0x7FFF_FFFF);
   }
-  
+
   # cap anything bigger than 0x7FFFFFFF
   if ($num >= $den && $num > 0x7FFF_FFFF) {
     ### reduce big numerator
@@ -1049,7 +1048,7 @@ sub aspect_to_num_den {
     ### reduce big denominator
     ($den,$num) = _aspect_reduce($den,$num);
   }
-  
+
   # increase non-integers in binary
   while ((int($num) != $num || int($den) != $den)
          && $num < 0x4000_0000
@@ -1058,7 +1057,7 @@ sub aspect_to_num_den {
     $den *= 2;
     ### up to: $num,$den
   }
-  
+
   return (_round_nz($num), _round_nz($den));
 }
 
@@ -1145,9 +1144,16 @@ X11::Protocol::WM -- window manager things for client programs
 =head1 DESCRIPTION
 
 This is some window manager related functions for use by client programs, as
-per the "Inter-Client Communication Conventions Manual"
+per the "Inter-Client Communication Conventions Manual" and some of the
+Net-WM "Extended Window Manager Hints".
 
-    /usr/share/doc/xorg-docs/specs/ICCCM/icccm.txt.gz
+=over
+
+F</usr/share/doc/xorg-docs/specs/ICCCM/icccm.txt.gz>
+
+L<http://www.freedesktop.org/wiki/Specifications/wm-spec>
+
+=back
 
 =head2 Usual Properties
 
@@ -1157,17 +1163,17 @@ Any client window should generally
 
 =item *
 
-C<set_wm_class()> to identify itself to programs (L</WM_CLASS>).
+C<set_wm_class()> to identify itself to other programs (see L</WM_CLASS>).
 
 =item *
 
 C<set_wm_name()> and C<set_wm_icon_name()> for user-visible identification
-(L</WM_NAME, WM_ICON_NAME>).
+(see L</WM_NAME, WM_ICON_NAME>).
 
 =item *
 
 C<set_wm_client_machine_from_syshostname()> and C<set_net_wm_pid()> for the
-running process (L<WM_CLIENT_MACHINE> and L<_NET_WM_PID>).
+running process (see L</WM_CLIENT_MACHINE> and L</_NET_WM_PID>).
 
 =back
 
@@ -1177,20 +1183,20 @@ Then optionally,
 
 =item *
 
-If the client has an icon then C<set_wm_hints()> with that (pixmap or
-window).
+If you have an icon image then C<set_wm_hints()> with a pixmap or window
+(see L</WM_HINTS>).
 
 =item *
 
 If the user gave an initial size or position on the command line then
 C<set_wm_normal_hints()>.  The same if the program has min/max sizes or
-aspect ratio to declare.
+aspect ratio to declare (see L</WM_NORMAL_HINTS>).
 
 =item *
 
-If a command to re-run the program can be constructed, then
+If a command to re-run the program can be constructed then
 C<set_wm_command()>, and preferably keep that up-to-date with changes such
-as which open file etc.
+as currently open file etc (see L</WM_COMMAND>).
 
 =back
 
@@ -1200,28 +1206,29 @@ as which open file etc.
 
 Property functions taking text strings such as C<set_wm_name()> accept
 either byte strings or Perl 5.8 wide char strings.  Byte strings in 5.8 and
-all strings in earlier Perl are presumed to be Latin-1 and set as "STRING"
-type.  Perl 5.8 wide char strings are stored as "STRING" if entirely
-Latin-1, or encoded to "COMPOUND_TEXT" for other chars (see L<Encode::X11>).
+all strings in earlier Perl are presumed to be Latin-1 and set as C<STRING>
+type in properties.  Perl 5.8 wide char strings are stored as C<STRING> if
+entirely Latin-1, or encoded to C<COMPOUND_TEXT> for other chars (see
+L<Encode::X11>).
 
 In the future perhaps the string functions could accept some sort of
 compound text object to represent segments of various encodings to become
-C<COMPOUND_TEXT>, with manipulations for such content etc.  If text is bytes
-in one of the ICCCM encodings then it may save some work to represent it
-directly as C<COMPOUND_TEXT> segments rather than going to wide chars and
-back again.
+C<COMPOUND_TEXT>, together with manipulations for such content etc.  If text
+is bytes in one of the ICCCM encodings then it might save some work to
+represent it directly as C<COMPOUND_TEXT> segments rather than going to wide
+chars and back again.
 
 =over
 
 =item C<set_text_property ($X, $window, $prop, $str)>
 
 Set the given C<$prop> (integer atom) property on C<$window> (integer XID)
-using either "STRING" or "COMPOUND_TEXT" as described above.  If C<$str> is
+using either C<STRING> or C<COMPOUND_TEXT> as described above.  If C<$str> is
 C<undef> then C<$prop> is deleted.
 
 C<$str> is limited to C<$X-E<gt>maximum_request_length()>.  There's no
 attempt to store very long strings piecewise.  The protocol makes this limit
-at least 16384 bytes, but the server may allow more, possibly much more.
+at least 16384 bytes and the server may allow more, possibly much more.
 
 =back
 
@@ -1239,14 +1246,14 @@ in L<X(7)>) or similar.
 
 Usually the instance name is the program command such as "xterm" and the
 class name something like "XTerm".  Some programs have command line options
-to set the class and/or instance names so the user can have different window
-manager settings applied to a particular running client.
+to set the class and/or instance so the user can have different window
+manager settings applied to a particular running copy of a program.
 
     X11::Protocol::WM::set_wm_class ($X, $window,
                                      "myprog", "MyProg");
 
 C<$instance> and C<$class> must be ASCII or Latin-1 only.  Perl 5.8
-wide-char strings with Latin-1 are converted as necessary.
+wide-char strings which are Latin-1 are converted as necessary.
 
 =back
 
@@ -1268,7 +1275,7 @@ above is accepted.
 =item C<X11::Protocol::WM::set_wm_client_machine_from_syshostname ($X, $window)>
 
 Set the C<WM_CLIENT_MACHINE> property on C<$window> using the
-C<Sys::Hostname> module.
+L<Sys::Hostname> module.
 
 If C<Sys::Hostname> can't determine a hostname by its various gambits then
 currently the property is deleted.  Would it be better to leave it
@@ -1318,7 +1325,7 @@ survives a session manager etc is another matter.
 =item C<($min_width,$min_height, $max_width,$max_height, $width_inc,$height_inc) = X11::Protocol::WM::get_wm_icon_size($X,$root)>
 
 Return the window manager's C<WM_ICON_SIZE> recommended icon sizes (in
-pixels), as a range and an increment above the minimum.  If there's no
+pixels) as a range, and increment above the minimum.  If there's no
 C<WM_ICON_SIZE> property then return an empty list.
 
 C<$root> is the root window to read.  If omitted then read the
@@ -1328,7 +1335,7 @@ An icon pixmap or window in C<WM_HINTS> should be a size in this range.
 Many window managers don't set a preferred icon size.  32x32 might be
 typical on a small screen or 48x48 on a bigger screen.
 
-=back 
+=back
 
 =head2 WM_HINTS
 
@@ -1357,7 +1364,7 @@ The key/value parameters are as follows.
     urgency           boolean
 
 C<input> is 1 if the client wants the window manager to give C<$window> the
-keyboard input focus.  It will do so with C<$X-E<gt>SetInputFocus()>, or if
+keyboard input focus.  This will be with C<$X-E<gt>SetInputFocus()>, or if
 C<WM_TAKE_FOCUS> is in C<WM_PROTOCOLS> then instead by a C<ClientMessage>.
 
 C<input> is 0 if the window manager should not give the client the focus.
@@ -1371,17 +1378,17 @@ C<initial_state> is a string or number.  The ICCCM allows "NormalState" or
     "NormalState"       1
     "IconicState"       3
 
-C<icon_pixmap> should be a bitmap (XID), ie. a pixmap of depth 1.  The
+C<icon_pixmap> should be a pixmap (an XID) with depth 1, ie. a bitmap.  The
 window manager will draw it in suitable contrasting colours.  "1" pixels are
-foreground and "0" is background.  C<icon_mask> is applied to the icon
-displayed.  It can be used to make a non-rectangular icon.
+foreground and "0" is background.  C<icon_mask> bitmap is applied to the
+displayed icon.  It can be used to make a non-rectangular icon.
 
-C<icon_window> is a window which the window manager can show when C<$window>
+C<icon_window> is a window which the window manager may show when C<$window>
 is iconified.  This can be used for a multi-colour icon, either by a
 background or by client drawing (in response to C<Expose> events, or updated
 periodically for a clock, etc).  The window should be a child of the root
 and should use the default visual and colormap of the screen.  The window
-manager might resize the window and/or its border.
+manager might resize the window and/or border.
 
 The window manager might set a C<WM_ICON_SIZE> property on the root window
 for good icon sizes.  See L</WM_ICON_SIZE>.
@@ -1390,9 +1397,8 @@ C<window_group> is the XID of a window which is the group leader of a group
 of top-level windows being used by the client.  The window manager might
 provide a way to manipulate the group as a whole, for example to iconify it
 all.  If iconified then the icon hints of the leader are used for the icon.
-The group leader can be an unmapped window.  It can be convenient to create
-a window which is never mapped but just acts as the leader for subsequent
-windows.
+The group leader can be an unmapped window.  It can be convenient to use a
+never-mapped window as the leader for all subsequent windows.
 
 C<urgency> true means the window is important and the window manager should
 draw the user's attention to it in some way.  The client can change this
@@ -1403,7 +1409,9 @@ hint at any time to change the current importance.
 Return the C<WM_HINTS> property from C<$window>.  The return is a list of
 key/value pairs as per C<set_wm_hints()> above
 
-    (input => 1, icon_pixmap => 1234, ...)
+    input => 1,
+    icon_pixmap => 1234,
+    ...
 
 Only fields with their flag bits set in the hints are included in the
 return.  If there's no C<WM_HINTS> at all or or its flags field is zero then
@@ -1421,7 +1429,7 @@ are string "None" if set but zero (which is probably unusual).  If
 C<$X-E<gt>{'do_interp'}> is disabled then all are numbers.
 
 X11R2 Xlib had a bug in its C<XSetWMHints()> which chopped off the
-C<window_group> value from the hints.  The C<window_group> field is
+C<window_group> value from the hints stored.  The C<window_group> field is
 omitted from the return in that case.
 
 =item C<(key =E<gt> $value, ...) = X11::Protocol::WM::change_wm_hints ($X, $window, key=E<gt>value, ...)>
@@ -1439,9 +1447,8 @@ A value C<undef> means delete a field,
                                      icon_mask   => undef);
 
 The change requires a server round-trip to fetch the current values from
-C<$window>.  An application might prefer to avoid a round-trip by
-remembering its desired hints and sending changes with a full
-C<set_wm_hints()> each time.
+C<$window>.  An application might prefer to remember its desired hints and
+send a full C<set_wm_hints()> each time.
 
 =item C<$bytes = X11::Protocol::WM::pack_wm_hints ($X, key=E<gt>value...)>
 
@@ -1638,12 +1645,14 @@ The window manager maintains a state for each client window it manages,
     IconicState
 
 Withdrawn means the window is not mapped and the window manager is not
-managing it.  Newly created windows start as withdrawn and on their first
-C<MapWindow()> go to normal state, or to iconic state if that's the initial
-state asked for in C<WM_HINTS>.
+managing it.  A Newly created window (C<$X-E<gt>CreateWindow()>) is
+initially withdrawn state and on first C<$X-E<gt>MapWindow()> goes to normal
+state (or to iconic state if that's the initial state asked for in
+C<WM_HINTS>).
 
 C<iconify()> and C<withdraw()> below can change the state to iconic or
-withdrawn.  A window can be restored to normal state by a C<MapWindow()>.
+withdrawn.  A window can be restored from iconic to normal state by a
+C<MapWindow()>.
 
 =over
 
@@ -1656,25 +1665,25 @@ the return is an empty list.
 C<$state> returned is an enum string, or an integer value if
 C<$X-E<gt>{'do_interp'}> is disabled or the value unrecognised.
 
-    "WithdrawnState"    0      neither window nor icon display
+    "WithdrawnState"    0      not displayed
     "NormalState"       1      window displayed
     "IconicState"       3      iconified in some way
 
     "ZoomState"         2      \ no longer in ICCCM
-    "InactiveState"     4      /
+    "InactiveState"     4      /   (zoom meant maximized)
 
 C<$icon_window> returned is the window (integer XID) used by the window
 manager to display an icon of C<$window>.  If there's no such window then
 C<$icon_window> is "None" (or 0 if C<$X-E<gt>{'do_interp'}> is disabled).
 
 C<$icon_window> might be the icon window from the client's C<WM_HINTS> or it
-might be created by the window manager.  Either way the client can draw into
+might be a window created by the window manager.  The client can draw into
 it for animations etc, perhaps selecting C<Expose> events on it to know when
 to redraw.
 
 C<WM_STATE> is set by the window manager when a toplevel window is first
 mapped (or perhaps earlier), and then kept up-to-date.  Generally no
-C<WM_STATE> property or a C<WM_STATE> set to WithdrawnState mean the window
+C<WM_STATE> property or a C<WM_STATE> set to WithdrawnState means the window
 manager is not managing the window, or not yet doing so.  A client can
 select C<PropertyChange> event mask in the usual way to listen for
 C<WM_STATE> changes.
@@ -1693,15 +1702,15 @@ the server.
 
 Change C<$window> to "IconicState" by sending a C<ClientMessage> to the
 window manager.  If there's no window manager running then iconification is
-not possible and the message does nothing.
+not possible and this message does nothing.
 
 C<$root> should be the root window of C<$window>.  If not given or C<undef>
 then it's obtained from a C<QueryTree()>.  Any client can iconify any top
 level window.
 
-If C<$window> has any windows which are "transient" for it (see
-L</WM_TRANSIENT_FOR> below) then usually the window manager will iconify or
-hide those windows too.
+If C<$window> has other windows which are C<WM_TRANSIENT_FOR> for it then
+generally the window manager will iconify or hide those windows too (see
+L</WM_TRANSIENT_FOR> below).
 
 =item C<X11::Protocol::WM::withdraw ($X, $window)>
 
@@ -1710,27 +1719,27 @@ hide those windows too.
 Change C<$window> to "WithdrawnState" by an C<$X-E<gt>UnmapWindow()> and a
 synthetic C<UnmapNotify> message to the window manager.
 
-If there's no window manager running then C<$window> is unmapped and the
-C<UnmapNotify> message does nothing.
+If there's no window manager running then the C<UnmapWindow()> unmaps and
+the C<UnmapNotify> message does nothing.
 
 C<$root> should be the root window of C<$window>.  If not given or
-C<undef> then it's obtained from a C<QueryTree()>.
+C<undef> then it's obtained from a C<$X-E<gt>QueryTree()>.
 
-If any other windows are C<WM_TRANSIENT_FOR> this C<$window> then generally
-the client should withdraw them too.  The window manager might make such
-other windows inaccessible anyway.
+If other windows are C<WM_TRANSIENT_FOR> this C<$window> (eg. open dialog
+windows) then generally the client should withdraw them too.  The window
+manager might make such other windows inaccessible anyway.
 
 The ICCCM specifies an C<UnmapNotify> message so the window manager is
 notified of the desired state change even if C<$window> is already unmapped,
-such as when it's in "IconicState" or perhaps during some window manager
-reparenting, etc.
+such as in "IconicState" or perhaps during some window manager reparenting,
+etc.
 
 C<$window> can be changed back to NormalState or IconicState later with
-C<$X-E<gt>MapWindow()> the same as for a newly created window.  (C<WM_HINTS>
-C<initial_state> can give a desired initial iconic/normal state).  But
-before doing so be sure the window manager has recognised the C<withdraw()>.
-This will be when the window manager changes the C<WM_STATE> to
-"WithdrawnState", or deletes the C<WM_STATE> property.
+C<$X-E<gt>MapWindow()> the same as for a newly created window.  (And
+C<WM_HINTS> C<initial_state> can give a desired initial iconic/normal
+state).  But before doing so be sure the window manager has recognised the
+C<withdraw()>.  This will be when the window manager changes the C<WM_STATE>
+property to "WithdrawnState", or deletes that property.
 
 Any client can withdraw any toplevel window, but it's unusual for a client
 to withdraw windows which are not its own.
@@ -1749,8 +1758,8 @@ C<$transient_for> is another window XID, or C<undef> if C<$window> is not
 transient for anything so C<WM_TRANSIENT_FOR> should be deleted.
 
 "Transient for" means C<$window> is some sort of dialog or menu related to
-the given C<$transient_for>.  The window manager will generally iconify
-C<$window> together with its C<$transient_for>, etc.  See
+the given C<$transient_for> window.  The window manager will generally
+iconify C<$window> together with its C<$transient_for>, etc.  See
 C<set_motif_wm_hints()> below for "modal" transients.
 
 =back
@@ -1763,10 +1772,10 @@ C<set_motif_wm_hints()> below for "modal" transients.
 
 Set the C<MOTIF_WM_HINTS> property on C<$window> (an XID).
 
-This controls window decorations and "modal" state.  It originated in the
-Motif C<mwm> window manager but is recognised by many other window managers.
-It should be set on a toplevel window before mapping.  Changes made later
-might not affect what the window manager does.
+These hints control window decorations and "modal" state.  It originated in
+the Motif C<mwm> window manager but is recognised by most other window
+managers.  It should be set on a toplevel window before mapping.  Changes
+made later might not affect what the window manager does.
 
     X11::Protocol::WM::set_motif_wm_hints
       ($X, $dialog_window,
@@ -1923,8 +1932,8 @@ set too, to know where the client is running.
 Set the C<_NET_WM_USER_TIME> property on C<$window>.
 
 C<$time> should be a server time value (an integer) from the last user
-keypress etc in C<$window>.  Or when C<$window> is created then the time
-from the event which caused it to be opened.
+keypress etc event in C<$window>.  Or when C<$window> is created then the
+time from the event which caused it to be opened.
 
 On a newly created window a special C<$time> value 0 means the window should
 not receive the focus when mapped -- assuming the window manager recognises
@@ -1950,14 +1959,14 @@ you've gone to another window to do other work in the interim.
 Set the C<_NET_WM_WINDOW_TYPE> property on C<$window> (an XID).
 C<$window_type> can be a type string as follows from the EWMH,
 
-    NORMAL
-    DIALOG
-    DESKTOP
-    DOCK
-    TOOLBAR
-    MENU
-    UTILITY
-    SPLASH
+    "NORMAL"
+    "DIALOG"
+    "DESKTOP"
+    "DOCK"
+    "TOOLBAR"
+    "MENU"
+    "UTILITY"
+    "SPLASH"
 
 C<$window_type> can also be an integer atom such as
 C<$X-E<gt>atom('_NET_WM_WINDOW_TYPE_DIALOG')>.
@@ -2013,10 +2022,10 @@ L<X11::Protocol::ChooseWindow>.)
 
 Some window managers use a "virtual root" window covering the entire screen.
 Application windows or frame windows are then children of that virtual root.
-This can help the window managerM implement a large desktop, or multiple
+This can help the window manager implement a large desktop or multiple
 desktops, though it tends to fail in subtle ways with various root oriented
-programs, including for example C<xsetroot> or the C<xwininfo> and C<xprop>
-click-to-select.
+programs, including for example L<xsetroot(1)> or the click-to-select in
+L<xwininfo(1)> and L<xprop(1)>.
 
 =over
 
@@ -2026,8 +2035,8 @@ If the window manager is using a virtual root then return that window XID.
 If not then return C<undef>.
 
 The current implementation searches for a window with an C<__SWM_VROOT>
-property, as per the C<swm>, C<tvtwm> and C<amiwm> window managers, and used
-by the C<xscreensaver> program and perhaps some versions of KDE.
+property, as per the C<swm>, C<tvtwm> and C<amiwm> window managers, and as
+used by the C<xscreensaver> program and perhaps some versions of KDE.
 
 There's nothing yet for EWMH C<_NET_VIRTUAL_ROOTS>.  Do any window managers
 use it?  Is C<_NET_CURRENT_DESKTOP> an index into that virtual roots list?
@@ -2068,30 +2077,27 @@ L<X11::Protocol::Other>,
 L<X11::Protocol::ChooseWindow>,
 L<X11::Protocol::XSetRoot>
 
-"Inter-Client Communication Conventions Manual"
-
-    http://www.x.org/docs/ICCCM/
-    /usr/share/doc/xorg-docs/specs/ICCCM/icccm.txt.gz
+"Inter-Client Communication Conventions Manual",
+F</usr/share/doc/xorg-docs/specs/ICCCM/icccm.txt.gz>,
+L<http://www.x.org/docs/ICCCM/>
 
 "Compound Text Encoding" specification.
-
-    http://www.x.org/docs/CTEXT/
-    /usr/share/doc/xorg-docs/specs/CTEXT/ctext.txt.gz
+F</usr/share/doc/xorg-docs/specs/CTEXT/ctext.txt.gz>,
+L<http://www.x.org/docs/CTEXT/>
 
 "Extended Window Manager Hints" which is the C<_NET_WM> things.
-
-    http://www.freedesktop.org/wiki/Specifications/wm-spec
-    http://mail.gnome.org/archives/wm-spec-list/
+L<http://www.freedesktop.org/wiki/Specifications/wm-spec>,
+L<http://mail.gnome.org/archives/wm-spec-list/>
 
 L<wmctrl(1)>, L<xwit(1)>, L<X(7)>
 
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

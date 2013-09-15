@@ -28,7 +28,7 @@ ok (1, 1, 'X11::Protocol::Ext::XINERAMA load as first thing');
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 23;
+my $want_version = 24;
 ok ($X11::Protocol::Ext::XINERAMA::VERSION,
     $want_version,
     'VERSION variable');

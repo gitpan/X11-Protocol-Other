@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -36,7 +36,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 23;
+$VERSION = 24;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -230,7 +230,7 @@ sub _num_none {
 1;
 __END__
 
-=for stopwords subwindows unredirect unredirected BadValue XID umm XFIXES Ryde pixmap viewable unmapped
+=for stopwords subwindows unredirect unredirected XID umm XFIXES Ryde pixmap viewable unmapped
 
 =head1 NAME
 
@@ -311,9 +311,9 @@ use Manual mode on a given C<$window> (normally a "composite manager"
 program).
 
 Redirection is a per-client setting and is automatically unredirected if the
-client disconnects.  An unredirect when not redirected is a BadValue error.
-Off-screen storage remains in effect while at least one current client has
-requested it.
+client disconnects.  An unredirect when not redirected is a C<BadValue>
+error.  Off-screen storage remains in effect while at least one current
+client has requested it.
 
 =item C<$X-E<gt>CompositeCreateRegionFromBorderClip ($region, $window)>
 
@@ -376,15 +376,16 @@ L<X11::Protocol::Ext::XFIXES>,
 L<X11::Protocol::Ext::DOUBLE_BUFFER>
 
 "Composite Extension", Version 0.4, 2007-7-3,
+F</usr/share/doc/x11proto-composite-dev/compositeproto.txt.gz>,
 C<http://cgit.freedesktop.org/xorg/proto/compositeproto/plain/compositeproto.txt>
 
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -27,7 +27,7 @@ use Exporter;
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-$VERSION = 23;
+$VERSION = 24;
 
 %CURSOR_GLYPH
   = (
@@ -142,8 +142,8 @@ X11::CursorFont - cursor font glyph names and numbers
 
 =head1 DESCRIPTION
 
-This is the names and numbers of the glyphs in the X11 cursor font which is
-used for various standard mouse pointer cursors.
+This is the names and numbers of the glyphs in the X11 cursor font which
+contains various standard mouse pointer cursors.
 
 C<%CURSOR_GLYPH> maps a glyph name to its character number in the font,
 
@@ -163,8 +163,8 @@ The cursor images can be viewed with the usual C<xfd> font display program,
 
      xfd -fn cursor
 
-The names are per the Xlib F</usr/include/X11/cursorfont.h> file defines,
-without the C<XC_> prefixes.  The full list is
+The names are per the Xlib F</usr/include/X11/cursorfont.h> file, without
+the C<XC_> prefixes.  The full list is
 
 =cut
 
@@ -175,7 +175,7 @@ without the C<XC_> prefixes.  The full list is
 
     Name                  Number
 
-    X_cursor                0
+    X_cursor                0    default fat X
     arrow                   2
     based_arrow_down        4
     based_arrow_up          6
@@ -192,7 +192,7 @@ without the C<XC_> prefixes.  The full list is
     coffee_mug             28
     cross                  30
     cross_reverse          32
-    crosshair              34
+    crosshair              34    "+" shape
     diamond_cross          36
     dot                    38
     dotbox                 40
@@ -252,6 +252,9 @@ without the C<XC_> prefixes.  The full list is
     ur_angle              148
     watch                 150    a good "busy" indicator
     xterm                 152    a vertical insertion bar
+
+C<X_cursor> is the usual default when the server first starts or when the
+root window is set to cursor "None".
 
 =head1 VARIABLES
 
@@ -313,8 +316,7 @@ L<X11::Protocol::Ext::RENDER>).
 =head1 SEE ALSO
 
 L<X11::Protocol>,
-L<X11::KeySyms>,
-L<xfd(1)>
+L<X11::KeySyms>
 
 F</usr/include/X11/cursorfont.h> and listing in the Xlib manual appendix B
 (C<http://www.x.org/docs/X11/> or
@@ -323,13 +325,17 @@ F</usr/share/doc/libx11-dev/libX11.txt.gz>).
 Xlib Xmu C<XmuCursorNameToIndex()> (C<http://www.x.org/docs/Xmu/> or
 F</usr/share/doc/libxmu-headers/Xmu.txt.gz>)
 
+L<xfd(1)> to display the cursor font.
+
+L<xsetroot(1)> to change the root window cursor.
+
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

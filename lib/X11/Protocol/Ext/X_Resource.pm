@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION';
-$VERSION = 23;
+$VERSION = 24;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
@@ -238,7 +238,7 @@ sub _ext_request_num_fill {
 1;
 __END__
 
-=for stopwords pixmap pixmaps GCs XID XIDs arrayref 0xA00000 0x1FFFFF 0xBFFFFF lookup BadValue GC Gbytes Ryde enquire
+=for stopwords pixmap pixmaps GCs XID XIDs arrayref 0xA00000 0x1FFFFF 0xBFFFFF lookup GC Gbytes Ryde enquire
 
 =head1 NAME
 
@@ -382,7 +382,7 @@ names).  The X.org server (circa version 1.9) even sometimes reports things
 like "Unregistered resource 30" (an atom with that name), which is something
 or other.
 
-If the given C<$xid> is not a connected client then a BadValue error
+If the given C<$xid> is not a connected client then a C<BadValue> error
 results.  Be careful of that when querying resources of another client since
 the client might disconnect at any time.  C<$X-E<gt>robust_req()> is good,
 or maybe C<GrabServer> to hold connections between
@@ -432,11 +432,11 @@ L<xrestop(1)>
 
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

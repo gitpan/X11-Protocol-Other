@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -30,7 +30,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 23;
+$VERSION = 24;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -232,7 +232,7 @@ sub _interp_none {
 1;
 __END__
 
-=for stopwords XID arrayrefs Ryde enum pixmap closedown NotifyMask CycleMask XFree86 builtin bitvals
+=for stopwords XID arrayrefs Ryde enum pixmap closedown NotifyMask CycleMask XFree86 builtin bitvals IDLETIME MitScreenSaverKind MitScreenSaverState
 
 =head1 NAME
 
@@ -259,8 +259,8 @@ See F<examples/mit-screen-saver-external.pl> in the X11-Protocol-Other
 sources for a complete screen saver program.
 
 See the core C<SetScreenSaver()> for the usual screen idle timeout, saver
-cycle period, and the "Blank" or "Internal" builtin saver styles.  And see
-the core C<ForceScreenSaver()> to forcibly turn on the screen saver.
+cycle period, and the "Blank" or "Internal" builtin saver styles.  See the
+core C<ForceScreenSaver()> to forcibly turn on the screen saver.
 
 =head1 REQUESTS
 
@@ -286,29 +286,30 @@ automatically negotiate within C<init_extension()> if/when necessary.
 Return information about the screen saver on the screen of C<$drawable> (an
 integer XID).
 
-C<$state> is an enum string "Off", "On", or "Disabled".
+C<$state> is an enum string "Off", "On", or "Disabled", per
+L</MitScreenSaverState> below.
 
-C<$window> is the screen saver window, or "None".  The server creates this
-as an override-redirect child of the root window but it doesn't appear in
-the C<QueryTree()> children of the root.  The window might not exist until
-required for an activated External saver.
+C<$window> is the screen saver window, or "None".  When this window exists
+it's an override-redirect child of the root window but it doesn't appear in
+the C<QueryTree()> children of the root.  This window exists when an
+External saver is activated but might not exist at other times (in which
+case C<$window> is "None").
 
 C<$til_or_since> is a period in milliseconds.  If C<$state> is "Off" then
 it's how long until the saver will be activated due to idle.  If C<$state>
 is "On" then it's how long in milliseconds since the saver was activated.
 But see L</"BUGS"> below.
 
-C<$idle> is how long in milliseconds the screen has been idle.
+C<$idle> is how long in milliseconds the screen has been idle.  In the X.org
+servers this is also available as an "IDLETIME" counter in the SYNC
+extension (see L<X11::Protocol::Ext::SYNC>).
 
 C<$event_mask> is the current client's mask as set by
 C<MitScreenSaverSelectInput()> below.
 
-C<$kind> is an enum string for how the saver is being done now or how it
-will be done when next activated,
-
-    "Blanked"     video output turned off
-    "Internal"    server builtin saver
-    "External"    external saver client
+C<$kind> is an enum string "Blanked", "Internal" or "External" for how the
+saver is being done now or how it will be done when next activated, per
+L</MitScreenSaverKind> below.
 
 =item C<$X-E<gt>MitScreenSaverSelectInput ($drawable, $event_mask)>
 
@@ -334,12 +335,12 @@ This setup makes the saver "External" kind on its next activation.  If the
 saver is currently active then it's not changed.  The client can listen for
 C<MitScreenSaverNotify> (see L</"EVENTS"> below) to know when the saver is
 activated.  The saver window XID is reported in that Notify and exposures
-etc can be selected on it at that time to know when to drawn, unless perhaps
+etc can be selected on it at that time to know when to draw, unless perhaps
 a background pixel or pixmap in this C<MitScreenSaverSetAttributes()> is
 enough.
 
 Only one client at a time can setup a saver window like this.  If another
-has done so then an Access error results.
+has done so then an C<Access> error results.
 
 =item C<$X-E<gt>MitScreenSaverUnsetAttributes ($drawable)>
 
@@ -357,8 +358,8 @@ closedown mode.
 =head1 EVENTS
 
 C<MitScreenSaverNotify> events are sent to the client when selected by
-C<MitScreenSaverSelectInput()> above.  It reports when the screen saver
-state changes.  The event has the usual fields
+C<MitScreenSaverSelectInput()> above.  These events report when the screen
+saver state changes.  The event has the usual fields
 
     name             "MitScreenSaverNotify"
     synthetic        true if from a SendEvent
@@ -383,8 +384,37 @@ C<state> is "Cycle" if the saver cycling period has expired, which means
 it's time to show something different.  This is selected by CycleMask to
 C<MitScreenSaverSelectInput()> above.
 
-C<kind> is the current saver kind, as described under
-C<MitScreenSaverQueryInfo()> above.
+C<kind> is the current saver kind per L</MitScreenSaverKind> below.
+
+=head1 ENUM TYPES
+
+The following types are available for C<$X-E<gt>interp()> and
+C<$X-E<gt>num()> after C<init_extension()>.
+
+=over
+
+=item MitScreenSaverKind
+
+    "Blanked"    0     video output turned off
+    "Internal"   1     server builtin saver
+    "External"   2     external saver client
+
+=item MitScreenSaverState
+
+The state of the screen saver, as returned by C<MitScreenSaverQueryInfo()>
+and in C<MitScreenSaverNotify> events.
+
+    "Off"         0
+    "On"          1
+    "Cycle"       2
+    "Disabled"    3
+
+=back
+
+For example,
+
+    my $num = $X->num("MitScreenSaverKind", "External");
+    # sets $num to 2
 
 =head1 BUGS
 
@@ -394,7 +424,7 @@ C<$til_or_since> from C<MitScreenSaverQueryInfo()> is a big number,
 apparently being a negative for the future time when it would have activated
 due to idle.  There's no attempt to do anything about that here.
 
-In these servers when the saver is "On" the idle timeout apparently
+Also in these servers when the saver is "On" the idle timeout apparently
 continues to fire too, so the "since" of C<$til_or_since> is only since the
 last firing, as if screen saver was re-activated, not the time since first
 activated, or something like that.
@@ -404,18 +434,20 @@ activated, or something like that.
 L<X11::Protocol>,
 L<X11::Protocol::Ext::DPMS>
 
+F</usr/share/doc/x11proto-scrnsaver-dev/saver.txt.gz>
+
 L<xset(1)>, for setting the core screen saver parameters from the command
 line.
 
-L<xscreensaver(1)>
+L<xscreensaver(1)>, L<xprintidle(1)>, L<X11::IdleTime>
 
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

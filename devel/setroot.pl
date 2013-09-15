@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2010, 2011, 2012 Kevin Ryde
+# Copyright 2010, 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -25,6 +25,22 @@ use X11::AtomConstants;
 
 use Smart::Comments;
 
+
+{
+  # SetCloseDownMode while server grabbed
+  require X11::Protocol::WM;
+  my $X = X11::Protocol->new (':1');
+  $X->GrabServer;
+  my $pixmap = $X->new_rsrc;
+  $X->CreatePixmap ($pixmap,
+                    $X->root,
+                    $X->root_depth,
+                    4,4);  # width,height
+  printf "pixmap %X\n", $pixmap;
+  $X->SetCloseDownMode('RetainPermanent');
+  $X->flush;
+  exit 0;
+}
 
 {
   require X11::Protocol::WM;
@@ -104,3 +120,41 @@ use Smart::Comments;
   }
   exit 0;
 }
+
+
+
+# Esetroot.c
+#   get _XROOTPMAP_ID
+#   get ESETROOT_PMAP_ID
+#   if equal then KillClient
+#
+#   set _XROOTPMAP_ID
+#   set ESETROOT_PMAP_ID
+#   XSetCloseDownMode
+#
+#
+
+# ENHANCE-ME: Don't intern atoms if they doesn't already exist.
+sub _kill_current_esetroot {
+  my ($class, $X, $root) = @_;
+  ### XSetRoot kill_current()
+  $root ||= $X->{'root'};
+
+}
+
+  # {
+  #   my ($value, $type, $format, $bytes_after)
+  #     = $X->GetProperty($root,
+  #                       $X->atom('_XROOTPMAP_ID'),
+  #                       0,  # AnyPropertyType
+  #                       0,  # offset
+  #                       1,  # length
+  #                       1); # delete
+  #   if ($type == X11::AtomConstants::PIXMAP() && $format == 32) {
+  #     my $pixmap = unpack 'L', $value;
+  #     unless ($pixmap) { # watch out for $xid==0 for none maybe
+  #       return;
+  #     }
+  #   }
+  # }
+

@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -19,21 +19,6 @@
 # 2.0 bits:
 # SetMode two flags fields
 # byte_order "Significance" ?
-
-
-BEGIN { require 5 }
-package X11::Protocol::Ext::XFree86_DGA;
-use strict;
-use Carp;
-use X11::Protocol;
-
-use vars '$VERSION', '@CARP_NOT';
-$VERSION = 23;
-@CARP_NOT = ('X11::Protocol');
-
-# uncomment this to run the ### lines
-# use Smart::Comments;
-
 
 # Protocol 1.0:
 #   http://cvsweb.xfree86.org/cvsweb/xc/programs/Xserver/hw/xfree86/doc/man/Attic/XF86DGA.man?rev=3.10&hideattic=0&sortby=log&content-type=text/vnd.viewcvs-markup
@@ -71,6 +56,20 @@ $VERSION = 23;
 # Other:
 #   /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
 
+
+
+BEGIN { require 5 }
+package X11::Protocol::Ext::XFree86_DGA;
+use strict;
+use Carp;
+use X11::Protocol;
+
+use vars '$VERSION', '@CARP_NOT';
+$VERSION = 24;
+@CARP_NOT = ('X11::Protocol');
+
+# uncomment this to run the ### lines
+# use Smart::Comments;
 
 
 # these not documented yet ...
@@ -371,7 +370,7 @@ my $reqs =
       return (offset    => $offset,
               set_flags => $flags,
               %$h);
-    }
+    },
    ],
 
    # =item C<$X-E<gt>XDGASetViewport($screen_num, $x, $y, $flags)>
@@ -792,12 +791,12 @@ to read or write directly instead of going through the X protocol.
 Accessing video memory will require some system-dependent trickery.  Under
 the Linux kernel for example video RAM is part of the F</dev/mem> physical
 address space and can be brought into program address space with an
-C<mmap()>, or accessed with C<sysread()> and C<syswrite()>.  This normally
+C<mmap()> or accessed with C<sysread()> and C<syswrite()>.  This normally
 requires root permissions.
 
-The requests offered here are only XFree86-DGA version 1.0 as yet.  They
-don't say anything about the pixel layout etc in the memory, that has to be
-divined separately.  (Version 2.0 has more for that.)
+The requests offered here are only XFree86-DGA version 1.0 as yet and they
+don't say anything about the pixel layout etc in the memory -- that has to
+be divined separately.  (Version 2.0 has more for that.)
 
 =head1 REQUESTS
 
@@ -810,7 +809,7 @@ per L<X11::Protocol/EXTENSIONS>.
 
 =over
 
-=item C<($server_major, $server_minor) = $X-E<gt>XF86DGAQueryVersion ()>
+=item C<($server_major, $server_minor) = $X-E<gt>XF86DGAQueryVersion()>
 
 Return the DGA protocol version implemented by the server.
 
@@ -821,9 +820,9 @@ upwards).  The only flag bit is
 
     0x0001   direct video available
 
-It's possible to have the extension but no direct video on a particular
-screen (or even all screens).  When not available the various requests below
-give protocol error C<XF86DGANoDirectVideoMode>.
+It's possible to have the extension available but no direct video on a
+particular screen, or even on no screens at all.  When no direct video the
+requests below give protocol error C<XF86DGANoDirectVideoMode>.
 
 =item C<($address, $width, $bank_size_bytes, $ram_size_kbytes) = $X-E<gt>XF86DGAGetVideoLL ($screen_num)>
 
@@ -868,8 +867,8 @@ Set the coordinates of the top-left corner of the visible part of the video
 memory on C<$screen_num> (integer 0 upwards).
 
 This can be used when the video memory is bigger than the monitor to pan
-around that bigger area, or can be used for double-buffering to display one
-part of memory while drawing to another.
+around that bigger area.  It can also be used for some double-buffering to
+display one part of memory while drawing to another.
 
 =item C<$vidpage = $X-E<gt>XF86DGAGetVidPage ($screen_num)>
 
@@ -905,15 +904,15 @@ and can be higher for multi-buffering.
 
 L<X11::Protocol>
 
-F<README.DGA>
+F</usr/share/doc/xserver-xfree86/README.DGA.gz>
 
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2012 Kevin Ryde
+# Copyright 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -128,18 +128,21 @@ my $skip_no_writable_visual;
 if (defined $visual) {
   MyTestHelpers::diag ("using visual $visual");
 } else {
-  $skip_no_writable_visual = 'due to no writable visual';
+  $skip_no_writable_visual = 'due to no visual with a writable colormap';
   MyTestHelpers::diag ("no writable visual available");
 }
 
 {
-  my $colormap = $X->new_rsrc;
-  $X->CreateColormap ($colormap, $visual, $X->root, 'None');
-  $X->QueryPointer($X->{'root'}); # sync
+  my $colormap;
+  if (defined $visual) {
+    $colormap = $X->new_rsrc;
+    $X->CreateColormap ($colormap, $visual, $X->root, 'None');
+    $X->QueryPointer($X->{'root'}); # sync
+  }
 
   {
     my @colours = ([0,0,0,0,0]);
-    if (defined $visual) {
+    if (defined $colormap) {
       @colours = $X->CupStoreColors ($colormap, [0, 65535,65535,65535]);
       $X->QueryPointer($X->{'root'}); # sync
       MyTestHelpers::diag ("actual colour: ",join(', ',@{$colours[0]}));
@@ -153,7 +156,7 @@ if (defined $visual) {
   }
   {
     my @colours = ([0,0,0,0,0]);
-    if (defined $visual) {
+    if (defined $colormap) {
       @colours = $X->CupStoreColors ($colormap, [0, 0,0,0, 0]);
       $X->QueryPointer($X->{'root'}); # sync
       MyTestHelpers::diag ("actual colour: ",join(', ',@{$colours[0]}));
@@ -165,7 +168,10 @@ if (defined $visual) {
     skip ($skip_no_writable_visual, $colours[0]->[3], 0);
     skip ($skip_no_writable_visual, $colours[0]->[4] & 8, 8);  # at another pixel
   }
-  $X->FreeColormap($colormap);
+
+  if (defined $colormap) {
+    $X->FreeColormap($colormap);
+  }
 }
 
 my $skip_no_colour_visual;

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2010, 2011 Kevin Ryde
+# Copyright 2010, 2011, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -37,8 +37,7 @@ if (! eval { require Encode }) {
   exit 0;
 }
 
-if (! eval { require Module::Util;
-             Module::Util::find_installed('Encode::HanExtra') }) {
+if (! eval { require Encode::HanExtra }) {
   MyTestHelpers::diag ('Encode::HanExtra not available -- ',$@);
   foreach (1 .. $test_count) {
     skip ('no Encode::HanExtra module', 1, 1);

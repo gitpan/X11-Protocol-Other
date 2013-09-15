@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -34,7 +34,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 23;
+$VERSION = 24;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -429,7 +429,7 @@ are 0.
 
     [ $root_x, $root_y, $width, $height ]
 
-=head1 TYPES
+=head1 ENUM TYPES
 
 The reporting level above is type "DamageReportLevel".  So for example
 (after a successful C<$X-E<gt>init_extension('DAMAGE')>),
@@ -456,13 +456,16 @@ presumably generates an Opcode error if the server doesn't have it.
 L<X11::Protocol>,
 L<X11::Protocol::Ext::XFIXES>
 
+F</usr/share/doc/x11proto-damage-dev/damageproto.txt.gz>,
+L<http://cgit.freedesktop.org/xorg/proto/damageproto/tree/damageproto.txt>
+
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

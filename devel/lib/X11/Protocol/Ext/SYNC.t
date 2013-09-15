@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2012 Kevin Ryde
+# Copyright 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -17,18 +17,6 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-
-
-
-use lib 'devel/lib';
-$ENV{'DISPLAY'} ||= ":0";
-
-
-
-
-
-
-
 BEGIN { require 5 }
 use strict;
 use X11::Protocol;
@@ -40,9 +28,9 @@ BEGIN { MyTestHelpers::nowarnings() }
 END { MyTestHelpers::diag ("END"); }
 
 # uncomment this to run the ### lines
-#use Smart::Comments;
+# use Smart::Comments;
 
-my $test_count = (tests => 119)[1];
+my $test_count = (tests => 158)[1];
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -86,13 +74,27 @@ $X->QueryPointer($X->root); # sync
 
 
 #------------------------------------------------------------------------------
-# _hilo_to_int64()
+# Helpers.
 
-# explicit stringizing to cope with old BigInt
+# Return $b << $n, with $b converted to a Math::BigInt for the shift.
+# No "<<" operator in old Math::BigInt, so this is implemented with "**".
+sub big_leftshift {
+  my ($b, $n) = @_;
+  require Math::BigInt;
+  return Math::BigInt->new("$b") * Math::BigInt->new(2) ** $n;
+}
+
+
+#------------------------------------------------------------------------------
+# _hilo_to_int64()
+# Note explicit stringizing to cope with old Math::BigInt.
+
+MyTestHelpers::diag ("_INT_BITS() is ", X11::Protocol::Ext::SYNC::_INT_BITS());
+
 { my $ret = X11::Protocol::Ext::SYNC::_hilo_to_int64(0,1);
   $ret = "$ret";
   $ret =~ s/^\+//;
-  ok ($ret, 1);
+  ok ($ret == 1, 1);
 }
 { my $ret = X11::Protocol::Ext::SYNC::_hilo_to_int64(0,0x8000_0000);
   $ret = "$ret";
@@ -117,7 +119,7 @@ $X->QueryPointer($X->root); # sync
 { my $ret = X11::Protocol::Ext::SYNC::_hilo_to_int64(0xFFFF_FFFF, 0xFFFF_FFFF);
   $ret = "$ret";
   $ret =~ s/^\+//;
-  ok ($ret, '-1');
+  ok ($ret == -1, 1);
 }
 
 #------------------------------------------------------------------------------
@@ -125,27 +127,49 @@ $X->QueryPointer($X->root); # sync
 
 { my @ret = X11::Protocol::Ext::SYNC::_int64_to_hilo(0);
   ok (scalar(@ret), 2);
-  ok ($ret[0], 0);
-  ok ($ret[1], 0);
+  ok ($ret[0] == 0, 1);
+  ok ($ret[1] == 0, 1);
 }
 { my @ret = X11::Protocol::Ext::SYNC::_int64_to_hilo(-1);
   ok (scalar(@ret), 2);
-  ok ($ret[0], 0xFFFF_FFFF);
-  ok ($ret[1], 0xFFFF_FFFF);
+  ok ($ret[0] == 0xFFFF_FFFF, 1);
+  ok ($ret[1] == 0xFFFF_FFFF, 1);
 }
 { my $sv = big_leftshift(1,32);
   my @ret = X11::Protocol::Ext::SYNC::_int64_to_hilo($sv);
   ok (scalar(@ret), 2);
-  ok ($ret[0], 1);
-  ok ($ret[1], 0);
+  ok ($ret[0] == 1, 1);
+  ok ($ret[1] == 0, 1);
 }
 { my $sv = big_leftshift(1,63) - 1;
   my @ret = X11::Protocol::Ext::SYNC::_int64_to_hilo($sv);
   ok (scalar(@ret), 2);
-  ok ($ret[0], 0x7FFF_FFFF);
-  ok ($ret[1], 0xFFFF_FFFF);
+  ok ($ret[0] == 0x7FFF_FFFF, 1);
+  ok ($ret[1] == 0xFFFF_FFFF, 1);
+}
+{ # -8000_0000 0000_0000
+  my $sv = - big_leftshift(1,63);
+  my @ret = X11::Protocol::Ext::SYNC::_int64_to_hilo($sv);
+  ok (scalar(@ret), 2);
+  ok ($ret[0] == 0x8000_0000, 1,  "-800..00 hi got $ret[0]");
+  ok ($ret[1] == 0,           1);
+}
+{ # -4000_0000 0000_0001
+  my $sv = - big_leftshift(1,62) - 1;
+  my ($hi,$lo) = X11::Protocol::Ext::SYNC::_int64_to_hilo($sv);
+  ok ($hi == 0xBFFF_FFFF, 1);
+  ok ($lo == 0xFFFF_FFFF, 1);
 }
 
+{
+  # -7FFF_FFFF FFFF_FFFF
+  my $sv = - big_leftshift(1,63) + 1;
+  my @ret = X11::Protocol::Ext::SYNC::_int64_to_hilo($sv);
+  ok (scalar(@ret), 2);
+  ok ($ret[0] == 0x8000_0000, 1,  "-7FF..FF hi got $ret[0]");
+  ok ($ret[1] == 1,           1,  "-7FF..FF lo want 1 got $ret[0]");
+  MyTestHelpers::diag ("sv=$sv   hi=$ret[0] lo=$ret[1]");
+}
 
 #------------------------------------------------------------------------------
 # errors
@@ -190,14 +214,20 @@ ok ($X->interp('SyncValueType',1), 'Relative');
 
 
 #------------------------------------------------------------------------------
+# SyncAlarmState enum
+
+ok ($X->num('SyncAlarmState','Active'),    0);
+ok ($X->num('SyncAlarmState','Inactive'),  1);
+ok ($X->num('SyncAlarmState','Destroyed'), 2);
+
+ok ($X->interp('SyncAlarmState',0), 'Active');
+ok ($X->interp('SyncAlarmState',1), 'Inactive');
+ok ($X->interp('SyncAlarmState',2), 'Destroyed');
+
+
+#------------------------------------------------------------------------------
 # SyncCreateCounter / SyncDestroyCounter
 
-sub big_leftshift {
-  my ($b, $n) = @_;
-  # no "<<" in old BigInt
-  require Math::BigInt;
-  return Math::BigInt->new("$b") * Math::BigInt->new(2) ** $n;
-}
 {
   my $counter = $X->new_rsrc;
   $X->SyncCreateCounter ($counter, 123);
@@ -251,12 +281,16 @@ sub big_leftshift {
   $X->SyncCreateAlarm ($alarm, value => -123);
 
   { my %h = $X->SyncQueryAlarm ($alarm);
-    ok ($h{'value'} == -123, 1);
-    ok ($h{'test_type'}, 'PositiveComparison');
-    ok ($h{'value_type'}, 'Absolute');
-    ok ($h{'delta'}, 1);
-    ok ($h{'events'}, 1);
-    ok ($h{'state'}, 'Inactive');
+    ok ($h{'value'} == -123,                     1);
+    ok ($h{'test_type'} eq 'PositiveComparison', 1);
+    ok ($h{'value_type'} eq 'Absolute',          1);
+    ok ($h{'delta'} == 1,          1);
+    ok ($h{'events'} == 1,         1);
+    ok ($h{'state'} eq 'Inactive', 1);
+
+    # print $h{'delta'},"\n";
+    # use Devel::Peek;
+    # Dump($h{'delta'});
   }
 
   {

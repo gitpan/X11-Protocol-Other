@@ -1,4 +1,4 @@
-# Copyright 2010, 2011, 2012 Kevin Ryde
+# Copyright 2010, 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -30,6 +30,7 @@
 # awesome does desktops by hiding/mapping and a task bar across the top.
 
 
+# Maybe:
 # X11::Protocol::XSetRoot->kill_current($X,$root)
 # X11::Protocol::XSetRoot->kill_current(X=>$X,root=>$root)
 
@@ -66,13 +67,14 @@ use X11::Protocol::Other;
 use X11::Protocol::WM;
 
 use vars '$VERSION';
-$VERSION = 23;
+$VERSION = 24;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
 
-# _XSETROOT_ID the same as xsetroot and other rootwin programs do
+# _XSETROOT_ID the same as xsetroot and other rootwin programs do.
+
 sub set_background {
   my ($class, %option) = @_;
   ### XSetRoot set_background(): do { my %o = %option; delete $o{'X'}; %o }
@@ -160,7 +162,15 @@ sub set_background {
   # follow any __SWM_VROOT
   $root = (X11::Protocol::WM::root_to_virtual_root($X,$root) || $root);
 
-  # atomic replacement of _XSETROOT_ID
+  # GrabServer() so atomic get/set of _XSETROOT_ID.
+
+  # After GetProperty() delete and kill of the old _XSETROOT_ID don't want
+  # another client to be able to slip in a new value which ChangeProperty()
+  # here would overwrite (and so leak resources).
+  #
+  # The QueryPointer() is under the grab too so that no-one else can
+  # KillClient() on our new _XSETROOT_ID, not until after QueryPointer().
+  #
   require X11::Protocol::GrabServer;
   my $grab = X11::Protocol::GrabServer->new ($X);
 
@@ -189,8 +199,8 @@ sub set_background {
     $X->SetCloseDownMode('RetainPermanent');
   }
 
-  # check for errors with a QueryPointer round trip, either if allocated
-  # because the application will do nothing more, or if $display opened here
+  # Check for errors with a QueryPointer round trip, either if allocated
+  # because the application will do nothing more, or if $display opened here.
   if ($allocated || defined $display) {
     ### sync with QueryPointer
     $X->QueryPointer($root);
@@ -229,19 +239,54 @@ sub _kill_current {
   ### XSetRoot kill_current()
   $root ||= $X->{'root'};
 
-  my ($value, $type, $format, $bytes_after)
-    = $X->GetProperty($root,
-                      $X->atom('_XSETROOT_ID'),
-                      0,  # AnyPropertyType
-                      0,  # offset
-                      1,  # length
-                      1); # delete
-  if ($type == X11::AtomConstants::PIXMAP() && $format == 32) {
-    my $xid = unpack 'L', $value;
-    ### $value
-    ### kill id_pixmap: sprintf('%#X', $xid)
-    if ($xid) { # watch out for $xid==0 for none maybe
-      $X->KillClient($xid);
+  # Delete and kill _XSETROOT_ID.
+  {
+    my ($value, $type, $format, $bytes_after)
+      = $X->GetProperty($root,
+                        $X->atom('_XSETROOT_ID'),
+                        0,  # AnyPropertyType
+                        0,  # offset
+                        1,  # length
+                        1); # delete
+    if ($type == X11::AtomConstants::PIXMAP() && $format == 32) {
+      my $xid = unpack 'L', $value;
+      ### $value
+      ### kill id_pixmap: sprintf('%#X', $xid)
+
+      # For safety check $xid!=0, since KillClient(0) would mean kill all
+      # temporary clients (ie. all normal clients).
+      if ($xid) {
+        $X->KillClient($xid);
+      }
+    }
+  }
+
+  # Delete _XROOTPMAP_ID.
+  #
+  # Do this before KillClient so that _XROOTPMAP_ID is not left momentarily
+  # as a non-existent XID.  Though anyone using _XROOTPMAP_ID must be
+  # prepared for the XID to be destroyed at any time since it belongs to
+  # another client.
+  #
+  $X->DeleteProperty($root, $X->atom('_XROOTPMAP_ID'));
+
+  # Delete and kill ESETROOT_PMAP_ID.
+  #
+  {
+    my ($value, $type, $format, $bytes_after)
+      = $X->GetProperty($root,
+                        $X->atom('ESETROOT_PMAP_ID'),
+                        0,  # AnyPropertyType
+                        0,  # offset
+                        1,  # length
+                        1); # delete
+    if ($type == X11::AtomConstants::PIXMAP() && $format == 32) {
+      my $xid = unpack 'L', $value;
+      # For safety check $xid!=0, since KillClient(0) would mean kill all
+      # temporary clients (ie. all normal clients).
+      if ($xid) {
+        $X->KillClient($xid);
+      }
     }
   }
 }
@@ -271,7 +316,7 @@ sub _num_none {
 1;
 __END__
 
-=for stopwords Ryde pixmap colormap RetainPermanent pre-defined lookup XID Pixmap XSetRoot recognised
+=for stopwords Ryde pixmap colormap RetainPermanent pre-defined lookup XID Pixmap XSetRoot recognised Esetroot
 
 =head1 NAME
 
@@ -295,9 +340,9 @@ X11::Protocol::XSetRoot -- set root window background
 This module sets the X root window background in the style of the
 C<xsetroot> program.
 
-The simplest use is a named colour or a 1 to 4 digit hex string like
-"#RRGGBB" or "#RRRRGGGGBBBB".  Named colours are interpreted by the server's
-usual C<AllocNamedColor()>.
+The simplest use is a named colour or 1 to 4 digit hex string like "#RRGGBB"
+or "#RRRRGGGGBBBB".  Named colours are interpreted by the server's usual
+C<AllocNamedColor()>.
 
     X11::Protocol::XSetRoot->set_background
                                (color => 'green');
@@ -308,52 +353,54 @@ usual C<AllocNamedColor()>.
 A pattern can be set with a pixmap.  A complete background picture can be
 set with a pixmap the size of the whole screen.
 
-    # draw to $pixmap with black_pixel and white_pixel,
-    # then ...
+    # draw $pixmap with $X->black_pixel and $X->white_pixel,
+    # then set it with
     X11::Protocol::XSetRoot->set_background
                                (X      => $X,
                                 pixmap => $pixmap);
 
 C<set_background()> takes ownership of the given C<$pixmap> and frees it
-with C<FreePixmap> once put into the window background.
+with C<FreePixmap()> once put into the window background.
 
-Putting an application drawn pixmap into the background is the main uses for
-this module.  If you want a solid colour then that can be done easily enough
-by running the actual C<xsetroot> program.
+Setting a pixmap drawn by an application is the main use for this module.
+If you just want a solid colour then that can be done easily enough by
+running the actual C<xsetroot> program.
 
 =head2 Allocated Pixels
 
 If a pixmap has pixels allocated with C<AllocColor()> etc then this should
 be indicated with the C<pixmap_allocated_colors> option,
 
-    # draw $pixmap with AllocColor colours
+    # AllocColor colours, draw $pixmap with them, then
+    #
     X11::Protocol::XSetRoot->set_background
                                (X      => $X,
                                 pixmap => $pixmap,
                                 pixmap_allocated_colors => 1);
     # don't use $X any more
 
-The way allocated colour retention is done means that the C<$X> connection
-cannot be used any more in this case, and likewise if the C<color> or
-C<pixel> options are an allocated colour.
+The way colour retention is done means that the C<$X> connection cannot be
+used any more in this case.  Likewise if the C<color> or C<pixel> options
+are an allocated colour.
 
 The easiest thing is to close an C<$X> connection immediately after a
 C<set_background()>.  Perhaps there could be a return value to say whether a
 retain was done and the connection cannot be used again.  Or perhaps if in
-the future there's an explicit C<$X-E<gt>close> of some sort then that could
-be used here, and would indicate whether the connection is still good.
+the future there's an explicit C<$X-E<gt>close> then that could be done here
+and a closed connection would indicate it cannot be used.
 
 Allocated colours in the root colormap are preserved using
-C<SetCloseDownMode('RetainPermanent')> and putting a client XID in the
+C<SetCloseDownMode('RetainPermanent')> and a client XID in the
 C<_XSETROOT_ID> property on the root window.  A subsequent C<xsetroot> or
 compatible program does a C<KillClient()> on that XID to free the pixels.
-Such a kill could happen any time after stored, perhaps immediately.
+Such a kill could happen any time after that property is set, perhaps
+immediately.
 
 For a static visual such as C<TrueColor> there's no colour allocation
 (C<AllocColor()> is just a lookup) and in that case C<set_background()>
 knows there's no need for C<RetainPermanent>.
 
-Also, if the C<color> given results in the screen C<black_pixel> or
+Also, if the C<color> or C<pixel> options are the screen C<black_pixel> or
 C<white_pixel> then there's no C<RetainPermanent> since those pixels are
 permanent in the root colormap.  If the server has the TOG-CUP extension
 (see L<X11::Protocol::Ext::TOG_CUP>) then the reserved pixels it lists are
@@ -361,14 +408,41 @@ treated similarly.
 
 =head1 Virtual Root
 
-C<XSetRoot> looks for C<__SWM_VROOT> using C<X11::Protocol::WM>
-C<root_to_virtual_root()> and acts on that when applicable.  Such a virtual
-root is used by C<amiwm>, C<swm> and C<tvtwm> window managers, and as used
-the C<xscreensaver> program.
+C<XSetRoot> looks for C<__SWM_VROOT> using C<root_to_virtual_root()> from
+C<X11::Protocol::WM> and acts on that when applicable.  Such a virtual root
+is used by C<amiwm>, C<swm> and C<tvtwm> window managers and the
+C<xscreensaver> program.
 
 The enlightenment window manager uses a background window covering the root
 window.  This stops most root window programs from working, including
 XSetRoot here.
+
+=head1 Esetroot
+
+The C<Esetroot> program and various compatible programs such as C<fvwm-root>
+put their pixmap in properties C<_XROOTPMAP_ID> and C<ESETROOT_PMAP_ID>.
+These are deleted by C<set_background()> since any pixmap there will no
+longer be the root pixmap.
+
+C<set_background()> does a C<KillClient()> on the C<ESETROOT_PMAP_ID>.
+C<Esetroot> uses C<RetainPermanent> to preserve the root pixmap and leaves
+C<ESETROOT_PMAP_ID> ready to be killed to free that pixmap when replaced.
+
+This C<_XROOTPMAP_ID> style allows client programs to read the root window
+background to copy and manipulate for pseudo-transparency or other purposes.
+There's nothing yet for C<set_background()> to store a pixmap this way.
+
+=cut
+
+# The C<xsetroot> method destroys the new root pixmap which in principle
+# allows the server to apply it to the hardware in some way and never refer to
+# it again.  In practice that might not occur, and the C<Esetroot> way has the
+# advantage of letting clients fetch the root background.  In the future there
+# could be an option for C<set_background()> here to use the C<Esetroot> style
+# for pixmaps.  (For compatibility the C<xsetroot> style would have to be
+# default.)
+
+=pod
 
 =head1 FUNCTIONS
 
@@ -393,11 +467,11 @@ parameters are
 The server is given by an C<X> connection object, or a C<display> name to
 connect to, or the default is the C<DISPLAY> environment variable.
 
-The root window is given by C<root> or C<screen>, or otherwise the current
-C<choose_screen()> on C<$X>, or the default screen coming from the display
-name.
+The root window is given by C<root> or C<screen>, or the default is the
+default screen in C<$X> either as set by C<$X-E<gt>choose_screen()> or from
+the display name.
 
-The background to show is given by a colour name or pixel, or a pixmap.
+The background to show is given by a colour name, pixel value, or pixmap.
 C<color> can be anything understood by the server C<AllocNamedColor()>, plus
 1 to 4 digit hex
 
@@ -423,11 +497,11 @@ pre-defined black and white pixels (and any TOG-CUP reserved).
 When an allocated pixel or a pixmap with allocated pixels is set as the
 background the C<_XSETROOT_ID> mechanism described above means the C<$X>
 connection could be killed by another C<xsetroot> at any time, perhaps
-almost immediately, and so should not be used any more.  The easiest thing
-is to make C<set_background()> the last thing done on C<$X>.
+immediately, and so should not be used any more.  The easiest way is to make
+C<set_background()> the last thing done on C<$X>.
 
 Setting a C<pixel> or C<pixmap> can only be done on a C<$X> connection as
-such, not from the C<display> option.  This is because retaining the colours
+such, not with the C<display> option.  This is because retaining the colours
 with the C<_XSETROOT_ID> mechanism can only be done from the client
 connection which created the resources, not a new separate client
 connection.
@@ -445,13 +519,16 @@ L<xsetroot(1)>,
 L<X11::Protocol>,
 L<X11::Protocol::Ext::TOG_CUP>
 
+L<Esetroot(1)>,
+L<fvwm-root(1)>
+
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2010, 2011, 2012 Kevin Ryde
+Copyright 2010, 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

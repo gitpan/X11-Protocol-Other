@@ -29,7 +29,7 @@ ok (1, 1, 'X11::Protocol::Ext::DAMAGE load as first thing');
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 23;
+my $want_version = 24;
 ok ($X11::Protocol::Ext::DAMAGE::VERSION,
     $want_version,
     'VERSION variable');

@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -22,7 +22,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 23;
+$VERSION = 24;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -132,7 +132,7 @@ my $reqs =
 
 sub new {
   my ($class, $X, $request_num, $event_num, $error_num) = @_;
-  ### MIT_SHM new()
+  ### MIT_SHM new() ...
 
   # Errors
   $X->{'ext_const'}->{'Error'}->[$error_num] = 'ShmSeg';
@@ -370,8 +370,8 @@ The returned C<$depth> (an integer) is the depth of C<$drawable>.
 C<$visual> (integer ID) is its visual for a window, or "None" for a pixmap.
 C<$size> is how many bytes were written.
 
-C<$shmseg> must be attached read-write in the C<MitShmAttach()> or an Access
-error results.
+C<$shmseg> must be attached read-write in the C<MitShmAttach()> or an
+C<Access> error results.
 
 =item C<$X-E<gt>MitShmCreatePixmap ($pixmap, $drawable, $depth, $width, $height, $shmseg, $offset)>
 
@@ -444,9 +444,12 @@ L<IPC::SharedMem>
 
 L<X11::Protocol::Ext::Damage>
 
+F</usr/share/doc/x11proto-xext-dev/shm.txt.gz>,
+F</usr/share/X11/doc/hardcopy/Xext/mit-shm.PS.gz>
+
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -22,25 +22,25 @@
 #
 # This is an example of getting the mouse pointer cursor image with XFIXES.
 #
-# XFixesGetCursorImage() retrieves the cursor image.  CursorNotify events
-# report when the image changes.  A change is normally due to moving into a
-# window with a different "cursor" attribute (ie. cursor type to show), but
-# may also be a pointer grab, or even an animated changing cursor from the
-# RENDER extension.  See cursor-font-anim.pl for some fun with an animated
-# root window cursor.
+# $X->XFixesGetCursorImage() retrieves the cursor image.  CursorNotify
+# events report when the image changes.  A change is normally due to moving
+# into a window with a different "cursor" attribute, but may also be a
+# pointer grab, or even an animated changing cursor from the RENDER
+# extension.  See cursor-font-anim.pl for some fun with an animated root
+# window cursor.
 #
-# The only painful thing is that GetCursorImage gives 8-bit RGBA, so it's
-# necessary to allocate colours etc to display that in a window.  In the
-# code here the image is drawn to a pixmap, then that pixmap drawn to the
-# window under Expose.
+# The only painful thing is that XFixesGetCursorImage() gives 8-bit RGBA, so
+# it's necessary to allocate colours etc to display that in a window.  In
+# the code here the image is drawn to a pixmap, then that pixmap drawn to
+# the window under Expose.
 #
-# XFixesGetCursorImage() isn't done in the "event_handler" code, because
-# XFixesGetCursorImage() is a round-trip request and waiting for the reply
-# might read new events and call the event_handler recursively.  If badly
-# lagged and continually getting CursorNotify then that could be a very deep
-# recursion, or make a mess of the drawing code.  So the event_handler just
-# notes a fresh GetCursorImage is required and that's done in the main loop
-# after $X->handle_input().
+# $X->XFixesGetCursorImage() isn't done in the "event_handler" code because
+# it's a round-trip request and waiting for the reply might read new events
+# and call the event_handler recursively.  If badly lagged and continually
+# receiving CursorNotify then that could be a very deep recursion, or make a
+# mess of the drawing code.  So the event_handler just notes a fresh
+# XFixesGetCursorImage() is required and that's done in the main loop after
+# $X->handle_input().
 #
 # With only the core X protocol there's no good way to get the current
 # cursor or its image.  The cursor attribute on a window can't be read back

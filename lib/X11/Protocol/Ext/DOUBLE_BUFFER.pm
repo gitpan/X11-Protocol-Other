@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -37,7 +37,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 23;
+$VERSION = 24;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -184,7 +184,7 @@ sub _interp_none {
 1;
 __END__
 
-=for stopwords XID arrayrefs Ryde pixmap Deallocate deallocated XIDs enum arrayref arrayrefs drawable drawable's recognise drawables enquiring XFree86 Xlib
+=for stopwords XID arrayrefs Ryde pixmap Deallocate deallocated XIDs enum arrayref arrayrefs drawable drawable's recognise drawables enquiring XFree86 Xlib DbeSwapAction
 
 =head1 NAME
 
@@ -201,19 +201,19 @@ X11::Protocol::Ext::DOUBLE_BUFFER - window off-screen double buffering
 
 =head1 DESCRIPTION
 
-The DOUBLE-BUFFER extension lets a client program draw into an off-screen
-"back buffer" on a window and when ready swap it to the user-visible
-"front".  A back buffer is a drawable with the same size, depth, visibility,
-etc as the window proper.
+The DOUBLE-BUFFER extension lets a program draw into an off-screen "back
+buffer" on a window and when ready swap it to the user-visible "front".
+A back buffer is a drawable with the same size, depth, visibility, etc as
+the window proper.
 
 Drawing off-screen then swapping to visible is good for smooth frame by
 frame animations or if some drawing is complex or poorly implemented and has
-clears and redraws which would flash if done directly to the window.
+clears or overwriting which would flash if done directly to the window.
 
-Off-screen drawing can also be done to a pixmap then copy into the window,
-but a back buffer might be implemented more efficiently and in particular it
-need only keep visible portions of a window, so memory is not used for
-overlapped areas.
+Off-screen drawing can also be implemented by a pixmap and copy into the
+window but the server might implement a back buffer more efficiently.  In
+particular the back buffer only needs to be visible portions of a window so
+memory is not used for overlapped areas.
 
 The server might support double buffering only on certain visuals.
 C<DbeGetVisualInfo()> lists those which are supported, or just try to create
@@ -256,9 +256,9 @@ be done.
 If C<$window> is already double buffered then C<$buffer> becomes another
 reference to that back buffer.
 
-If C<$window> is destroyed (C<DestroyWindow()>) before C<$buffer> then
-C<$buffer> continues to exist and should still be deallocated (below) but
-attempting to draw into it gives a C<Resource> error reply.
+If C<$window> is destroyed (C<DestroyWindow()>) then C<$buffer> continues to
+exist and should still be deallocated (below), but attempting to draw into
+it gives a C<Resource> error reply.
 
 =item C<$X-E<gt>DbeDellocateBackBufferName ($buffer)>
 
@@ -270,7 +270,7 @@ The underlying buffer remains until all buffer XIDs for it are deallocated.
 
 =item C<$X-E<gt>DbeSwapBuffers ($window1,$action1, $window2,$action2,...)>
 
-Swap the front and back buffers on given C<$windows> (XIDs).  The back
+Swap the front and back buffers on each given C<$window> (XIDs).  The back
 buffer becomes visible and what was the front becomes the back.
 
   $X->DbeSwapBuffers ($window1, 'Background',
@@ -280,7 +280,7 @@ Only the content is swapped, the XIDs are unchanged, so C<$window> is still
 the visible window front and any C<$buffer> XIDs to it are still the back.
 
 The contents of each back buffer after swapping are controlled by the
-corresponding C<$action> (a string) for each window,
+corresponding C<$action> for each window (string type L</DbeSwapAction>),
 
      $action        new back buffer contents
     ---------       --------------------------
@@ -289,9 +289,8 @@ corresponding C<$action> (a string) for each window,
     "Untouched"     left at current content (previous visible)
     "Copied"        content of the old back buffer (unchanged)
 
-"Untouched" means the content of the old visible front buffer which is
-swapped to become the new back buffer is left unchanged, so the new back
-contents are the old front contents.
+"Untouched" means the contents of the front buffer is swapped to the back
+buffer unchanged.
 
 "Copied" is as if the back buffer content is copied to the front, making
 both now the same.
@@ -302,8 +301,8 @@ both now the same.
 
 Hint to the server that a sequence of swap and/or drawing operations between
 Begin and End might be done as an atomic combination for higher performance.
-If the server doesn't recognise the sequence then it just runs it
-sequentially as normal.
+If the server doesn't recognise the sequence then it runs it sequentially as
+normal.
 
 If a C<DbeSwapBuffers()> is in the idiom then it should be the first
 request, immediately following the Begin.
@@ -311,13 +310,13 @@ request, immediately following the Begin.
     # swap then clear back buffer to a GC stipple
     # no guarantee any server would actually optimize this!
     $X->DbeBeginIdiom;
-    $X->DbeSwapBuffers ($window, 'Untouched');
+    $X->DbeSwapBuffers ($window, 'Undefined');
     $X->PolyFillRectangle ($buffer, $gc, [0,0,$width,$height]);
     $X->DbeEndIdiom;
 
-There need not be a swap in an idiom.  For example a C<CopyArea()> of some
-parts of the back buffer to the window might be in a Begin/End and might
-perhaps be optimized by the server.
+There doesn't need to be a swap in an idiom.  For example a C<CopyArea()> of
+some parts of the back buffer to the window might be in a Begin/End and
+might perhaps be optimized by the server.
 
     $X->DbeBeginIdiom;
     $X->CopyArea ($buffer, $window,  # from buffer to window
@@ -328,10 +327,10 @@ perhaps be optimized by the server.
 The idea of idiom groupings is to have a flexible way to express combination
 operations, including things not yet imagined, rather than adding specific
 requests to the protocol.  In principle the server can always optimize
-consecutive requests, but that depends on them arriving at the server
-together.  A C<DbeBeginIdiom()> is like a permission to the server not to
-perform the requests immediately, but to wait, if it wishes and if it can,
-to see if what follows can be combined.
+consecutive requests but that depends on them arriving at the server
+together.  A C<DbeBeginIdiom()> is like permission to the server to defer
+performing the requests and wait, if it wishes, to see if what follows can
+be combined.
 
 =item C<@infos = $X-E<gt>DbeGetVisualInfo ($drawable1, $drawable2, ...)>
 
@@ -394,15 +393,36 @@ window has been destroyed (C<DestroyWindow()>) then the return is "None".
 
 =back
 
+=head1 ENUM TYPES
+
+The following types are available for C<$X-E<gt>interp()> and
+C<$X-E<gt>num()>, after C<init_extension()>.
+
+=over
+
+=item DbeSwapAction
+
+    "Undefined"    0
+    "Background"   1
+    "Untouched"    2
+    "Copied"       3
+
+=back
+
+For example,
+
+    my $num = $X->num("DbeSwapAction", "Background");
+    # sets $num to 2
+
 =head1 BUGS
 
 In some XFree86 3.x servers there was a bug in C<DbeGetVisualInfo()> where
-the reply length was miscalculated, in bytes instead of CARD32s, resulting
-in a length value bigger than the actual data sent.  The symptom is the
-client hangs waiting for data the length says should follow, and which never
-does.
+the reply length was miscalculated, being bytes instead of CARD32s,
+resulting in a length value bigger than the actual data sent.  The symptom
+is the client hangs waiting for data the length says should follow but which
+never does.
 
-This affects any client code, including the Xlib C<XdbeGetVisualInfo()> as
+This affects all client code, including the Xlib C<XdbeGetVisualInfo()> as
 used for instance by the C<xdpyinfo> program.
 
 Is there a good way to notice the problem?  Probably not beyond looking at
@@ -414,13 +434,15 @@ something nasty to the way C<handle_input()> reads as a workaround.
 L<X11::Protocol>,
 L<X11::Protocol::Ext::Composite>
 
+F</usr/share/doc/x11proto-xext-dev/dbe.txt.gz>
+
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

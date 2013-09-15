@@ -1,4 +1,4 @@
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -42,7 +42,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 23;
+$VERSION = 24;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -269,15 +269,16 @@ L<X11::Protocol>
 Colormap Utilization Policy and Extension, Version 1.0
 http://www.xfree86.org/current/tog-cup.html
 
-F</usr/share/doc/x11proto-xext-dev/tog-cup.txt.gz>
+F</usr/share/doc/x11proto-xext-dev/tog-cup.txt.gz>,
+F</usr/share/X11/doc/hardcopy/Xext/tog-cup.PS.gz>
 
 =head1 HOME PAGE
 
-http://user42.tuxfamily.org/x11-protocol-other/index.html
+L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012 Kevin Ryde
+Copyright 2011, 2012, 2013 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

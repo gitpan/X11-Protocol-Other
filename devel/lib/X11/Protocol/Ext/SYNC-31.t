@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2012 Kevin Ryde
+# Copyright 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -17,12 +17,6 @@
 # You should have received a copy of the GNU General Public License along
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use lib 'devel/lib';
-$ENV{'DISPLAY'} ||= ":0";
-
-
-
 BEGIN { require 5 }
 use strict;
 use X11::Protocol;
@@ -34,10 +28,10 @@ BEGIN { MyTestHelpers::nowarnings() }
 END { MyTestHelpers::diag ("END"); }
 
 # uncomment this to run the ### lines
-#use Smart::Comments;
+# use Smart::Comments;
 
 
-my $test_count = (tests => 24)[1];
+my $test_count = (tests => 23)[1];
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -95,6 +89,14 @@ $X->QueryPointer($X->root); # sync
   }
 }
 
+if ($ENV{'X11_PROTOCOL_OTHER__SKIP_SYNC_31'}) {
+  MyTestHelpers::diag ("X11_PROTOCOL_OTHER__SKIP_SYNC_31");
+  foreach (1 .. $test_count) {
+    skip ("due to X11_PROTOCOL_OTHER__SKIP_SYNC_31", 1, 1);
+  }
+  exit 0;
+}
+
 
 #------------------------------------------------------------------------------
 # Errors
@@ -126,10 +128,14 @@ $X->QueryPointer($X->root); # sync
 
   my $fence = $X->new_rsrc;
   $X->SyncCreateFence ($fence, $drawable, 0);
+  ### $fence
+  ### QueryPointer ...
   $X->QueryPointer($X->root); # sync
+  ### done ...
   ok (1, 1, 'SyncCreateFence, initially untriggered');
 
   { my $value = $X->SyncQueryFence ($fence);
+    ### $value
     ok ($value, 0);
   }
 
@@ -147,8 +153,7 @@ $X->QueryPointer($X->root); # sync
   $X->SyncResetFence ($fence);
 
   { my $value = $X->SyncQueryFence ($fence);
-    ok ($value, 0,
-        'fence untriggered again');
+    ok ($value, 0, 'fence untriggered again');
   }
 
   $X->SyncDestroyFence ($fence);

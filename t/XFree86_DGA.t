@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2012 Kevin Ryde
+# Copyright 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -184,14 +184,15 @@ if (! $direct_video_available) {
     }) {
       MyTestHelpers::diag ("XF86DGAGetVideoLL ", join(', ',@ret));
       MyTestHelpers::diag ("  in hex ", join(', ',map{sprintf '%X',$_}@ret));
+    } else {
+      MyTestHelpers::diag ("XF86DGAGetVideoLL error: ",$@);
     }
     $X->QueryPointer($X->root); # sync
   }
   my $skip_if_error = (defined $error
                        ? 'due to XF86DGAGetVideoLL error reply'
                        : undef);
-  skip ($skip_if_error,
-        scalar(@ret), 4);
+  skip ($skip_if_error, scalar(@ret), 4);
 }
 
 
