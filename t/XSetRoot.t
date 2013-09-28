@@ -75,7 +75,7 @@ require X11::Protocol::XSetRoot;
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 24;
+my $want_version = 25;
 ok ($X11::Protocol::XSetRoot::VERSION,
     $want_version,
     'VERSION variable');

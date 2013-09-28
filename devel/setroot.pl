@@ -27,6 +27,44 @@ use Smart::Comments;
 
 
 {
+  my $X = X11::Protocol->new;
+  require X11::Protocol::XSetRoot;
+
+  # my $colormap = $X->{'default_colormap'};
+  # my @ret = $X->AllocNamedColor($colormap, 'white');
+  # ### @ret
+
+  my $root = $X->{'root'};
+  my $pixmap = $X->new_rsrc;
+  $X->CreatePixmap ($pixmap,
+                    $root,
+                    $X->{'root_depth'},
+                    2,2);  # width,height
+  my $gc = $X->new_rsrc;
+  $X->CreateGC ($gc, $pixmap, foreground => $X->{'white_pixel'});
+  $X->PolyPoint ($pixmap, $gc, 'Origin', 0,0, 1,1);
+  $X->ChangeGC($gc, foreground => $X->{'black_pixel'});
+  $X->PolyPoint ($pixmap, $gc, 'Origin', 0,1, 1,0);
+  X11::Protocol::XSetRoot->set_background
+      (X      => $X,
+       pixmap => $pixmap);
+  exit 0;
+}
+{
+  require X11::Protocol::XSetRoot;
+  X11::Protocol::XSetRoot->set_background
+      (
+       root => 0xC00003,
+      color => '#F0FF00FFF0FF',
+       # pixel => 0xFFFFFF,
+       # pixel => 0xFF0000,
+       # allocated_pixels => 1,
+       # pixmap => 0,
+      );
+  # now don't use $X11_protocol_object connection any more
+  exit 0;
+}
+{
   # SetCloseDownMode while server grabbed
   require X11::Protocol::WM;
   my $X = X11::Protocol->new (':1');
@@ -51,20 +89,6 @@ use Smart::Comments;
   ### $vroot
   exit 0;
 }
-{
-  require X11::Protocol::XSetRoot;
-  X11::Protocol::XSetRoot->set_background
-      (
-       root => 0xC00003,
-      color => '#F0FF00FFF0FF',
-       # pixel => 0xFFFFFF,
-       # pixel => 0xFF0000,
-       # allocated_pixels => 1,
-       # pixmap => 0,
-      );
-  # now don't use $X11_protocol_object connection any more
-  exit 0;
-}
 
 {
   my $X = X11::Protocol->new;
@@ -73,30 +97,7 @@ use Smart::Comments;
   exit 0;
 }
 
-{
-  my $X = X11::Protocol->new;
-  require X11::Protocol::XSetRoot;
 
-  # my $colormap = $X->{'default_colormap'};
-  # my @ret = $X->AllocNamedColor($colormap, 'white');
-  # ### @ret
-
-  my $root = $X->{'root'};
-  my $pixmap = $X->new_rsrc;
-  $X->CreatePixmap ($pixmap,
-                    $root,
-                    $X->{'root_depth'},
-                    2,2);  # width,height
-  my $gc = $X->new_rsrc;
-  $X->CreateGC ($gc, $pixmap, foreground => $X->{'white_pixel'});
-  $X->PolyPoint ($pixmap, $gc, 'Origin', 0,0, 1,1);
-  $X->ChangeGC($gc, foreground => $X->{'black_pixel'});
-  $X->PolyPoint ($pixmap, $gc, 'Origin', 0,1, 1,0);
-  X11::Protocol::XSetRoot->set_background
-      (X      => $X,
-       pixmap => $pixmap);
-  exit 0;
-}
 {
   my $X = X11::Protocol->new;
   my $rootwin = $X->{'root'};

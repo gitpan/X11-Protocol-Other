@@ -104,7 +104,7 @@ $X->QueryPointer($X->root); # sync
 }
 
 #------------------------------------------------------------------------------
-# CupStoreColors
+# find a writable visual, preferably a colour one
 
 my $visual;
 my $visual_is_colour;
@@ -117,20 +117,23 @@ my $visual_is_colour;
     if ($class eq 'GrayScale'
         || $class eq 'PseudoColor'
         || $class eq 'DirectColor') {
-      $visual_is_colour = ($class ne 'GrayScale');
       $visual = $v;
+      $visual_is_colour = ($class eq 'GrayScale' ? 0 : 1);
       last if $visual_is_colour;
     }
   }
 }
-
 my $skip_no_writable_visual;
 if (defined $visual) {
-  MyTestHelpers::diag ("using visual $visual");
+  MyTestHelpers::diag ("using visual=$visual, visual_is_colour=$visual_is_colour");
 } else {
   $skip_no_writable_visual = 'due to no visual with a writable colormap';
   MyTestHelpers::diag ("no writable visual available");
 }
+
+
+#------------------------------------------------------------------------------
+# CupStoreColors -- black and white
 
 {
   my $colormap;
@@ -143,9 +146,10 @@ if (defined $visual) {
   {
     my @colours = ([0,0,0,0,0]);
     if (defined $colormap) {
+      # store white
       @colours = $X->CupStoreColors ($colormap, [0, 65535,65535,65535]);
       $X->QueryPointer($X->{'root'}); # sync
-      MyTestHelpers::diag ("actual colour: ",join(', ',@{$colours[0]}));
+      MyTestHelpers::diag ("white actual colour: ",join(', ',@{$colours[0]}));
     }
     skip ($skip_no_writable_visual, scalar(@colours), 1);
     skip ($skip_no_writable_visual, $colours[0]->[0], 0);
@@ -157,9 +161,10 @@ if (defined $visual) {
   {
     my @colours = ([0,0,0,0,0]);
     if (defined $colormap) {
+      # store black
       @colours = $X->CupStoreColors ($colormap, [0, 0,0,0, 0]);
       $X->QueryPointer($X->{'root'}); # sync
-      MyTestHelpers::diag ("actual colour: ",join(', ',@{$colours[0]}));
+      MyTestHelpers::diag ("black actual colour: ",join(', ',@{$colours[0]}));
     }
     skip ($skip_no_writable_visual, scalar(@colours), 1);
     skip ($skip_no_writable_visual, $colours[0]->[0] != 0, 1);
@@ -174,48 +179,58 @@ if (defined $visual) {
   }
 }
 
+#------------------------------------------------------------------------------
+# CupStoreColors -- colour
+
 my $skip_no_colour_visual;
-if (defined $visual) {
-  if (! $visual_is_colour) {
-    $skip_no_colour_visual = 'due to no visual not colour';
-    MyTestHelpers::diag ("no writable visual available");
-  }
+if (! defined $visual) {
+  $skip_no_colour_visual = $skip_no_writable_visual;
+} elsif (! $visual_is_colour) {
+  $skip_no_colour_visual = 'due to no writable colour visual';
+  MyTestHelpers::diag ("skip, visual is not colour");
 }
 
 {
-  my $colormap = $X->new_rsrc;
-  $X->CreateColormap ($colormap, $visual, $X->root, 'None');
-  $X->QueryPointer($X->{'root'}); # sync
+  my $colormap;
+  if ($visual_is_colour) {
+    $colormap = $X->new_rsrc;
+    $X->CreateColormap ($colormap, $visual, $X->root, 'None');
+    $X->QueryPointer($X->{'root'}); # sync
+  }
 
   {
     my @colours = ([0,0,0,0,0]);
-    if (defined $visual) {
+    if (defined $colormap) {
+      # store red
       @colours = $X->CupStoreColors ($colormap, [0, 65535,0,0]);
       $X->QueryPointer($X->{'root'}); # sync
-      MyTestHelpers::diag ("actual colour: ",join(', ',@{$colours[0]}));
+      MyTestHelpers::diag ("red actual colour: ",join(', ',@{$colours[0]}));
     }
-    skip ($skip_no_writable_visual, scalar(@colours), 1);
-    skip ($skip_no_writable_visual, $colours[0]->[0], 0);
-    skip ($skip_no_writable_visual, $colours[0]->[1]> 0, 1);
-    skip ($skip_no_writable_visual, $colours[0]->[2], 0);
-    skip ($skip_no_writable_visual, $colours[0]->[3], 0);
-    skip ($skip_no_writable_visual, $colours[0]->[4] & 8, 8);  # succeed
+    skip ($skip_no_colour_visual, scalar(@colours), 1);
+    skip ($skip_no_colour_visual, $colours[0]->[0], 0);
+    skip ($skip_no_colour_visual, $colours[0]->[1] > 0, 1);
+    skip ($skip_no_colour_visual, $colours[0]->[2], 0);
+    skip ($skip_no_colour_visual, $colours[0]->[3], 0);
+    skip ($skip_no_colour_visual, $colours[0]->[4] & 8, 8);  # succeed
   }
   {
     my @colours = ([0,0,0,0,0]);
-    if (defined $visual) {
+    if (defined $colormap) {
+      # store blue
       @colours = $X->CupStoreColors ($colormap, [0, 0,0,65535, 0]);
       $X->QueryPointer($X->{'root'}); # sync
-      MyTestHelpers::diag ("actual colour: ",join(', ',@{$colours[0]}));
+      MyTestHelpers::diag ("blue actual colour: ",join(', ',@{$colours[0]}));
     }
-    skip ($skip_no_writable_visual, scalar(@colours), 1);
-    skip ($skip_no_writable_visual, $colours[0]->[0] != 0, 1);
-    skip ($skip_no_writable_visual, $colours[0]->[1], 0);
-    skip ($skip_no_writable_visual, $colours[0]->[2], 0);
-    skip ($skip_no_writable_visual, $colours[0]->[3] > 0, 1);
-    skip ($skip_no_writable_visual, $colours[0]->[4] & 8, 8);  # at another pixel
+    skip ($skip_no_colour_visual, scalar(@colours), 1);
+    skip ($skip_no_colour_visual, $colours[0]->[0] != 0, 1);
+    skip ($skip_no_colour_visual, $colours[0]->[1], 0);
+    skip ($skip_no_colour_visual, $colours[0]->[2], 0);
+    skip ($skip_no_colour_visual, $colours[0]->[3] > 0, 1);
+    skip ($skip_no_colour_visual, $colours[0]->[4] & 8, 8);  # at another pixel
   }
-  $X->FreeColormap($colormap);
+  if (defined $colormap) {
+    $X->FreeColormap($colormap);
+  }
 }
 
 #------------------------------------------------------------------------------

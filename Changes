@@ -17,6 +17,9 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 25, September 2013
+    - tests TOG_CUP.t more fixes for static visuals
+
 Version 24, September 2013
     - X11::Protocol::XSetRoot clear Esetroot too
 

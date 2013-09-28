@@ -35,7 +35,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '$_instance';
-$VERSION = 24;
+$VERSION = 25;
 
 use X11::Protocol::WM;
 

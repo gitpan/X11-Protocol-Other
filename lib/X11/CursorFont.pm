@@ -27,7 +27,7 @@ use Exporter;
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-$VERSION = 24;
+$VERSION = 25;
 
 %CURSOR_GLYPH
   = (

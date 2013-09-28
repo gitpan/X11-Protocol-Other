@@ -107,8 +107,7 @@ this.
 
 =item "BELOW"
 
-The window is kept above or below other client windows.  "FULLSCREEN"
-windows are automatically above everything else.
+The window is kept above or below other client windows.
 
 =item "DEMANDS_ATTENTION"
 

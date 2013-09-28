@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -59,7 +59,7 @@ $X->QueryPointer($X->{'root'});  # sync
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 24;
+my $want_version = 25;
 ok ($X11::Protocol::Other::VERSION,
     $want_version,
     'VERSION variable');

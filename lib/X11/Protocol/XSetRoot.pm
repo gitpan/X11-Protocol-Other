@@ -67,10 +67,10 @@ use X11::Protocol::Other;
 use X11::Protocol::WM;
 
 use vars '$VERSION';
-$VERSION = 24;
+$VERSION = 25;
 
 # uncomment this to run the ### lines
-#use Smart::Comments;
+# use Smart::Comments;
 
 
 # _XSETROOT_ID the same as xsetroot and other rootwin programs do.
