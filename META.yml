@@ -1,41 +1,41 @@
---- #YAML:1.0
-name:               X11-Protocol-Other
-version:            25
-abstract:           Miscellaneous helpers for X11::Protocol connections.
+---
+abstract: 'Miscellaneous helpers for X11::Protocol connections.'
 author:
-    - Kevin Ryde <user42@zip.com.au>
-license:            gpl
-distribution_type:  module
-configure_requires:
-    ExtUtils::MakeMaker:  0
+  - 'Kevin Ryde <user42@zip.com.au>'
 build_requires:
-    ExtUtils::MakeMaker:  0
-requires:
-    perl:           5.004
-    Test:           0
-    X11::Protocol:  0
-resources:
-    homepage:  http://user42.tuxfamily.org/x11-protocol-other/index.html
-    license:   http://www.gnu.org/licenses/gpl.html
-no_index:
-    directory:
-        - t
-        - inc
-        - devel
-        - xt
-generated_by:       ExtUtils::MakeMaker version 6.57_05
+  ExtUtils::MakeMaker: 0
+configure_requires:
+  ExtUtils::MakeMaker: 0
+dynamic_config: 1
+generated_by: 'ExtUtils::MakeMaker version 6.66, CPAN::Meta::Converter version 2.132830'
+license: open_source
 meta-spec:
-    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
-    version:  1.4
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: X11-Protocol-Other
+no_index:
+  directory:
+    - t
+    - inc
+    - devel
+    - xt
 optional_features:
-    maximum_interoperation:
-        description:  All the optional things which may be used.
-        requires:
-            Encode:            1
-            Encode::HanExtra:  0.06
-    maximum_tests:
-        description:  Have "make test" do as much as possible.
-        requires:
-            Encode:            1
-            Encode::HanExtra:  0.06
-            Module::Util:      0
+  maximum_interoperation:
+    description: 'All the optional things which may be used.'
+    requires:
+      Encode: 1
+      Encode::HanExtra: 0.06
+  maximum_tests:
+    description: "Have \"make test\" do as much as possible."
+    requires:
+      Encode: 1
+      Encode::HanExtra: 0.06
+      Module::Util: 0
+requires:
+  Test: 0
+  X11::Protocol: 0
+  perl: 5.004
+resources:
+  homepage: http://user42.tuxfamily.org/x11-protocol-other/index.html
+  license: http://www.gnu.org/licenses/gpl.html
+version: 26

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -34,7 +34,7 @@ MyTestHelpers::nowarnings();
 # uncomment this to run the ### lines
 #use Devel::Comments;
 
-my $test_count = 3;
+my $test_count = 4;
 plan tests => $test_count;
 
 if (! eval { require Encode }) {
@@ -92,12 +92,16 @@ my @ords = grep { ! ($_ == 0x7E
 }
 
 my $elfile = File::Spec->catfile ($FindBin::Bin, 'Encode-X11-emacs.el');
-ok (system("emacs21 -batch -q -no-site-file -l $elfile -f my-try-decode"),
-    0);
-ok (system("emacs22 -batch -q -no-site-file -l $elfile -f my-try-decode"),
-    0);
-ok (system("emacs23 -batch -q -no-site-file -l $elfile -f my-try-decode"),
-    0);
+
+foreach my $emacs ("emacs21","emacs22","emacs23","emacs24") {
+  my $have_emacs = -x "/usr/bin/$emacs";
+  my $exit_status = 0;
+  if ($have_emacs) {
+    $exit_status = system("$emacs -batch -q -no-site-file -l $elfile -f my-try-decode"),
+  }
+  my $skip = ($have_emacs ? undef : "/usr/bin/$emacs not available");
+  skip ($skip, $exit_status, 0);
+}
 
 # unlink 'tempfile.ctext';
 # unlink 'tempfile.utf8';

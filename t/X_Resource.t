@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -30,7 +30,7 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-my $test_count = (tests => 10)[1];
+my $test_count = (tests => 9)[1];
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -84,7 +84,6 @@ MyTestHelpers::diag (sprintf 'resource_id_base %#X', $X->resource_id_base);
   MyTestHelpers::diag ("server X-Resource version ", join('.',@ret));
   ok (scalar(@ret), 2);
   ok ($ret[0] <= 1, 1);
-  ok ($ret[0] < 1 || $ret[1] <= 0, 1);
 }
 
 #------------------------------------------------------------------------------

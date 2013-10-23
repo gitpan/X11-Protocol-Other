@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -31,7 +31,7 @@ use MyTestHelpers;
 END { MyTestHelpers::diag ("END"); }
 
 # uncomment this to run the ### lines
-#use Smart::Comments;
+# use Smart::Comments;
 
 my $test_count = (tests => 2)[1];
 plan tests => $test_count;
@@ -95,13 +95,13 @@ $X->QueryPointer($X->root); # sync
 {
   my $barrier = $X->new_rsrc;
   $X->XFixesCreatePointerBarrier ($barrier, $X->root, 100,100, 200,100,
-                                  0);
+                                  0); # directions
   $X->QueryPointer($X->root); # sync
 
   $X->XFixesDestroyPointerBarrier ($barrier);
   $X->QueryPointer($X->root); # sync
 
-  ok (1,1, 'plain barrier');
+  ok (1,1, 'plain barrier, no devices listed');
 }
 
 #------------------------------------------------------------------------------
@@ -111,8 +111,12 @@ $X->QueryPointer($X->root); # sync
 # Saw xvfb 1.11.1.901 server giving "Implementation" (17) error when passing
 # AllDevices.  Ignore that, but still throw a normal error for anything
 # else, like bad length etc.
+#
+# Xorg server circa 1.14.3 doesn't accept AllDevices in
+# XFixesCreatePointerBarrier(), though it's described in the spec.
 
 {
+  ### barrier AllDevices ...
   my $barrier = $X->new_rsrc;
 
   my $orig_error_handler = $X->{'error_handler'};
@@ -122,17 +126,25 @@ $X->QueryPointer($X->root); # sync
     ### $data
 
     my ($type, $seq, $info, $minor_op, $major_op) = unpack 'xCSLSC', $data;
-    if ($X->interp('Error',$type) eq 'Implementation') {
+    if ($type == $X->num('Error','Implementation')) {
       MyTestHelpers::diag ("ignore XFixesCreatePointerBarrier error \"Implementation\" for xinput device \"AllDevices\"");
       undef $barrier;
-    } else {
+
+    } elsif ($type == $X->num('Error','Length')) {
+      # Length error is bad ...
       goto $orig_error_handler;
+
+    } else {
+      # "Device" error from Xorg server 1.14.3
+      # $X->interp() shows as "undef" since XInputExtension not initialized
+      MyTestHelpers::diag ("ignore XFixesCreatePointerBarrier error ", $type,
+                           " '", $X->interp('Error',$type), "'");
+      undef $barrier;
     }
   };
 
-  ### request ...
   $X->XFixesCreatePointerBarrier ($barrier, $X->root, 100,100, 200,100,
-                                  0,
+                                  0,  # directions
                                   'AllDevices');
   ### sync ...
   $X->QueryPointer($X->root);

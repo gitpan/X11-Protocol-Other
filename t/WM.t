@@ -86,7 +86,7 @@ sub to_hex {
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 25;
+my $want_version = 26;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');

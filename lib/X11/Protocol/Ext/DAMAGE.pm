@@ -34,7 +34,7 @@ use strict;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 25;
+$VERSION = 26;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines

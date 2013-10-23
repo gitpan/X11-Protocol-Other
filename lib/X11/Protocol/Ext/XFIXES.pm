@@ -22,11 +22,11 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 25;
+$VERSION = 26;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
-#use Smart::Comments;
+# use Smart::Comments;
 
 # /usr/share/doc/x11proto-fixes-dev/fixesproto.txt.gz
 #     http://cgit.freedesktop.org/xorg/proto/fixesproto/tree/fixesproto.txt
@@ -351,23 +351,13 @@ my $requests_arrayref =
       my $devices = pack 'S*', map{_num_xinputdevice($_)} @devices;
       ### @devices
       ### $devices
-
-      # my $ret = pack ('LLssssLxxS',
-      #                 $barrier,             # CARD32
-      #                 $drawable,            # CARD32
-      #                 $x1,$y1, $x2,$y2,     # INT16 x 4
-      #                 $directions,          # CARD32
-      #                 scalar(@devices),     # CARD16
-      #                 $devices);            # packed CARD16s
-      # ### $ret
-      # ### len: length($ret)
-
-      return pack ('LLssssLxxS',
+      ### format: 'LLssssLxxS'.padded($devices)
+      return pack ('LLssssLxxS'.padded($devices),
                    $barrier,             # CARD32
                    $drawable,            # CARD32
                    $x1,$y1, $x2,$y2,     # INT16 x 4
                    $directions,          # CARD32
-                   scalar(@devices),     # CARD16
+                   scalar(@devices),     # CARD16 num_devices
                    $devices);            # packed CARD16s
     }],
 

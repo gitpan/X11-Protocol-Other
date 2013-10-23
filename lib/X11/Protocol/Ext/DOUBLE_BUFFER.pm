@@ -37,7 +37,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 25;
+$VERSION = 26;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -289,7 +289,7 @@ corresponding C<$action> for each window (string type L</DbeSwapAction>),
     "Untouched"     left at current content (previous visible)
     "Copied"        content of the old back buffer (unchanged)
 
-"Untouched" means the contents of the front buffer is swapped to the back
+"Untouched" means the contents of the front buffer are swapped to the back
 buffer unchanged.
 
 "Copied" is as if the back buffer content is copied to the front, making

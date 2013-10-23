@@ -176,6 +176,7 @@ if (! $direct_video_available) {
     # }
   };
 
+  my $skip = $skip_if_no_direct_video;
   my @ret;
   if ($direct_video_available) {
     if (eval {
@@ -189,10 +190,10 @@ if (! $direct_video_available) {
     }
     $X->QueryPointer($X->root); # sync
   }
-  my $skip_if_error = (defined $error
-                       ? 'due to XF86DGAGetVideoLL error reply'
-                       : undef);
-  skip ($skip_if_error, scalar(@ret), 4);
+  if (defined $error) {
+    $skip = 'due to XF86DGAGetVideoLL error reply';
+  }
+  skip ($skip, scalar(@ret), 4);
 }
 
 

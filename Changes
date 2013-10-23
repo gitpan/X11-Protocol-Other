@@ -17,14 +17,17 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 26, October 2013
+    - XFixesCreatePointerBarrier() correction to sending device IDs
+
 Version 25, September 2013
-    - tests TOG_CUP.t more fixes for static visuals
+    - tests TOG_CUP.t and XFree86_DGA.t further fixes
 
 Version 24, September 2013
     - X11::Protocol::XSetRoot clear Esetroot too
 
 Version 23, December 2012
-    - tests fix WM withdraw(), and yet more relaxing XFree86_DGA
+    - tests fix WM.t withdraw(), and yet more relaxing XFree86_DGA.t
 
 Version 22, November 2012
     - tests MIT_SCREEN_SAVER.t allow for saver disabled

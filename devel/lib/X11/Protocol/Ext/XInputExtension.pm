@@ -26,7 +26,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 25;
+$VERSION = 26;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -44,7 +44,6 @@ use Smart::Comments;
 #
 # xinput dumper programs
 #
-
 
 # these not documented yet ...
 use constant CLIENT_MAJOR_VERSION => 2;
@@ -126,9 +125,9 @@ my $reqs =
     sub {
       my ($X, $data) = @_;
 
-      use Data::HexDump::XXD;
-      print scalar(Data::HexDump::XXD::xxd($data));
-      print "\n";
+      # use Data::HexDump::XXD;
+      # print scalar(Data::HexDump::XXD::xxd($data));
+      # print "\n";
 
       my ($num_devices) = unpack 'x8C', $data;
       my $pos = 32;
@@ -496,7 +495,7 @@ sub _request_card32s {
 
 sub new {
   my ($class, $X, $request_num, $event_num, $error_num) = @_;
-  ### XInputExtension new()
+  ### XInputExtension new() ...
 
   # Constants
   %{$X->{'ext_const'}}     = (%{$X->{'ext_const'}     ||= {}}, %const_arrays);
@@ -542,6 +541,8 @@ sub _ext_const_error_install {
     $href->{$_[$i]} = $error_num + $i;
   }
 }
+
+### XInputExtension loaded ...
 
 1;
 __END__
