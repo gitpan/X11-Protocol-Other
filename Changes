@@ -17,6 +17,10 @@ You can get a copy of the GNU General Public License online at
 
 
 
+Version 27, October 2013
+    - X11::Protocol::WM new functions get_net_wm_state(), set_net_wm_state(),
+      change_net_wm_state()
+
 Version 26, October 2013
     - XFixesCreatePointerBarrier() correction to sending device IDs
 

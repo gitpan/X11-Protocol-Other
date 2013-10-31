@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -25,6 +25,48 @@ use X11::Protocol::WM;
 # uncomment this to run the ### lines
 use Smart::Comments;
 
+{
+  # apply _NET_WM_STATE change
+  my $X = X11::Protocol->new (':0');
+
+  {
+    my ($value, $type, $format, $bytes_after)
+      = $X->GetProperty ($X->root, $X->atom('_NET_SUPPORTED'),
+                         0,    # AnyPropertyType
+                         0,    # offset
+                         999,  # length
+                         0);   # delete;
+    foreach my $atom (unpack('L*', $value)) {
+      my $atom_name = $X->atom_name($atom);
+      if ($atom_name =~ /STATE/) {
+        print "$atom_name\n";
+      }
+    }
+  }
+
+  my $window = $ARGV[0] || do {
+    print "click to choose window\n";
+    require X11::Protocol::ChooseWindow;
+    X11::Protocol::ChooseWindow->choose(X=>$X)
+    };
+  X11::Protocol::WM::change_net_wm_state
+      ($X,$window,'toggle',
+       # '_NET_WM_STATE_MAXIMIZED_SKIP_TASKBAR',
+        '_NET_WM_STATE_MAXIMIZED_VERT',
+       # state2 => '_NET_WM_STATE_MAXIMIZED_HORZ',
+      );
+  # '_NET_WM_STATE_FULLSCREEN',
+  $X->flush;
+  sleep 1;
+  { my @states = X11::Protocol::WM::get_net_wm_state($X,$window);
+    ### @states
+  }
+  { my @atoms = X11::Protocol::WM::get_net_wm_state_atoms($X,$window);
+    ### @atoms
+  }
+  system ("xprop -id $window | grep STATE");
+  exit 0;
+}
 {
   # default WM_HINTS
 

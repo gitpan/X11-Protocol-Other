@@ -83,6 +83,7 @@ devel/XFree86_VidModeExtension.t
 devel/xi-info.pl
 devel/xinerama.pl
 devel/XInputExtension.t
+devel/xkeyboard-mapping.pl
 devel/xresource.pl
 devel/xsettings.pl
 devel/xtest.pl

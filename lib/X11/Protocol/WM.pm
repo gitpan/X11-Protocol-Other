@@ -16,8 +16,8 @@
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
 
-# /usr/share/doc/xorg-docs/specs/ICCCM/icccm.txt.gz
-# /usr/share/doc/xorg-docs/specs/CTEXT/ctext.txt.gz
+# /usr/share/doc/xorg-docs/icccm/icccm.txt.gz
+# /usr/share/doc/xorg-docs/ctext/ctext.txt.gz
 #
 # /usr/include/X11/Xutil.h
 #    Xlib structs.
@@ -33,7 +33,7 @@ use Carp;
 use X11::AtomConstants;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 26;
+$VERSION = 27;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -42,10 +42,13 @@ use Exporter;
                  root_to_virtual_root
 
                  change_wm_hints
+                 change_net_wm_state
+
                  get_wm_icon_size
                  get_wm_hints
                  get_wm_state
                  get_net_frame_extents
+                 get_net_wm_state
                  set_text_property
 
                  set_wm_class
@@ -54,7 +57,6 @@ use Exporter;
                  set_wm_command
                  set_wm_hints
                  set_wm_name
-
                  set_wm_normal_hints
                  set_wm_icon_name
                  set_wm_protocols
@@ -63,6 +65,7 @@ use Exporter;
                  set_motif_wm_hints
 
                  set_net_wm_pid
+                 set_net_wm_state
                  set_net_wm_user_time
                  set_net_wm_window_type
 
@@ -78,7 +81,7 @@ use Exporter;
               );
 
 # uncomment this to run the ### lines
-#use Smart::Comments;
+# use Smart::Comments;
 
 
 #------------------------------------------------------------------------------
@@ -519,14 +522,14 @@ sub change_wm_hints {
               # 'message',      # in the code, and obsolete ...
               # 'urgency',      # in the code
              );
-  my @interp = (\&_no_interp,                          # input
-                \&X11::Protocol::WM::_wmstate_interp,   # initial_state
-                \&X11::Protocol::WM::_none_interp,      # icon_pixmap
-                \&X11::Protocol::WM::_none_interp,      # icon_window
-                \&_no_interp,                           # icon_x
-                \&_no_interp,                           # icon_y
-                \&X11::Protocol::WM::_none_interp,      # icon_mask
-                \&X11::Protocol::WM::_none_interp,      # window_group
+  my @interp = (\&_unchanged,                          # input
+                \&_wmstate_interp,   # initial_state
+                \&_none_interp,      # icon_pixmap
+                \&_none_interp,      # icon_window
+                \&_unchanged,                           # icon_x
+                \&_unchanged,                           # icon_y
+                \&_none_interp,      # icon_mask
+                \&_none_interp,      # window_group
                );
   sub unpack_wm_hints {
     my ($X, $bytes) = @_;
@@ -557,7 +560,7 @@ sub change_wm_hints {
   }
 }
 
-sub _no_interp {
+sub _unchanged {
   my ($X, $value) = @_;
   return $value;
 }
@@ -747,8 +750,8 @@ sub withdraw {
 # type can be sent.  (For example C<withdraw()> sends a synthetic
 # C<UnmapNotify>.)
 #
-# cf. event-mask=ColormapChange for own colormap install setups ...
-# cf. event-mask=StructureNotify for "manager" acquiring resource ...
+# But: event-mask=ColormapChange for own colormap install setups ...
+# But: event-mask=StructureNotify for "manager" acquiring resource ...
 #
 sub _send_event_to_wm {
   my $X = shift;
@@ -876,6 +879,132 @@ sub set_net_wm_pid {
                         $X->atom('_NET_WM_PID'),
                         X11::AtomConstants::CARDINAL(),
                         $pid);
+}
+
+#------------------------------------------------------------------------------
+# _NET_WM_STATE
+
+sub get_net_wm_state {
+  my ($X, $window) = @_;
+  # ENHANCE-ME: maybe atom_names() for parallel name fetch
+  return map {_net_wm_state_interp($X,$_)} get_net_wm_state_atoms($X,$window);
+}
+# $atom is an atom integer, return a string like "FULLSCREEN".
+sub _net_wm_state_interp {
+  my ($X, $atom) = @_;
+  my $state = $X->atom_name($atom);
+  $state =~ s/^_NET_WM_STATE_//;
+  return $state;
+}
+sub get_net_wm_state_atoms {
+  my ($X, $window) = @_;
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($window,
+                       $X->atom('_NET_WM_STATE'),   # property
+                       X11::AtomConstants::ATOM(),  # type
+                       0,    # offset
+                       999,  # length limit
+                       0);   # delete
+  if ($format == 32) {
+    return unpack('L*', $value);
+  } else {
+    return;
+  }
+}
+
+# $state is a string "_NET_WM_STATE_FULLSCREEN" etc, or an integer atom
+# number.  Return an integer atom number.
+sub _net_wm_state_num {
+  my ($X, $state) = @_;
+  if (! defined $state) {
+    return 0;
+  }
+  if ($state =~ /^\d+$/) {
+    return $state;  # a number already
+  }
+  if ($state !~ /^_NET_WM_STATE_/) {
+    $state = '_NET_WM_STATE_' . $state;
+  }
+  return $X->atom($state);
+}
+
+sub set_net_wm_state {
+  my $X = shift;
+  my $window = shift;
+  $X->ChangeProperty($window,
+                     $X->atom('_NET_WM_STATE'),   # property
+                     X11::AtomConstants::ATOM(),  # type
+                     32,                          # format
+                     'Replace',
+                     pack('L*', map {_net_wm_state_num($X,$_)} @_));
+}
+
+{
+  my %_net_wm_state_action_num = (remove => 0,
+                                  add    => 1,
+                                  toggle => 2);
+  # $action is a string "add" etc, or a number 0,1,2.
+  # Return a number 0,1,2.
+  sub _net_wm_state_action_num {
+    my ($X, $action) = @_;
+    ### _net_wm_state_action_num(): $action
+    if ($action =~ /^\d+$/) {
+      return $action;  # a number already
+    }
+    my $num = $_net_wm_state_action_num{$action};
+    if (defined $num) {
+      return $num;
+    }
+    croak 'Unrecognized _NET_WM_STATE action: ',$action;
+  }
+}
+
+{
+  my %_net_wm_source_num = (none   => 0,
+                            normal => 1,
+                            user   => 2);
+  # $source is a string "normal" etc, or a number 0,1,2.
+  # Return a number 0,1,2.
+  sub _net_wm_source_num {
+    my ($X, $source) = @_;
+    if (! defined $source) {
+      return 1;  # default "normal"
+    }
+    if ($source =~ /^\d+$/) {
+      return $source;  # a number already
+    }
+    my $num = $_net_wm_source_num{$source};
+    if (defined $num) {
+      return $num;
+    }
+    croak 'Unrecognized _NET_WM source: ',$source;
+  }
+}
+
+sub change_net_wm_state {
+  my ($X, $window, $action, $state, %h) = @_;
+  ### change_net_wm_state() ...
+  ### $state
+  ### %h
+
+  my $root = X11::Protocol::WM::_root_for_window($X,$window,
+                                                 delete $h{'root'});
+  my $state2 = _net_wm_state_num($X, delete $h{'state2'});
+  my $source = _net_wm_source_num($X, delete $h{'source'});
+  if (%h) {
+    croak "change_net_wm_state() unrecognised parameter(s): ",
+      join(',',keys %h);
+  }
+  X11::Protocol::WM::_send_event_to_wm ($X, $root,
+                     name   => 'ClientMessage',
+                     window => $window,
+                     type   => $X->atom('_NET_WM_STATE'),
+                     format => 32,
+                     data   => pack('L5',
+                                    _net_wm_state_action_num($X, $action),
+                                    _net_wm_state_num($X, $state),
+                                    $state2,
+                                    $source));
 }
 
 #------------------------------------------------------------------------------
@@ -1157,7 +1286,7 @@ L<http://www.freedesktop.org/wiki/Specifications/wm-spec>
 
 =head2 Usual Properties
 
-Any client window should generally
+Every toplevel client window should usually
 
 =over
 
@@ -1183,14 +1312,14 @@ Then optionally,
 
 =item *
 
-If you have an icon image then C<set_wm_hints()> with a pixmap or window
+If you have an icon image then C<set_wm_hints()> with a bitmap or a window
 (see L</WM_HINTS>).
 
 =item *
 
 If the user gave an initial size or position on the command line then
 C<set_wm_normal_hints()>.  The same if the program has min/max sizes or
-aspect ratio to declare (see L</WM_NORMAL_HINTS>).
+aspect ratio desired (see L</WM_NORMAL_HINTS>).
 
 =item *
 
@@ -1920,6 +2049,166 @@ C<$$>.)  If C<$pid> is C<undef> then the property is deleted.
 A window manager or similar might use the PID to forcibly kill an
 unresponsive client.  It's only useful if C<WM_CLIENT_MACHINE> (above) is
 set too, to know where the client is running.
+
+=back
+
+=head2 _NET_WM_STATE
+
+An EWMH compliant window manager maintains a set of state flags for each
+client window.  A state is an atom such as C<_NET_WM_STATE_FULLSCREEN> and
+each such state can be present or absent.  The supported states are listed
+in C<_NET_SUPPORTED>.  Any client can ask the window manager to change
+states on any window.  A client might be able to ask for an initial set of
+states for a new window (see C<set_net_wm_state()> below).  Possible states
+include
+
+=over
+
+=item _NET_WM_STATE_MODAL
+
+The window is modal to its C<WM_TRANSIENT_FOR> parent or if
+C<WM_TRANSIENT_FOR> not set then modal to its window group.
+
+See L</_MOTIF_WM_HINTS> to set modal with the Motif style hints.
+
+=item _NET_WM_STATE_STICKY
+
+The window is kept in a fixed position on screen when the desktop scrolls.
+
+=item _NET_WM_STATE_MAXIMIZED_VERT
+
+=item _NET_WM_STATE_MAXIMIZED_HORZ
+
+The window is maximum size vertically or horizontally or both.  The window
+still has its surrounding decoration and the size should obey size
+increments specified in L</WM_NORMAL_HINTS>.
+
+=item _NET_WM_STATE_FULLSCREEN
+
+The window is the full screen with no decoration around it, thus being the
+full screen.
+
+The window manager remembers the "normal" size of the window so that when
+maximize or fullscreen state is removed the previous size is restored.
+
+=item _NET_WM_STATE_SHADED
+
+The window is "shaded" which generally means its title bar is displayed but
+none of the client window.  This is an alternative to iconifying a window.
+
+=item _NET_WM_STATE_SKIP_TASKBAR
+
+=item _NET_WM_STATE_SKIP_PAGER
+
+Don't show the window on a task bar or in a pager, respectively.
+
+=item _NET_WM_STATE_HIDDEN (read-only)
+
+This state is set by the window manger when the window is iconified or
+similar and so does not appear on screen.  Clients cannot change this.
+
+=item _NET_WM_STATE_ABOVE
+
+=item _NET_WM_STATE_BELOW
+
+The window is kept above or below other client windows.  The stacking order
+maintained is roughly
+
+     top
+    +-----------------------------+
+    |  _NET_WM_WINDOW_TYPE_DOCK   |   "DOCK" panels etc on top,
+    +-----------------------------+   except perhaps FULLSCREEN
+    |     _NET_WM_STATE_ABOVE     |   windows above those panels
+    +-----------------------------+   when focused
+    |            normal           |
+    +-----------------------------+
+    |     _NET_WM_STATE_BELOW     |
+    +-----------------------------+
+    | _NET_WM_WINDOW_TYPE_DESKTOP |
+    +-----------------------------+
+     bottom
+
+=item _NET_WM_STATE_DEMANDS_ATTENTION
+
+The window should be brought to the attention of the user in some way.
+A client sets this and the window manager clears it after the window has
+received user attention (which might mean keyboard focus or similar).
+
+=back
+
+The following functions get or set the states.
+
+=over
+
+=item C<change_net_wm_state($X, $window, $action, $state, key=E<gt>value,...)>
+
+Change one of the C<_NET_WM_STATE> state flags on C<$window> by sending a
+message to the window manager.  For example,
+
+    change_net_wm_state ($X, $window, "toggle", "FULLSCREEN");
+
+C<$window> must be a managed window, ie. must have had its initial
+C<MapWindow()> and not be an override-redirect.  If that's not so or if
+there's no window manager or it doesn't have EWMH then this change message
+will have no effect.
+
+C<$action> is a string or integer how to change the state,
+
+    "remove"       0
+    "add"          1
+    "toggle"       2
+
+C<$state> is a string such as "FULLSCREEN" or an atom integer such as
+C<$X-E<gt>atom("_NET_WM_STATE_FULLSCREEN")>.
+
+The further optional key/value parameters are
+
+    state2   => string or atom
+    source   => "none", "normal", "user", 0,1,2
+    root     => integer XID, or undef
+
+A change message can act on one or two states.  For two states the second is
+C<state2>.  For example to maximize vertically and horizontally in one
+operation,
+
+    change_net_wm_state ($X, $window, "add", "MAXIMIZED_VERT",
+                         state2 => "MAXIMIZED_HORZ");
+
+C<source> is where the change request came from.  The default is "normal"
+which means a normal application.  "user" is for a user-interface control
+program such as a pager.  ("none"=0 is what clients prior to EWMH 1.2 gave.)
+
+C<root> is the root window (integer XID) of C<$window>.  If C<undef> or not
+given then it's found with C<$X-E<gt>QueryTree()>.  If you already know the
+root then giving it avoids that round-trip query.
+
+=item C<@strings = get_net_wm_state ($X, $window)>
+
+=item C<@atoms = get_net_wm_state_atoms ($X, $window)>
+
+Get the C<_NET_WM_STATE> property from C<$window>.  C<get_net_wm_state()>
+returns a list of strings such as "FULLSCREEN".  C<get_net_wm_state_atoms()>
+returns a list of atom integers such as
+C<$X-E<gt>atom('_NET_WM_STATE_FULLSCREEN')>.  In both cases if there's no
+such property or if it's empty then return an empty list.
+
+=item C<set_net_wm_state ($X, $window, $state,...)>
+
+Set the C<_NET_WM_STATE> property on C<$window>.  Each C<$state> can be a
+string such as "FULLSCREEN" or an atom integer such as
+C<$X-E<gt>atom('_NET_WM_STATE_FULLSCREEN')>.
+
+A client can set C<_NET_WM_STATE> on a new window to tell the window manager
+of desired initial states.  However this is only a "should" in the EWMH spec
+so it might not be obeyed.
+
+    # initial desired state
+    set_net_wm_state ($X, $window,
+                      "MAXIMIZED_HORZ", "MAXIMIZED_VERT");
+
+After the window is managed by the window manager (once mapped) clients
+should not set C<_NET_WM_STATE> but instead ask the window manager with
+C<change_net_wm_state()> per above.
 
 =back
 

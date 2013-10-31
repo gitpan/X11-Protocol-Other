@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $test_count = (tests => 216)[1];
+my $test_count = (tests => 250)[1];
 plan tests => $test_count;
 
 require X11::Protocol::WM;
@@ -68,7 +68,7 @@ $X->QueryPointer($X->{'root'});  # sync
 
 my $window2 = $X->new_rsrc;
 $X->CreateWindow ($window2,
-                  $window,          # parent
+                  $window,          # parent, so sub-window
                   'InputOutput',
                   0,                # depth, from parent
                   'CopyFromParent', # visual
@@ -86,7 +86,7 @@ sub to_hex {
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 26;
+my $want_version = 27;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');
@@ -699,6 +699,104 @@ X11::Protocol::WM::set_wm_protocols ($X, $window2);
 #     X11::Protocol::WM::get_wm_transient_for($X,$window2,$window),
 #    'get_wm_transient_for()/set_wm_transient_for()');
 
+
+#------------------------------------------------------------------------------
+# _net_wm_state_num()
+
+{
+  my $atom = $X->atom('_NET_WM_STATE_FULLSCREEN');
+  X11::Protocol::WM::_net_wm_state_num
+      ('FULLSCREEN', $atom,
+       '_net_wm_state_num() FULLSCREEN');
+  X11::Protocol::WM::_net_wm_state_num
+      ('_NET_WM_STATE_FULLSCREEN', $atom,
+       '_net_wm_state_num() _NET_WM_STATE_FULLSCREEN');
+  X11::Protocol::WM::_net_wm_state_num
+      ($atom, $atom,
+       '_net_wm_state_num() integer unchanged');
+
+  ok (X11::Protocol::WM::_net_wm_state_interp($X,$atom), 'FULLSCREEN');
+  $atom = $X->atom('SOME_BOGOSITY');
+  ok (X11::Protocol::WM::_net_wm_state_interp($X,$atom), 'SOME_BOGOSITY');
+}
+
+ok (X11::Protocol::WM::_net_wm_state_action_num($X,0), 0);
+ok (X11::Protocol::WM::_net_wm_state_action_num($X,1), 1);
+ok (X11::Protocol::WM::_net_wm_state_action_num($X,2), 2);
+ok (X11::Protocol::WM::_net_wm_state_action_num($X,'remove'), 0);
+ok (X11::Protocol::WM::_net_wm_state_action_num($X,'add'),    1);
+ok (X11::Protocol::WM::_net_wm_state_action_num($X,'toggle'), 2);
+
+ok (X11::Protocol::WM::_net_wm_source_num($X,0), 0);
+ok (X11::Protocol::WM::_net_wm_source_num($X,1), 1);
+ok (X11::Protocol::WM::_net_wm_source_num($X,2), 2);
+ok (X11::Protocol::WM::_net_wm_source_num($X,'none'),   0);
+ok (X11::Protocol::WM::_net_wm_source_num($X,'normal'), 1);
+ok (X11::Protocol::WM::_net_wm_source_num($X,'user'),   2);
+
+#------------------------------------------------------------------------------
+# set_net_wm_state()
+
+{
+  X11::Protocol::WM::set_net_wm_state ($X, $window2, '_NET_WM_STATE_SKIP_PAGER');
+  {
+    my ($value, $type, $format, $bytes_after)
+      = $X->GetProperty ($window2,
+                         $X->atom('_NET_WM_STATE'),
+                         'AnyPropertyType',
+                         0,  # offset
+                         1,  # length, 1 x CARD32
+                         0); # delete
+    ok ($format, 32, 'set_net_wm_state');
+    ok ($type, $X->atom('ATOM'));
+    my ($got) = unpack 'L*', $value;
+    ok ($got, $X->atom('_NET_WM_STATE_SKIP_PAGER'));
+    ok ($bytes_after, 0);
+  }
+  {
+    my @ret = X11::Protocol::WM::get_net_wm_state ($X, $window2);
+    ok (scalar(@ret), 1);
+    ok ($ret[0], 'SKIP_PAGER');
+  }
+  {
+    my @ret = X11::Protocol::WM::get_net_wm_state_atoms ($X, $window2);
+    ok (scalar(@ret), 1);
+    ok ($ret[0], $X->atom('_NET_WM_STATE_SKIP_PAGER'));
+  }
+}
+
+{
+  X11::Protocol::WM::set_net_wm_state ($X, $window2,
+                                       'SKIP_PAGER', 'SKIP_TASKBAR');
+  {
+    my ($value, $type, $format, $bytes_after)
+      = $X->GetProperty ($window2,
+                         $X->atom('_NET_WM_STATE'),
+                         'AnyPropertyType',
+                         0,  # offset
+                         2,  # length, 2 x CARD32
+                         0); # delete
+    ok ($format, 32, 'set_net_wm_state');
+    ok ($type, $X->atom('ATOM'));
+    ok (length($value), 8);
+    my ($got1, $got2) = unpack 'L*', $value;
+    ok ($got1, $X->atom('_NET_WM_STATE_SKIP_PAGER'));
+    ok ($got2, $X->atom('_NET_WM_STATE_SKIP_TASKBAR'));
+    ok ($bytes_after, 0);
+  }
+  {
+    my @ret = X11::Protocol::WM::get_net_wm_state ($X, $window2);
+    ok (scalar(@ret), 2);
+    ok ($ret[0], 'SKIP_PAGER');
+    ok ($ret[1], 'SKIP_TASKBAR');
+  }
+  {
+    my @ret = X11::Protocol::WM::get_net_wm_state_atoms ($X, $window2);
+    ok (scalar(@ret), 2);
+    ok ($ret[0], $X->atom('_NET_WM_STATE_SKIP_PAGER'));
+    ok ($ret[1], $X->atom('_NET_WM_STATE_SKIP_TASKBAR'));
+  }
+}
 
 #------------------------------------------------------------------------------
 # pack_wm_hints()

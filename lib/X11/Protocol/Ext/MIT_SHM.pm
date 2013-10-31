@@ -22,13 +22,14 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 26;
+$VERSION = 27;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
 # /usr/share/doc/x11proto-xext-dev/shm.txt.gz
+# /usr/share/doc/x11proto-core-dev/x11protocol.txt.gz
 #
 # /usr/include/X11/extensions/shm.h
 # /usr/include/X11/extensions/shmproto.h

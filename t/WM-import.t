@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -32,10 +32,12 @@ use X11::Protocol::WM
   'frame_window_to_client',
   'root_to_virtual_root',
   'change_wm_hints',
+  'change_net_wm_state',
   'get_wm_icon_size',
   'get_wm_hints',
   'get_wm_state',
   'get_net_frame_extents',
+  'get_net_wm_state',
   'set_text_property',
   'set_wm_class',
   'set_wm_client_machine',
@@ -49,6 +51,7 @@ use X11::Protocol::WM
   'set_wm_transient_for',
   'set_motif_wm_hints',
   'set_net_wm_pid',
+  'set_net_wm_state',
   'set_net_wm_user_time',
   'set_net_wm_window_type',
   'pack_wm_hints',
@@ -124,6 +127,7 @@ set_wm_icon_name($X,$window,"myicon");
 set_wm_name($X,$window,"my title!");
 set_wm_normal_hints($X,$window);
 set_wm_protocols($X,$window,'WM_DELETE_WINDOW');
+set_net_wm_state($X,$window2,'_NET_WM_STATE_SKIP_PAGER');
 set_wm_transient_for($X,$window2,$window);
 {
   my ($value, $type, $format, $bytes_after)

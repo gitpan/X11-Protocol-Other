@@ -185,6 +185,7 @@ if (@ARGV) {
 unlink '/tmp/wm-state-exercise.out';
 
 foreach my $wm (qw(
+                    /usr/bin/metacity
                     /usr/bin/jwm
                     /usr/bin/wmii
                     /usr/bin/fvwm2
