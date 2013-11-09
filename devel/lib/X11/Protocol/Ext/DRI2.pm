@@ -26,7 +26,7 @@ use Carp;
 use X11::Protocol;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 27;
+$VERSION = 28;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines

@@ -55,7 +55,7 @@ $X->QueryPointer($X->{'root'});  # sync
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 27;
+my $want_version = 28;
 ok ($X11::AtomConstants::VERSION,
     $want_version,
     'VERSION variable');

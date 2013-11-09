@@ -33,7 +33,7 @@ HERE
 #use Smart::Comments;
 
 use vars '$VERSION';
-$VERSION = 27;
+$VERSION = 28;
 
 sub new {
   my ($class, $X) = @_;

@@ -184,6 +184,7 @@ xt/Encode-round.t
 xt/Encode-X11-emacs.el
 xt/Encode-X11-emacs.t
 xt/XSetRoot-Esetroot.t
+xt/XSetRoot-xsetroot.t
 xtools/my-check-copyright-years.sh
 xtools/my-check-file-part-of.sh
 xtools/my-check-spelling.sh

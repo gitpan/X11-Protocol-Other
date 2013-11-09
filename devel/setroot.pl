@@ -27,41 +27,81 @@ use Smart::Comments;
 
 
 {
-  my $X = X11::Protocol->new;
   require X11::Protocol::XSetRoot;
-
-  # my $colormap = $X->{'default_colormap'};
-  # my @ret = $X->AllocNamedColor($colormap, 'white');
-  # ### @ret
-
-  my $root = $X->{'root'};
-  my $pixmap = $X->new_rsrc;
-  $X->CreatePixmap ($pixmap,
-                    $root,
-                    $X->{'root_depth'},
-                    2,2);  # width,height
-  my $gc = $X->new_rsrc;
-  $X->CreateGC ($gc, $pixmap, foreground => $X->{'white_pixel'});
-  $X->PolyPoint ($pixmap, $gc, 'Origin', 0,0, 1,1);
-  $X->ChangeGC($gc, foreground => $X->{'black_pixel'});
-  $X->PolyPoint ($pixmap, $gc, 'Origin', 0,1, 1,0);
-  X11::Protocol::XSetRoot->set_background
-      (X      => $X,
-       pixmap => $pixmap);
+  {
+    X11::Protocol::XSetRoot->set_background
+        (
+         # root => 0xC00003,
+          color => '#F0FF00FFF0FF',
+         # color => sprintf('#%06X', rand(0x1000000)),
+         # pixel => 0xFFFFFF,
+         # pixel => 0xFF0000,
+         # allocated_pixels => 1,
+         # pixmap => 0,
+         use_esetroot => 1,
+        );
+    # now don't use $X11_protocol_object connection any more
+  }
+  {
+    my $X = X11::Protocol->new;
+    my %attr = $X->GetWindowAttributes($X->root);
+    ### %attr
+  }
   exit 0;
 }
 {
   require X11::Protocol::XSetRoot;
-  X11::Protocol::XSetRoot->set_background
-      (
-       root => 0xC00003,
-      color => '#F0FF00FFF0FF',
-       # pixel => 0xFFFFFF,
-       # pixel => 0xFF0000,
-       # allocated_pixels => 1,
-       # pixmap => 0,
-      );
-  # now don't use $X11_protocol_object connection any more
+  {
+    my $X = X11::Protocol->new;
+
+    # my $colormap = $X->{'default_colormap'};
+    # my @ret = $X->AllocNamedColor($colormap, 'white');
+    # ### @ret
+
+    my $width = 100;
+    my $height = 100;
+    my $pixmap = $X->new_rsrc;
+    $X->CreatePixmap ($pixmap,
+                      $X->{'root'},
+                      $X->{'root_depth'},
+                      $width,$height);
+    ### pixmap: sprintf '%#X', $pixmap
+    my $white_pixel = $X->{'white_pixel'};
+    my $black_pixel = $X->{'black_pixel'};
+    ### $white_pixel;
+    ### $black_pixel
+    my $gc = $X->new_rsrc;
+    $X->CreateGC ($gc, $pixmap, foreground => $white_pixel);
+    $X->PolyFillRectangle ($pixmap, $gc, [0,0, $width,$height]);
+    $X->ChangeGC($gc, foreground => $black_pixel);
+    my $width_half = int($width *.3);
+    my $height_half = int($height *.3);
+    $X->PolyFillRectangle ($pixmap, $gc, [0,0, $width_half,$height_half]);
+    $X->PolyFillRectangle ($pixmap, $gc,
+                           [$width_half,$height_half,
+                            $width-$width_half,$height-$height_half]);
+    $X->FreeGC($gc);
+    X11::Protocol::XSetRoot->set_background
+        (X      => $X,
+         pixmap => $pixmap,
+         use_esetroot => 1);
+  }
+  {
+    my $X = X11::Protocol->new;
+    my ($value, $type, $format, $bytes_after)
+      = $X->GetProperty($X->root,
+                        $X->atom('_XROOTPMAP_ID'),
+                        0,  # AnyPropertyType
+                        0,  # offset
+                        1,  # length
+                        0); # delete
+    if ($type == X11::AtomConstants::PIXMAP() && $format == 32) {
+      my $pixmap = unpack 'L', $value;
+      ### _XROOTPMAP_ID: sprintf '%#X', $pixmap
+      my %geom = $X->GetGeometry($pixmap);
+      ### %geom
+    }
+  }
   exit 0;
 }
 {

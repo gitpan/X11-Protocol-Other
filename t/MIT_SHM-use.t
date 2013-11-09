@@ -28,7 +28,7 @@ ok (1, 1, 'X11::Protocol::Ext::MIT_SHM load as first thing');
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 27;
+my $want_version = 28;
 ok ($X11::Protocol::Ext::MIT_SHM::VERSION,
     $want_version,
     'VERSION variable');

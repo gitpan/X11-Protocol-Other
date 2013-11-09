@@ -21,7 +21,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 27;
+$VERSION = 28;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -42,9 +42,10 @@ use Exporter;
 sub window_size {
   my ($X, $window) = @_;
   ### Other window_size(): "$X $window"
-  my $screen;
-  if ($screen = root_to_screen_info($X,$window)) {
-    return ($screen->{'width_in_pixels'}, $screen->{'height_in_pixels'});
+  my $screen_info;
+  if ($screen_info = root_to_screen_info($X,$window)) {
+    return ($screen_info->{'width_in_pixels'},
+            $screen_info->{'height_in_pixels'});
   }
   my %geom = $X->GetGeometry ($window);
   return ($geom{'width'}, $geom{'height'});
@@ -52,9 +53,9 @@ sub window_size {
 sub window_visual {
   my ($X, $window) = @_;
   ### Other window_visual(): "$X $window"
-  my $screen;
-  if ($screen = root_to_screen_info($X,$window)) {
-    return $screen->{'root_visual'};
+  my $screen_info;
+  if ($screen_info = root_to_screen_info($X,$window)) {
+    return $screen_info->{'root_visual'};
   }
   my %attr = $X->GetWindowAttributes ($window);
   return $attr{'visual'};
@@ -253,7 +254,8 @@ Return the size or visual ID of a given window.
 
 C<$window> is an integer XID on C<$X>.  If it's one of the root windows then
 the return values are from the screen info hash in C<$X>, otherwise the
-server is queried with C<GetGeometry> or C<GetWindowAttributes>.
+server is queried with C<GetGeometry()> (for the size) or
+C<GetWindowAttributes()> (for the visual).
 
 These functions are handy when there's a good chance C<$window> might be a
 root window and therefore not need a server round trip.

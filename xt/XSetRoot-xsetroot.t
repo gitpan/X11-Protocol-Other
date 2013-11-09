@@ -18,13 +18,16 @@
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
 
-# Exercise the inter-operation with Esetroot.  The properties it sets should
+# Exercise the inter-operation with xsetroot.  The properties it sets should
 # be deleted by X11::Protocol::XSetRoot->set_background().
 #
-# imlib_render_pixmaps_for_whole_image_at_size
-# xvfb-run -a -s '-cc 33' Esetroot /usr/share/doc/imagemagick/images/black.png
-# xvfb-run -a -s '-cc 33' debian/build/utils/Esetroot /usr/share/doc/imagemagick/images/black.png
-
+# This test requires that the root visual is dynamic, ie. PseudoColor etc.
+# The x.org Xvfb test server can be run up with that by
+#
+#   xvfb-run -a -s '-cc 33' perl XSetRoot-xsetroot.t
+#
+# If that doesn't seem to work then check its operation with
+# xvfb-run -a -s '-cc 33' xdpyinfo
 
 BEGIN { require 5 }
 use strict;
@@ -35,11 +38,15 @@ use lib "$FindBin::Bin/../t";
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
+use X11::Protocol::Other;
+use X11::Protocol::XSetRoot;
+
+
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
 
-my $test_count = (tests => 9)[1];
+my $test_count = (tests => 5)[1];
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -65,35 +72,43 @@ if (! eval { $X = X11::Protocol->new ($display); }) {
 }
 $X->QueryPointer($X->{'root'});  # sync
 
+my $visual = $X->{'root_visual'};
+my $visual_is_dynamic = X11::Protocol::Other::visual_is_dynamic($X,$visual);
+if (! $visual_is_dynamic) {
+  MyTestHelpers::diag ("root_visual $visual is not dynamic, xsetroot won't RetainPermanent");
+  foreach (1 .. $test_count) {
+    skip ('root visual not dynamic', 1, 1);
+  }
+  exit 0;
+}
+MyTestHelpers::diag ('root visual is dynamic');
+
 # Something fishy with xvfb test server seems to cause the reconnect below
 # to fail.  Keeping a second connection makes it better, dunno why.
 my $keepalive_X = X11::Protocol->new ($display);
 
-my $Esetroot_output = `Esetroot 2>&1`;
-my $have_Esetroot = ($? == 0);
-if (! $have_Esetroot) {
-  MyTestHelpers::diag ("Esetroot error:\n", $Esetroot_output);
+my $xsetroot_output = `xsetroot 2>&1`;
+my $have_xsetroot = ($? == 0);
+if (! $have_xsetroot) {
+  MyTestHelpers::diag ("xsetroot error:\n", $xsetroot_output);
   foreach (1 .. $test_count) {
-    skip ('Esetroot program not available', 1, 1);
+    skip ('xsetroot program not available', 1, 1);
   }
   exit 0;
 }
-MyTestHelpers::diag ('Esetroot available');
+MyTestHelpers::diag ('xsetroot available');
 
-
-require X11::Protocol::XSetRoot;
 
 #------------------------------------------------------------------------------
 # set_background()
 
-# system ('Esetroot /usr/share/Eterm/pix/help.png');
-system ('Esetroot /usr/share/doc/imagemagick/images/black.png');
+system ('xsetroot -solid pink');
 
 # Properties are set.
 my $xrootpmap;
 {
   my ($value, $type, $format, $bytes_after)
-    = $X->GetProperty ($X->root, $X->atom('_XROOTPMAP_ID'),
+    = $X->GetProperty ($X->root, $X->atom('_XSETROOT_ID'),
                        0,    # AnyPropertyType
                        0,    # offset
                        1,    # length
@@ -104,16 +119,6 @@ my $xrootpmap;
     $xrootpmap = unpack 'L', $value;
   }
 }
-{
-  my ($value, $type, $format, $bytes_after)
-    = $X->GetProperty ($X->root, $X->atom('ESETROOT_PMAP_ID'),
-                       0,    # AnyPropertyType
-                       0,    # offset
-                       1,    # length
-                       0);   # delete;
-  ok ($type, X11::AtomConstants::PIXMAP());
-  ok ($format, 32);
-}
 
 X11::Protocol::XSetRoot->set_background
   (display => $display,
@@ -122,17 +127,7 @@ X11::Protocol::XSetRoot->set_background
 # Properties should be deleted by set_background().
 {
   my ($value, $type, $format, $bytes_after)
-    = $X->GetProperty ($X->root, $X->atom('_XROOTPMAP_ID'),
-                       0,    # AnyPropertyType
-                       0,    # offset
-                       1,    # length
-                       0);   # delete;
-  ok ($type, 0);
-  ok ($format, 0);
-}
-{
-  my ($value, $type, $format, $bytes_after)
-    = $X->GetProperty ($X->root, $X->atom('ESETROOT_PMAP_ID'),
+    = $X->GetProperty ($X->root, $X->atom('_XSETROOT_ID'),
                        0,    # AnyPropertyType
                        0,    # offset
                        1,    # length
@@ -164,7 +159,7 @@ X11::Protocol::XSetRoot->set_background
   }
   skip ($skip,
         $xrootpmap_now_exists, 0,
-        '_XROOTPMAP_ID pixmap should now not exist (due to KillClient)');
+        '_XSETROOT_ID pixmap should now not exist (due to KillClient)');
 }
 
 #------------------------------------------------------------------------------
