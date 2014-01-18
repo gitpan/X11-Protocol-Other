@@ -1,4 +1,4 @@
-# Copyright 2011, 2012, 2013 Kevin Ryde
+# Copyright 2011, 2012, 2013, 2014 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -22,7 +22,7 @@ use strict;
 use Carp;
 
 use vars '$VERSION', '@CARP_NOT';
-$VERSION = 28;
+$VERSION = 29;
 @CARP_NOT = ('X11::Protocol');
 
 # uncomment this to run the ### lines
@@ -900,11 +900,13 @@ automatically undone.
 
 =over
 
+=item C<$X-E<gt>XFixesCreatePointerBarrier ($barrier, $drawable, $x1,$y1, $x2,$y2, $directions)>
+
 =item C<$X-E<gt>XFixesCreatePointerBarrier ($barrier, $drawable, $x1,$y1, $x2,$y2, $directions, $deviceid...)>
 
 Create C<$barrier> (a new XID) as a barrier object which prevents user mouse
-pointer movement across a line between C<$x1,$y1> and C<$x2,$y2>.  For
-example
+pointer movement across a line between points C<$x1,$y1> and C<$x2,$y2>.
+For example
 
     my $barrier = $X->new_rsrc;
     $X->XFixesCreatePointerBarrier ($barrier, $X->root,
@@ -925,21 +927,21 @@ allowed.
     NegativeX    4
     NegativeY    8
 
-For example on a horizontal line 8 would allow the pointer to move through
-the line in the negative Y direction (up the screen), and movement in the
-positive Y direction (down the screen) would still be forbidden.
+For example on a horizontal line, value 8 would allow the pointer to move
+through the line in the negative Y direction (up the screen), and movement
+in the positive Y direction (down the screen) would still be forbidden.
 
 C<$directions> can let the user move the mouse out of some sort of forbidden
 region but not go back in.
 
 Optional C<$deviceid> arguments are X Input Extension 2.0 devices the
-barrier should apply to (see L<X11::Protocol::Ext::XInputExtension>).  Give
-no arguments to act on just the core protocol mouse pointer.  Each argument
-can be
+barrier should apply to (see L<X11::Protocol::Ext::XInputExtension>).  With
+no arguments the barrier is just for the core protocol mouse pointer.  Each
+argument can be
 
-    device ID            (integer)
-    "AllDevices"         (string, 0)
-    "AllMasterDevices"   (string, 1)
+    device ID                integer
+    "AllDevices"             enum string, 0
+    "AllMasterDevices"       enum string, 1
 
 It's not necessary to C<$X-E<gt>init_extension('XInputExtension')> before
 using this request.
@@ -949,13 +951,18 @@ putting lines together a region can be constructed keeping the pointer
 inside or outside, or even making a maze to trick the user!
 
 Touchscreen pad input is not affected by barriers, and
-C<$X-E<gt>WarpPointer> can still move the pointer anywhere.
+C<$X-E<gt>WarpPointer()> can still move the pointer anywhere.
 
 One intended use is when a Xinerama screen (see
 L<X11::Protocol::Ext::XINERAMA>) is made from monitors of different pixel
 sizes so parts of the logical screen extent are off the edge of one of the
 smaller monitors.  Barriers can prevent the user losing the mouse in one of
 those dead regions.
+
+For reference, some X.org server versions prior to some time around version
+1.14 did not accept C<$deviceid> arguments in the request and gave a
+C<Length> error on attempting to pass them.  Those servers might have given
+an C<Implementation> error anyway (for barrier feature not yet implemented).
 
 =item C<$X-E<gt>XFixesDestroyPointerBarrier ($barrier)>
 
@@ -1041,7 +1048,7 @@ L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012, 2013 Kevin Ryde
+Copyright 2011, 2012, 2013, 2014 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

@@ -4,9 +4,9 @@
       "Kevin Ryde <user42@zip.com.au>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "ExtUtils::MakeMaker version 6.66, CPAN::Meta::Converter version 2.132830",
+   "generated_by" : "ExtUtils::MakeMaker version 6.66, CPAN::Meta::Converter version 2.133380",
    "license" : [
-      "open_source"
+      "gpl_3"
    ],
    "meta-spec" : {
       "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
@@ -72,5 +72,5 @@
          "http://www.gnu.org/licenses/gpl.html"
       ]
    },
-   "version" : "28"
+   "version" : "29"
 }

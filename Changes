@@ -1,4 +1,4 @@
-Copyright 2011, 2012, 2013 Kevin Ryde
+Copyright 2011, 2012, 2013, 2014 Kevin Ryde
 
 This file is part of X11-Protocol-Other.
 
@@ -16,6 +16,13 @@ You can get a copy of the GNU General Public License online at
 <http://www.gnu.org/licenses/>.
 
 
+
+Version 29, January 2014
+    - Tests WM.t don't test iconify() since various window managers by
+      design don't have IconicState; don't test withdraw() since a few
+      window managers seem a bit doubtful on that; XFIXES-5.t allow
+      for past X.org server XFixesCreatePointerBarrier() not accepting
+      device args.  As reported by Dima Kogan RT#92183.
 
 Version 28, November 2013
     - X11::Protocol::XSetRoot new use_esetroot option

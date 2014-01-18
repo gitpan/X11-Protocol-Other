@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2014 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -44,26 +44,28 @@ use Smart::Comments;
   #   ### @xinput_version
   # }
 
-  { my @xinput_selected = $X->XInputExtensionGetSelectedEvents ($X->root);
-    ### @xinput_selected
-  }
-  { my @xinput_version = $X->XInputExtensionQueryVersion (99,99);
-    ### @xinput_version
-  }
+  # { my @xinput_selected = $X->XInputExtensionGetSelectedEvents ($X->root);
+  #   ### @xinput_selected
+  # }
+  # { my @xinput_version = $X->XInputExtensionQueryVersion (99,99);
+  #   ### @xinput_version
+  # }
   # { my @xinput_query = $X->XInputExtensionQueryDevice (0);
   #   ### @xinput_query
   # }
 
   {
+    print "XFixesCreatePointerBarrier()\n";
     my $barrier = $X->new_rsrc;
     $X->XFixesCreatePointerBarrier ($barrier, $X->root, 100,100, 200,100,
                                     0,
-                                     'AllDevices',
+                                    # 'AllDevices',
                                     # 'AllMasterDevices',
                                     # 2,
                                    );
     $X->QueryPointer($X->root); # sync
 
+    print "XFixesDestroyPointerBarrier()\n";
     $X->XFixesDestroyPointerBarrier ($barrier);
     $X->QueryPointer($X->root); # sync
   }

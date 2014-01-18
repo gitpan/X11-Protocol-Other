@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011, 2012, 2013 Kevin Ryde
+# Copyright 2011, 2012, 2013, 2014 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -24,6 +24,13 @@ use X11::Protocol::WM;
 
 # uncomment this to run the ### lines
 use Smart::Comments;
+
+{
+  my $X = X11::Protocol->new ($ENV{DISPLAY} || ':0');
+  $X->MapWindow($ARGV[0] || $ENV{WINDOWID});
+  $X->QueryPointer($X->root); # sync
+  exit 0;
+}
 
 {
   # apply _NET_WM_STATE change

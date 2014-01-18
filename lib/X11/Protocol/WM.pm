@@ -1,4 +1,4 @@
-# Copyright 2011, 2012, 2013 Kevin Ryde
+# Copyright 2011, 2012, 2013, 2014 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -33,7 +33,7 @@ use Carp;
 use X11::AtomConstants;
 
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
-$VERSION = 28;
+$VERSION = 29;
 
 use Exporter;
 @ISA = ('Exporter');
@@ -1773,14 +1773,14 @@ The window manager maintains a state for each client window it manages,
     NormalState
     IconicState
 
-Withdrawn means the window is not mapped and the window manager is not
-managing it.  A Newly created window (C<$X-E<gt>CreateWindow()>) is
-initially withdrawn state and on first C<$X-E<gt>MapWindow()> goes to normal
-state (or to iconic state if that's the initial state asked for in
-C<WM_HINTS>).
+C<WithdrawnState> means the window is not mapped and the window manager is
+not managing it.  A newly created window (C<$X-E<gt>CreateWindow()>) is
+initially C<WithdrawnState> and on first C<$X-E<gt>MapWindow()> goes to
+C<NormalState> (or to C<IconicState> if that's the initial state asked for
+in C<WM_HINTS>).
 
 C<iconify()> and C<withdraw()> below can change the state to iconic or
-withdrawn.  A window can be restored from iconic to normal state by a
+withdrawn.  A window can be restored from iconic to normal by a
 C<MapWindow()>.
 
 =over
@@ -1830,8 +1830,11 @@ the server.
 =item C<X11::Protocol::WM::iconify ($X, $window, $root)>
 
 Change C<$window> to "IconicState" by sending a C<ClientMessage> to the
-window manager.  If there's no window manager running then iconification is
-not possible and this message does nothing.
+window manager.
+
+If the window manager does not have any iconification then it might do
+nothing (eg. some tiling window managers).  If there's no window manager
+running then iconification is not possible and this message will do nothing.
 
 C<$root> should be the root window of C<$window>.  If not given or C<undef>
 then it's obtained from a C<QueryTree()>.  Any client can iconify any top
@@ -2116,7 +2119,7 @@ maintained is roughly
 
      top
     +-----------------------------+
-    |  _NET_WM_WINDOW_TYPE_DOCK   |   "DOCK" panels etc on top,
+    |  _NET_WM_WINDOW_TYPE_DOCK   |   "DOCK" panels (etc) on top,
     +-----------------------------+   except perhaps FULLSCREEN
     |     _NET_WM_STATE_ABOVE     |   windows above those panels
     +-----------------------------+   when focused
@@ -2386,7 +2389,7 @@ L<http://user42.tuxfamily.org/x11-protocol-other/index.html>
 
 =head1 LICENSE
 
-Copyright 2011, 2012, 2013 Kevin Ryde
+Copyright 2011, 2012, 2013, 2014 Kevin Ryde
 
 X11-Protocol-Other is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

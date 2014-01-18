@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011, 2012, 2013 Kevin Ryde
+# Copyright 2011, 2012, 2013, 2014 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -86,7 +86,7 @@ sub to_hex {
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 28;
+my $want_version = 29;
 ok ($X11::Protocol::WM::VERSION,
     $want_version,
     'VERSION variable');
@@ -1141,13 +1141,30 @@ X11::Protocol::WM::set_net_wm_window_type ($X, $window, 'NORMAL');
                    background_pixel => $X->{'white_pixel'},
                    event_mask       => $X->pack_event_mask('PropertyChange'));
   $X->MapWindow($toplevel);
-
   $X->atom_name($X->atom('WM_STATE'));
 
   my $skip;
-  my $wm_state = wait_for_wm_state($X,$toplevel);
-  if (! $wm_state) {
-    $skip = 'due to no window manager running, it seems';
+
+  # The tests hare are all skipped because don't want to rely on window
+  # manager behaviour.  Some wms don't seem to have a proper withdraw, and
+  # several by design don't have an IconicState.
+  #
+  # Window managers without IconicState include: dwm, evilwm, i3, sapphire,
+  # subtle, wmii, xmonad.
+  #
+  # tritium uses python-plwm and python-plwm (as of its cvs circa 2008) may
+  # have some dodginess too in its deiconify() where it leaves WM_STATE
+  # saying IconicState even though it has in fact restored the window to
+  # normal.
+  #
+  $skip = 'due to not rely on window manager behaviour';
+
+  my $wm_state;
+  unless ($skip) {
+    $wm_state = wait_for_wm_state($X,$toplevel);
+    if (! $wm_state) {
+      $skip = 'due to no window manager running, it seems';
+    }
   }
   skip ($skip, $wm_state, 'NormalState');
 
@@ -1161,6 +1178,9 @@ X11::Protocol::WM::set_net_wm_window_type ($X, $window, 'NORMAL');
     unless ($skip) { $wm_state = wait_for_wm_state($X,$toplevel); }
     my $is_withdrawn = (! defined $wm_state || $wm_state eq 'WithdrawnState');
     skip ($skip, $is_withdrawn, 1, 'withdrawn');
+    if (! $is_withdrawn) {
+      MyTestHelpers::diag ("after withdraw() wm_state is: ", $wm_state);
+    }
   }
   {
     $X->MapWindow($toplevel);
@@ -1208,7 +1228,7 @@ sub wait_for_wm_state {
       return $wm_state;
     }
   }
-  return '';
+  return 'timeout waiting for WM_STATE change';
 }
 
 sub wait_for_readable {

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2012 Kevin Ryde
+# Copyright 2012, 2013 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -18,7 +18,10 @@
 # with X11-Protocol-Other.  If not, see <http://www.gnu.org/licenses/>.
 
 use strict;
+use FindBin;
+use X11::AtomConstants;
 use X11::Protocol;
+use X11::Protocol::Other;
 use X11::Protocol::WM;
 
 # uncomment this to run the ### lines
@@ -26,41 +29,105 @@ use Smart::Comments;
 
 
 my $X = X11::Protocol->new;
-my ($root, $root_parent, @toplevels) = $X->QueryTree($X->root);
+my $root = (X11::Protocol::WM::root_to_virtual_root($X,$X->root)
+            || $X->root);
+my $xrootpmap_id;
+{
+  my ($value, $type, $format, $bytes_after)
+    = $X->GetProperty ($root, $X->atom('_XROOTPMAP_ID'),
+                       X11::AtomConstants::PIXMAP(),    # type
+                       0,    # offset
+                       1,    # length
+                       0);   # delete;
+  if ($value) {
+    $xrootpmap_id = unpack 'L', $value;
+  }
+}
 
-my ($focus_window, $focus_revert_to) = $X->GetInputFocus;
+if ($xrootpmap_id) {
+  # by flashing the _XROOTPMAP_ID
+  my ($width, $height) = X11::Protocol::Other::window_size ($X, $root);
 
-my @remap;
-foreach my $frame (@toplevels) {
-  my $window = X11::Protocol::WM::frame_window_to_client($X,$frame) || next;
+  my $error;
+  local $X->{'error_handler'} = sub {
+    my ($X, $data) = @_;
+    $error = 1;
+  };
+  my $window = $X->new_rsrc;
+  $X->CreateWindow ($window,
+                    $root,            # parent
+                    'InputOutput',    # class
+                    0,                # depth, from parent
+                    'CopyFromParent', # visual
+                    0,0,              # x,y
+                    $width,$height,
+                    0,                # border
+                    background_pixmap => $xrootpmap_id,
+                    # background_pixel  => 0x00FFFF,
+                    override_redirect => 1,
+                    # save_under        => 1,
+                    # backing_store     => 'Always',
+                    # bit_gravity       => 'Static',
+                    # event_mask        =>
+                    # $X->pack_event_mask('Exposure',
+                    #                     'ColormapChange',
+                    #                     'VisibilityChange',),
+                   );
+  $X->QueryPointer($root); # sync
+  if ($error) {
+    undef $xrootpmap_id;
+  } else {
+    X11::Protocol::WM::set_wm_name ($X, $window, $FindBin::Script);
+    X11::Protocol::WM::set_wm_hints
+        ($X, $window, input => 0);
+    X11::Protocol::WM::set_net_wm_window_type ($X, $window, 'SPLASH');
+    $X->MapWindow ($window);
+    $X->ClearArea ($window, 0,0,0,0);
+    $X->flush;
+    sleep 1;
+    exit 0;
+  }
+}
 
-  my ($state, $icon_window) = X11::Protocol::WM::get_wm_state($X,$window);
-  if (($state||'') eq 'NormalState') {
-    ### WM_NAME: $X->GetProperty($window, $X->atom('WM_NAME'), $X->atom('STRING'), 0, 999, 0)
+if (! $xrootpmap_id) {
+  # by iconifying everything temporarily
 
-    X11::Protocol::WM::iconify($X, $window, $root);
-    push @remap, $window;
+  my ($root, $root_parent, @toplevels) = $X->QueryTree($X->root);
+
+  my ($focus_window, $focus_revert_to) = $X->GetInputFocus;
+
+  my @remap;
+  foreach my $frame (@toplevels) {
+    my $window = X11::Protocol::WM::frame_window_to_client($X,$frame) || next;
+
+    my ($state, $icon_window) = X11::Protocol::WM::get_wm_state($X,$window);
+    if (($state||'') eq 'NormalState') {
+      ### WM_NAME: $X->GetProperty($window, $X->atom('WM_NAME'), $X->atom('STRING'), 0, 999, 0)
+
+      X11::Protocol::WM::iconify($X, $window, $root);
+      push @remap, $window;
+    }
+
+    # my %attr = $X->GetWindowAttributes ($window);
+    # if ($attr{'map_state'} eq 'Viewable') {
+    #   $X->UnmapWindow ($window);
+    #   push @remap, $window;
+    # }
   }
 
-  # my %attr = $X->GetWindowAttributes ($window);
-  # if ($attr{'map_state'} eq 'Viewable') {
-  #   $X->UnmapWindow ($window);
-  #   push @remap, $window;
-  # }
+  $X->flush;
+  $X->QueryPointer($root); # sync
+  sleep 5;
+
+  ### @remap
+  foreach my $window (@remap) {
+    $X->MapWindow ($window);
+  }
+  $X->flush;
+  $X->QueryPointer($root); # sync
+  sleep 1;
+  $X->SetInputFocus($focus_window, $focus_revert_to, 0);
+
+  $X->QueryPointer($root); # sync
 }
-
-$X->flush;
-$X->QueryPointer($root); # sync
-sleep 5;
-
-### @remap
-foreach my $window (@remap) {
-  $X->MapWindow ($window);
-}
-$X->flush;
-$X->QueryPointer($root); # sync
-sleep 1;
-$X->SetInputFocus($focus_window, $focus_revert_to, 0);
-
-$X->QueryPointer($root); # sync
 exit 0;

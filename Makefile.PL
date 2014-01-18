@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2010, 2011, 2012 Kevin Ryde
+# Copyright 2010, 2011, 2012, 2014 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -33,7 +33,7 @@ WriteMakefile
    ABSTRACT     => 'Miscellaneous helpers for X11::Protocol connections.',
    VERSION_FROM => 'lib/X11/Protocol/Other.pm',
    AUTHOR       => 'Kevin Ryde <user42@zip.com.au>',
-   LICENSE      => 'gpl',
+   LICENSE      => 'gpl_3',
    SIGN         => 1,
    PREREQ_PM    => {
                     'X11::Protocol' => 0,

@@ -28,7 +28,7 @@ ok (1, 1, 'X11::Protocol::Ext::DOUBLE_BUFFER load as first thing');
 #------------------------------------------------------------------------------
 # VERSION
 
-my $want_version = 28;
+my $want_version = 29;
 ok ($X11::Protocol::Ext::DOUBLE_BUFFER::VERSION,
     $want_version,
     'VERSION variable');

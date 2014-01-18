@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011, 2013 Kevin Ryde
+# Copyright 2011, 2013, 2014 Kevin Ryde
 
 # This file is part of X11-Protocol-Other.
 #
@@ -33,7 +33,7 @@ END { MyTestHelpers::diag ("END"); }
 # uncomment this to run the ### lines
 # use Smart::Comments;
 
-my $test_count = (tests => 2)[1];
+my $test_count = (tests => 3)[1];
 plan tests => $test_count;
 
 require X11::Protocol;
@@ -108,17 +108,20 @@ $X->QueryPointer($X->root); # sync
 # XFixesCreatePointerBarrier() / XFixesDestroyPointerBarrier()
 # with XInputExtension style "AllDevices"
 #
-# Saw xvfb 1.11.1.901 server giving "Implementation" (17) error when passing
+# Xvfb 1.11.1.901 server gave "Implementation" (17) error when passing
 # AllDevices.  Ignore that, but still throw a normal error for anything
 # else, like bad length etc.
 #
 # Xorg server circa 1.14.3 doesn't accept AllDevices in
 # XFixesCreatePointerBarrier(), though it's described in the spec.
+#
+# Xorg server somewhere prior to 1.14.5 didn't take any devices args and
+# gave a Length (16) error on passing any.  The checkin accepting those args
+# is
+# http://cgit.freedesktop.org/xorg/xserver/commit/xfixes/cursor.c?id=04c885de715a7c989e48fc8cf2e61db2b401de2d
 
 {
-  ### barrier AllDevices ...
-  my $barrier = $X->new_rsrc;
-
+  my $barrier;
   my $orig_error_handler = $X->{'error_handler'};
   local $X->{'error_handler'} = sub {
     my ($X, $data) = @_;
@@ -127,7 +130,7 @@ $X->QueryPointer($X->root); # sync
 
     my ($type, $seq, $info, $minor_op, $major_op) = unpack 'xCSLSC', $data;
     if ($type == $X->num('Error','Implementation')) {
-      MyTestHelpers::diag ("ignore XFixesCreatePointerBarrier error \"Implementation\" for xinput device \"AllDevices\"");
+      MyTestHelpers::diag ("ignore XFixesCreatePointerBarrier error \"Implementation\"");
       undef $barrier;
 
     } elsif ($type == $X->num('Error','Length')) {
@@ -135,26 +138,58 @@ $X->QueryPointer($X->root); # sync
       goto $orig_error_handler;
 
     } else {
-      # "Device" error from Xorg server 1.14.3
-      # $X->interp() shows as "undef" since XInputExtension not initialized
+      # AllDevices gives "Device" error from Xorg server 1.14.3.
+      # That error is from XInputExtension and since that extension is not
+      # initialized we don't know its error number, and $X->interp() gives
+      # undef for the name.
+      #
       MyTestHelpers::diag ("ignore XFixesCreatePointerBarrier error ", $type,
                            " '", $X->interp('Error',$type), "'");
       undef $barrier;
     }
   };
 
-  $X->XFixesCreatePointerBarrier ($barrier, $X->root, 100,100, 200,100,
-                                  0,  # directions
-                                  'AllDevices');
-  ### sync ...
-  $X->QueryPointer($X->root);
-  ### sync ok ...
-
-  if (defined $barrier) {
-    $X->XFixesDestroyPointerBarrier ($barrier);
+  {
+    $barrier = $X->new_rsrc;
+    $X->XFixesCreatePointerBarrier ($barrier, $X->root, 100,100, 200,100,
+                                    0); # directions
     $X->QueryPointer($X->root); # sync
+
+    if (defined $barrier) {  # if it was successfully created
+      $X->XFixesDestroyPointerBarrier ($barrier);
+      undef $barrier;
+      $X->QueryPointer($X->root); # sync
+    }
+    ok (1,1, 'no devices barrier');
   }
-  ok (1,1, 'AllDevices barrier');
+
+  {
+    my $have_pointer_barrier_devices = 1;
+    if ($X->vendor eq 'The X.Org Foundation' && $X->release_number < 11405000) {
+      $have_pointer_barrier_devices = 0;
+      MyTestHelpers::diag ("X.org server ",$X->release_number," probably doesn't have XFixesCreatePointerBarrier() devices args, skip test");
+    }
+
+    my $skip;
+    if (! $have_pointer_barrier_devices) {
+      $skip = 'due to no devices args to XFixesCreatePointerBarrier()';
+    }
+
+    if ($have_pointer_barrier_devices) {
+      $barrier = $X->new_rsrc;
+      $X->XFixesCreatePointerBarrier ($barrier, $X->root, 100,100, 200,100,
+                                      0,  # directions
+                                      'AllDevices');
+      $X->QueryPointer($X->root);  # sync
+
+      if (defined $barrier) {  # if it was successfully created
+        $X->XFixesDestroyPointerBarrier ($barrier);
+        undef $barrier;
+        $X->QueryPointer($X->root); # sync
+      }
+    }
+    skip ($skip, 1,1, 'AllDevices barrier');
+  }
 }
 
 #------------------------------------------------------------------------------
